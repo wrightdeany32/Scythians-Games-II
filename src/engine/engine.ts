@@ -126,6 +126,15 @@ export function removeFromCircle(g: GameState, npcId: string): void {
   g.player.circle = g.player.circle.filter((id) => id !== npcId);
 }
 
+// ---- the tier ladder ---------------------------------------------------------
+// Move the player to a tier. A plain set (not just a bump) so content can express
+// promotion AND demotion/getting-busted with no further engine change. Re-clamps
+// afterward so any tier-coupled bounds stay honored.
+export function setTier(g: GameState, db: ContentDB, tier: Tier): void {
+  g.tier = tier;
+  clampStats(g.player.stats, heatTuning(db).max);
+}
+
 // ---- the resolver ------------------------------------------------------------
 // Applies all non-roll effects immediately. If the outcome has a roll, returns
 // the resolved roll for the caller to surface (show dice), then continue.
@@ -140,6 +149,7 @@ export function applyOutcome(g: GameState, db: ContentDB, o: Outcome): { roll?: 
   if (o.setRelationship && g.npcs[o.setRelationship.npcId]) {
     g.npcs[o.setRelationship.npcId].relationship = o.setRelationship.value;
   }
+  if (o.setTier) setTier(g, db, o.setTier);
   if (o.introduceNpc && db.npcs && db.npcs[o.introduceNpc]) {
     introduceNpc(g, JSON.parse(JSON.stringify(db.npcs[o.introduceNpc])) as Npc);
   }
@@ -149,9 +159,11 @@ export function applyOutcome(g: GameState, db: ContentDB, o: Outcome): { roll?: 
     }
     assignToCircle(g, o.addToCircle);
   }
+  if (o.removeFromCircle) removeFromCircle(g, o.removeFromCircle);
   if (o.grantItems) for (const it of o.grantItems) if (!g.player.items.includes(it)) g.player.items.push(it);
   if (o.removeItems) g.player.items = g.player.items.filter((it) => !o.removeItems!.includes(it));
   if (o.scheduleEvent) (g.scheduled ||= []).push({ onDay: g.day + o.scheduleEvent.inDays, eventId: o.scheduleEvent.eventId });
+  if (o.cancelScheduled && g.scheduled) g.scheduled = g.scheduled.filter((s) => s.eventId !== o.cancelScheduled);
   if (o.advanceClock) {
     const a = o.advanceClock;
     g.clocks ||= {};
@@ -162,6 +174,7 @@ export function applyOutcome(g: GameState, db: ContentDB, o: Outcome): { roll?: 
       delete g.clocks[a.id];                  // ...and clear the filled clock
     }
   }
+  if (o.clearClock && g.clocks) delete g.clocks[o.clearClock];   // abandon a clock without firing onFull
   if (o.queueEvent) g.queue.push(o.queueEvent);
   if (o.log) g.log.unshift({ text: o.log, tone: o.tone ?? "n" });
 

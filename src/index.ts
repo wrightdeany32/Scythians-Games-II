@@ -13,7 +13,7 @@ import { db } from "./smoke/content";
 import {
   newGame, availableActions, takeAction, continueRoll, drawEvent, resolveChoice,
   choiceAvailable, endDay, serialize, deserialize, generateNpc, simulateGame,
-  assignToCircle,
+  assignToCircle, applyOutcome,
 } from "./engine/engine";
 import type { GameState, ResolvedRoll } from "./engine/types";
 import { dateOf } from "./engine/calendar";
@@ -79,6 +79,26 @@ line(`\n-- season sim: Alpha (70) vs Beta (55), 20 games --`);
 let a = 0, b = 0;
 for (let i = 0; i < 20; i++) (simulateGame(g, db, "team_alpha", "team_beta") === "team_alpha" ? a++ : b++);
 line(`   record: Alpha ${a} - ${b} Beta   (ratings now ${g.teams.team_alpha.rating.toFixed(0)} / ${g.teams.team_beta.rating.toFixed(0)})`);
+
+// -- new Outcome verbs (the engine-growth set Task 2 assumes) --
+// Fired declaratively through applyOutcome, exactly as content will.
+line(`\n-- outcome verbs --`);
+
+applyOutcome(g, db, { setTier: "highschool" });
+line(`   setTier         -> ${g.tier === "highschool" ? "OK" : "FAIL"} (now "${g.tier}")`);
+
+const hadAlly = g.player.circle.includes("npc_contact");
+applyOutcome(g, db, { removeFromCircle: "npc_contact" });
+line(`   removeFromCircle-> ${hadAlly && !g.player.circle.includes("npc_contact") ? "OK" : "FAIL"}`);
+
+applyOutcome(g, db, { advanceClock: { id: "coldcase", by: 1, label: "Cold Case", max: 5, onFull: "ev_payoff" } });
+const qBefore = g.queue.length;
+applyOutcome(g, db, { clearClock: "coldcase" });
+line(`   clearClock      -> ${!g.clocks?.["coldcase"] && g.queue.length === qBefore ? "OK" : "FAIL"} (no onFull fired)`);
+
+applyOutcome(g, db, { scheduleEvent: { eventId: "ev_payoff", inDays: 3 } });
+applyOutcome(g, db, { cancelScheduled: "ev_payoff" });
+line(`   cancelScheduled -> ${!(g.scheduled ?? []).some((s) => s.eventId === "ev_payoff") ? "OK" : "FAIL"}`);
 
 const saved = serialize(g);
 const g2 = deserialize(saved);

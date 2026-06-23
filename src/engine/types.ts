@@ -39,12 +39,16 @@ export interface Outcome {
   removeTraits?: string[];
   setFlags?: Record<string, boolean | number | string>;
   setRelationship?: { npcId: string; value: Relationship };
+  setTier?: Tier;                               // move the player along the tier ladder (promotion — or demotion/getting-busted)
   introduceNpc?: string;                        // db.npcs id — you've met this person (into g.npcs)
   addToCircle?: string;                         // npc id — slot them straight into the Circle
+  removeFromCircle?: string;                    // npc id — drop an ally from the Circle (burned informant, contact walks)
   grantItems?: string[];                        // item ids to give the player (gear, a bus card, a car)
   removeItems?: string[];                       // item ids to take away
   scheduleEvent?: { eventId: string; inDays: number };  // promise an event on a FUTURE day, not the next draw
+  cancelScheduled?: string;                     // event id — drop a pending scheduled beat ("the meeting falls through")
   advanceClock?: { id: string; by: number; label?: string; max?: number; onFull?: string }; // tick a progress clock; created on first touch, queues onFull (an event id) when it fills
+  clearClock?: string;                          // clock id — abandon a clock WITHOUT firing its onFull ("a lead goes cold")
   queueEvent?: string;                          // chain: fire this event next
   roll?: RollSpec;
 }
