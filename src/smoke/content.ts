@@ -14,6 +14,11 @@
 import type { ContentDB } from "../engine/types";
 
 export const db: ContentDB = {
+  // Content now owns the opening line (lifted off the engine). Neutral on purpose.
+  // `tuning` is intentionally omitted: the engine's defaults (heat max 12, cools
+  // 1/day, threshold 6 -> "ev_heat") reproduce the original behavior exactly.
+  openingLog: "A new start.",
+
   questionnaire: {
     questions: [
       {

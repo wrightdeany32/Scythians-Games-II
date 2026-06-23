@@ -14,12 +14,27 @@ import type {
   Condition, GameEvent, LocationAction, Npc, BodyArchetype, Tier,
 } from "./types";
 
+// ---- engine tuning seam ------------------------------------------------------
+// Content overrides these; the engine falls back to the exact values it used to
+// hardcode, so an absent (or partial) tuning block leaves behavior unchanged.
+export const DEFAULT_OPENING_LOG = "A new game begins."; // neutral; content sets its own via db.openingLog
+
+export function heatTuning(db: ContentDB): { max: number; coolPerDay: number; threshold: number; consequenceEvent: string } {
+  const h = db.tuning?.heat;
+  return {
+    max: h?.max ?? 12,
+    coolPerDay: h?.coolPerDay ?? 1,
+    threshold: h?.threshold ?? 6,
+    consequenceEvent: h?.consequenceEvent ?? "ev_heat",
+  };
+}
+
 // ---- stat clamping -----------------------------------------------------------
-export function clampStats(s: Stats): void {
+export function clampStats(s: Stats, heatMax = 12): void {
   s.money = Math.max(0, Math.round(s.money));
   s.skill = Math.max(0, s.skill);
   s.reputation = Math.max(0, s.reputation);
-  s.heat = Math.min(12, Math.max(0, s.heat));
+  s.heat = Math.min(heatMax, Math.max(0, s.heat));
   s.energy = Math.min(s.energyMax, Math.max(0, s.energy));
 }
 
@@ -117,7 +132,7 @@ export function removeFromCircle(g: GameState, npcId: string): void {
 export function applyOutcome(g: GameState, db: ContentDB, o: Outcome): { roll?: ResolvedRoll } {
   if (o.stats) {
     for (const k in o.stats) (g.player.stats as any)[k] += (o.stats as any)[k];
-    clampStats(g.player.stats);
+    clampStats(g.player.stats, heatTuning(db).max);
   }
   if (o.grantTraits) for (const t of o.grantTraits) if (!g.player.traits.includes(t)) g.player.traits.push(t);
   if (o.removeTraits) g.player.traits = g.player.traits.filter((t) => !o.removeTraits!.includes(t));
@@ -243,11 +258,12 @@ export function resolveChoice(g: GameState, db: ContentDB, ev: GameEvent, idx: n
 
 // ---- the day loop ------------------------------------------------------------
 export function endDay(g: GameState, db: ContentDB): void {
+  const heat = heatTuning(db);
   g.day += 1;
   g.player.stats.energy = g.player.stats.energyMax;
-  g.player.stats.heat = Math.max(0, g.player.stats.heat - 1); // heat cools over time
+  g.player.stats.heat = Math.max(0, g.player.stats.heat - heat.coolPerDay); // liability cools over time
   g.log.unshift({ text: `— Day ${g.day}.`, tone: "n" });
-  if (g.player.stats.heat >= 6 && db.events["ev_heat"]) g.queue.push("ev_heat"); // scheduled consequence
+  if (g.player.stats.heat >= heat.threshold && db.events[heat.consequenceEvent]) g.queue.push(heat.consequenceEvent); // scheduled consequence
   // after the date advances, sweep any timed-event promises now due onto the queue
   if (g.scheduled && g.scheduled.length) {
     for (const s of g.scheduled) if (s.onDay <= g.day) g.queue.push(s.eventId);
@@ -280,7 +296,7 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
     if (ai.flag) flags[ai.flag] = true;
   }
   stats.energy = stats.energyMax;
-  clampStats(stats);
+  clampStats(stats, heatTuning(db).max);
 
   return {
     seed: opts.seed,
@@ -299,7 +315,7 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
     teams: JSON.parse(JSON.stringify(db.teams)), // live copy; ratings can drift via Elo
     flags,
     queue: [],
-    log: [{ text: "A new start on the block.", tone: "n" }],
+    log: [{ text: db.openingLog ?? DEFAULT_OPENING_LOG, tone: "n" }],
   };
 }
 

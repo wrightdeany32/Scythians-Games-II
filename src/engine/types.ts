@@ -157,6 +157,20 @@ export interface Questionnaire {
   }[];
 }
 
+// ---- engine tuning (optional; the engine falls back to these exact defaults) ----
+// A SEAM, not a retune: numbers the engine used to hardcode, lifted into content
+// so a reskin can drop in new values, a new liability-meter feel, and a new
+// consequence-event id WITHOUT editing engine code. Omit any field to keep the
+// engine's current default; omit the whole block for behavior identical to before.
+export interface EngineTuning {
+  heat?: {
+    max?: number;              // clamp ceiling for the heat meter (default 12)
+    coolPerDay?: number;       // amount heat drops each endDay (default 1)
+    threshold?: number;        // at/above this, the consequence event is queued (default 6)
+    consequenceEvent?: string; // event id queued when threshold is met (default "ev_heat")
+  };
+}
+
 export interface ContentDB {
   questionnaire: Questionnaire;
   events: Record<string, GameEvent>;
@@ -166,6 +180,8 @@ export interface ContentDB {
   traits: Record<string, Trait>;
   items: Record<string, Item>;
   npcs?: Record<string, Npc>;            // optional authored NPC fixtures — the Circle seed
+  openingLog?: string;                   // first line in the new-game log; engine falls back if absent
+  tuning?: EngineTuning;                 // optional engine-tuning seam; defaults reproduce current behavior
   names: { first: string[]; last: string[]; teamA: string[]; teamB: string[] };
 }
 
