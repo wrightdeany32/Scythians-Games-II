@@ -18,23 +18,25 @@ import type {
 // Content overrides these; the engine falls back to the exact values it used to
 // hardcode, so an absent (or partial) tuning block leaves behavior unchanged.
 export const DEFAULT_OPENING_LOG = "A new game begins."; // neutral; content sets its own via db.openingLog
+export const GRIP_MAX = 10;                              // grip clamps to 0..GRIP_MAX (a plain grounding meter)
 
-export function heatTuning(db: ContentDB): { max: number; coolPerDay: number; threshold: number; consequenceEvent: string } {
-  const h = db.tuning?.heat;
+export function exposureTuning(db: ContentDB): { max: number; coolPerDay: number; threshold: number; consequenceEvent: string } {
+  const e = db.tuning?.exposure;
   return {
-    max: h?.max ?? 12,
-    coolPerDay: h?.coolPerDay ?? 1,
-    threshold: h?.threshold ?? 6,
-    consequenceEvent: h?.consequenceEvent ?? "ev_heat",
+    max: e?.max ?? 12,
+    coolPerDay: e?.coolPerDay ?? 1,
+    threshold: e?.threshold ?? 6,
+    consequenceEvent: e?.consequenceEvent ?? "ev_exposure_discharge",
   };
 }
 
 // ---- stat clamping -----------------------------------------------------------
-export function clampStats(s: Stats, heatMax = 12): void {
+export function clampStats(s: Stats, exposureMax = 12): void {
   s.money = Math.max(0, Math.round(s.money));
-  s.skill = Math.max(0, s.skill);
-  s.reputation = Math.max(0, s.reputation);
-  s.heat = Math.min(heatMax, Math.max(0, s.heat));
+  s.tradecraft = Math.max(0, s.tradecraft);
+  s.standing = Math.max(0, s.standing);
+  s.exposure = Math.min(exposureMax, Math.max(0, s.exposure));
+  s.grip = Math.min(GRIP_MAX, Math.max(0, s.grip)); // plain meter; content moves it, engine only clamps
   s.energy = Math.min(s.energyMax, Math.max(0, s.energy));
 }
 
@@ -132,7 +134,7 @@ export function removeFromCircle(g: GameState, npcId: string): void {
 // afterward so any tier-coupled bounds stay honored.
 export function setTier(g: GameState, db: ContentDB, tier: Tier): void {
   g.tier = tier;
-  clampStats(g.player.stats, heatTuning(db).max);
+  clampStats(g.player.stats, exposureTuning(db).max);
 }
 
 // ---- the resolver ------------------------------------------------------------
@@ -141,7 +143,7 @@ export function setTier(g: GameState, db: ContentDB, tier: Tier): void {
 export function applyOutcome(g: GameState, db: ContentDB, o: Outcome): { roll?: ResolvedRoll } {
   if (o.stats) {
     for (const k in o.stats) (g.player.stats as any)[k] += (o.stats as any)[k];
-    clampStats(g.player.stats, heatTuning(db).max);
+    clampStats(g.player.stats, exposureTuning(db).max);
   }
   if (o.grantTraits) for (const t of o.grantTraits) if (!g.player.traits.includes(t)) g.player.traits.push(t);
   if (o.removeTraits) g.player.traits = g.player.traits.filter((t) => !o.removeTraits!.includes(t));
@@ -226,11 +228,19 @@ function tierMatch(t: Tier | Tier[] | undefined, cur: Tier): boolean {
   return Array.isArray(t) ? t.includes(cur) : t === cur;
 }
 
-export function eligibleEvents(g: GameState, db: ContentDB): GameEvent[] {
+// DECK/SECTOR axis: does this event carry the given deck tag?
+function hasTag(ev: GameEvent, tag: string): boolean {
+  return !!ev.tags && ev.tags.includes(tag);
+}
+
+// Eligible events, optionally SCOPED to a deck (a tag the event must carry).
+// Eligibility is depth (tier) ∧ deck (tags) ∧ requires — the axis-separation model.
+export function eligibleEvents(g: GameState, db: ContentDB, deck?: string): GameEvent[] {
   return Object.values(db.events).filter(
     (ev) =>
       (!ev.once || !g.flags[ev.once]) &&
       tierMatch(ev.tier, g.tier) &&
+      (!deck || hasTag(ev, deck)) &&
       (!ev.condition || evalCondition(ev.condition, g)),
   );
 }
@@ -239,8 +249,27 @@ function fireEvent(g: GameState, ev: GameEvent): void {
   if (ev.once) g.flags[ev.once] = true;
 }
 
-// Queued (chained) events fire first; otherwise a random eligible event with prob p.
-export function drawEvent(g: GameState, db: ContentDB, p: number): GameEvent | undefined {
+// The draw weight of a card. Today this is just `weight` (the rarity knob).
+// SEAM: the deferred tag-match / coordinate bias (backlog §8.1) bolts on HERE —
+// multiply by closeness between the card's tags and the player's lens/position.
+// Kept as a single chokepoint so that layer is a one-function change, not a rewrite.
+function drawWeight(_g: GameState, _db: ContentDB, ev: GameEvent): number {
+  return ev.weight ?? 1;
+}
+
+// Weighted pick over a pool using drawWeight. Returns undefined for an empty pool.
+function weightedPick(g: GameState, db: ContentDB, pool: GameEvent[]): GameEvent | undefined {
+  if (!pool.length) return undefined;
+  const total = pool.reduce((sum, e) => sum + drawWeight(g, db, e), 0);
+  let r = randFloat(g) * total;
+  let ev = pool[pool.length - 1];
+  for (const cand of pool) { r -= drawWeight(g, db, cand); if (r < 0) { ev = cand; break; } }
+  return ev;
+}
+
+// Queued (chained) events fire first; otherwise a random eligible event with prob p,
+// optionally drawn from a single deck (tag). `deck` omitted = draw from all decks.
+export function drawEvent(g: GameState, db: ContentDB, p: number, deck?: string): GameEvent | undefined {
   while (g.queue.length) {
     const id = g.queue.shift()!;
     const ev = db.events[id];
@@ -250,13 +279,8 @@ export function drawEvent(g: GameState, db: ContentDB, p: number): GameEvent | u
     }
   }
   if (!chance(g, p)) return undefined;
-  const pool = eligibleEvents(g, db);
-  if (!pool.length) return undefined;
-  // weighted pick: GameEvent.weight (default 1) lets big story cards be rarer than texture
-  const totalWeight = pool.reduce((sum, e) => sum + (e.weight ?? 1), 0);
-  let r = randFloat(g) * totalWeight;
-  let ev = pool[pool.length - 1];
-  for (const cand of pool) { r -= cand.weight ?? 1; if (r < 0) { ev = cand; break; } }
+  const ev = weightedPick(g, db, eligibleEvents(g, db, deck));
+  if (!ev) return undefined;
   fireEvent(g, ev);
   return ev;
 }
@@ -271,12 +295,12 @@ export function resolveChoice(g: GameState, db: ContentDB, ev: GameEvent, idx: n
 
 // ---- the day loop ------------------------------------------------------------
 export function endDay(g: GameState, db: ContentDB): void {
-  const heat = heatTuning(db);
+  const exp = exposureTuning(db);
   g.day += 1;
   g.player.stats.energy = g.player.stats.energyMax;
-  g.player.stats.heat = Math.max(0, g.player.stats.heat - heat.coolPerDay); // liability cools over time
+  g.player.stats.exposure = Math.max(0, g.player.stats.exposure - exp.coolPerDay); // liability cools (coolPerDay 0 = sticky)
   g.log.unshift({ text: `— Day ${g.day}.`, tone: "n" });
-  if (g.player.stats.heat >= heat.threshold && db.events[heat.consequenceEvent]) g.queue.push(heat.consequenceEvent); // scheduled consequence
+  if (g.player.stats.exposure >= exp.threshold && db.events[exp.consequenceEvent]) g.queue.push(exp.consequenceEvent); // scheduled consequence
   // after the date advances, sweep any timed-event promises now due onto the queue
   if (g.scheduled && g.scheduled.length) {
     for (const s of g.scheduled) if (s.onDay <= g.day) g.queue.push(s.eventId);
@@ -290,26 +314,37 @@ export interface NewGameOpts {
   name: string;
   age: number;
   body: BodyArchetype;
-  answers: number[]; // chosen answer index per questionnaire question
+  answers?: number[];      // chosen answer index per questionnaire question (omit if creation is played cards)
   townId: string;
   tier: Tier;
+  openingQueue?: string[]; // overrides db.openingQueue for this game (scripted cold-open, in order)
 }
 
 export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
-  const q = db.questionnaire;
-  const a0 = q.questions[0].answers[opts.answers[0]];
-  const stats: Stats = { money: 0, energy: 0, energyMax: 3, skill: 0, reputation: 0, heat: 0, ...(a0.base || {}) };
-  const archetype = a0.archetype || "Player";
+  // grip starts fully grounded (GRIP_MAX); content/creation lowers it from there.
+  const stats: Stats = { money: 0, energy: 0, energyMax: 3, tradecraft: 0, standing: 0, exposure: 0, grip: GRIP_MAX };
   const flags: Record<string, boolean | number | string> = {};
-  if (a0.flag) flags[a0.flag] = true;
+  let archetype = "Player";
 
-  for (let i = 1; i < q.questions.length; i++) {
-    const ai = q.questions[i].answers[opts.answers[i]];
-    if (ai.patch) for (const k in ai.patch) (stats as any)[k] += (ai.patch as any)[k];
-    if (ai.flag) flags[ai.flag] = true;
+  // Questionnaire is OPTIONAL now (creation can be played cards). Apply it only if present.
+  const q = db.questionnaire;
+  const answers = opts.answers ?? [];
+  if (q && q.questions.length) {
+    const a0 = q.questions[0].answers[answers[0] ?? 0];
+    if (a0) {
+      if (a0.base) Object.assign(stats, a0.base);
+      if (a0.archetype) archetype = a0.archetype;
+      if (a0.flag) flags[a0.flag] = true;
+    }
+    for (let i = 1; i < q.questions.length; i++) {
+      const ai = q.questions[i].answers[answers[i] ?? 0];
+      if (!ai) continue;
+      if (ai.patch) for (const k in ai.patch) (stats as any)[k] += (ai.patch as any)[k];
+      if (ai.flag) flags[ai.flag] = true;
+    }
   }
   stats.energy = stats.energyMax;
-  clampStats(stats, heatTuning(db).max);
+  clampStats(stats, exposureTuning(db).max);
 
   return {
     seed: opts.seed,
@@ -327,7 +362,7 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
     clocks: {},
     teams: JSON.parse(JSON.stringify(db.teams)), // live copy; ratings can drift via Elo
     flags,
-    queue: [],
+    queue: [...(opts.openingQueue ?? db.openingQueue ?? [])], // seed the scripted cold-open, in order
     log: [{ text: db.openingLog ?? DEFAULT_OPENING_LOG, tone: "n" }],
   };
 }

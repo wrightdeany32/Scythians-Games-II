@@ -4,19 +4,19 @@
 // is plain data and GameState serializes to JSON with no special handling.
 // ============================================================================
 
-export type StatKey = "money" | "energy" | "skill" | "reputation" | "heat";
-// Phase additions later: "fame" | "longevity" | "breaks" (legible luck)
+export type StatKey = "money" | "energy" | "tradecraft" | "standing" | "exposure" | "grip";
 
 export interface Stats {
   money: number;
   energy: number;
   energyMax: number;
-  skill: number;       // overarching; sub-skills (shooting/defense/...) added later
-  reputation: number;
-  heat: number;        // a liability — kept LOW
+  tradecraft: number;  // physical/craft competence (was skill)
+  standing: number;    // social capital (was reputation)
+  exposure: number;    // liability meter — sticky; cools + threshold-fires via tuning (was heat)
+  grip: number;        // grounding meter, 0..GRIP_MAX; content moves it, no engine auto-logic
 }
 
-export type Tier = "street" | "highschool" | "juco" | "college" | "semipro" | "pro";
+export type Tier = "outer" | "fringe" | "deep" | "inner" | "core";  // radial depth rings (rim -> center)
 export type Relationship = "ally" | "rival" | "neutral";
 
 // ---- declarative conditions (gate events, choices, actions) ----
@@ -134,7 +134,8 @@ export interface Town {
 
 export interface GameEvent {
   id: string;
-  tier?: Tier | Tier[];  // which deck(s); omit = any tier
+  tier?: Tier | Tier[];  // DEPTH axis: which ring(s) this is eligible in; omit = any ring
+  tags?: string[];       // DECK/SECTOR axis: deck membership; the draw can be SCOPED to a tag (a "deck"). A card may carry several (edge cards)
   once?: string;         // a flag set when this fires (one-time events)
   condition?: Condition;
   weight?: number;       // relative weight for the random draw (default 1; <1 = rarer)
@@ -167,16 +168,16 @@ export interface Questionnaire {
 // consequence-event id WITHOUT editing engine code. Omit any field to keep the
 // engine's current default; omit the whole block for behavior identical to before.
 export interface EngineTuning {
-  heat?: {
-    max?: number;              // clamp ceiling for the heat meter (default 12)
-    coolPerDay?: number;       // amount heat drops each endDay (default 1)
+  exposure?: {
+    max?: number;              // clamp ceiling for the exposure meter (default 12)
+    coolPerDay?: number;       // amount exposure drops each endDay (default 1; set 0 for a STICKY meter)
     threshold?: number;        // at/above this, the consequence event is queued (default 6)
-    consequenceEvent?: string; // event id queued when threshold is met (default "ev_heat")
+    consequenceEvent?: string; // event id queued when threshold is met (default "ev_exposure_discharge")
   };
 }
 
 export interface ContentDB {
-  questionnaire: Questionnaire;
+  questionnaire?: Questionnaire;         // OPTIONAL — creation can be played cards instead; newGame must not require it
   events: Record<string, GameEvent>;
   actions: LocationAction[];
   towns: Record<string, Town>;
@@ -185,6 +186,7 @@ export interface ContentDB {
   items: Record<string, Item>;
   npcs?: Record<string, Npc>;            // optional authored NPC fixtures — the Circle seed
   openingLog?: string;                   // first line in the new-game log; engine falls back if absent
+  openingQueue?: string[];               // event ids seeded into g.queue at new-game (scripted cold-open, in order)
   tuning?: EngineTuning;                 // optional engine-tuning seam; defaults reproduce current behavior
   names: { first: string[]; last: string[]; teamA: string[]; teamB: string[] };
 }
@@ -207,8 +209,8 @@ export interface GameState {
 }
 
 // A progress clock: fills as choices advance it; when value >= max its onFull
-// event id is queued and the clock is cleared. A NEW primitive alongside heat
-// (heat stays exactly as it is — not refactored into a clock).
+// event id is queued and the clock is cleared. A primitive alongside exposure
+// (the exposure meter is not refactored into a clock).
 export interface Clock { label: string; value: number; max: number; onFull?: string }
 
 // A promise of an event on a future absolute day; endDay sweeps due ones to the queue.
