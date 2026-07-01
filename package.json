@@ -6,6 +6,7 @@
   "description": "A theme-agnostic RPG/card/dice engine, forked clean from Hoop World. Engine plumbing + a neutral smoke test only — game content is authored later from a design spec.",
   "scripts": {
     "demo": "tsx src/index.ts",
+    "playtest:cave": "tsx src/content/cave.playtest.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
