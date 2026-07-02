@@ -28,13 +28,13 @@ export const caveItems: Record<string, Item> = {
 export const caveEntryAction: LocationAction = {
   id: "ux_act_cave_reese",
   name: "Go caving with Reese",
-  sub: "He's been texting about a system off the old fire road.",
+  sub: "He's been texting about the White's Hall Cave System, off the old fire road.",
   cost: 3,                                          // commits the whole day (energy 3/day)
   requires: { kind: "noflag", flag: "cave_done" },  // the slice is one trip; the action retires after
   outcome: {
     log: "You load the pack and meet Reese at the fire road.",
     tone: "n",
-    setFlags: { met_reese: true },                  // unlocks Aunt Marie's reaction dialogue (access note)
+    setFlags: { thread_reese: true },               // engages Reese's thread; Aunt Marie unlocks on any of thread_doug/reese/nora
     grantItems: ["cave_gear"],
     queueEvent: "ux_cave_enter",
   },
@@ -175,7 +175,9 @@ Someone made these. Carefully. In a place with no way in that a person has ever 
       { label: `"It looks like something out of a church. Old. The kind of old that means something."`, outcome: { log: "You read it as something sacred.", tone: "n", setFlags: { cave_etchings_seen: true, etchings_read_spiritual: true }, queueEvent: "ux_cave_return" } },
       { label: `"Where have I seen this before?"`, outcome: { log: "The question won't let go.", tone: "n", setFlags: { cave_etchings_seen: true }, queueEvent: "ux_cave_return" } },
       // The visible-but-illegible seed: greyed while grip is high, reachable only frayed.
-      { label: "▓▓▓▓▓▓▓▓", requires: { kind: "stat", stat: "grip", op: "<=", value: 3 }, outcome: { log: "For a moment the scratches almost resolve.", tone: "b", setFlags: { cave_etchings_seen: true, cave_read_illegible: true }, queueEvent: "ux_cave_return" } },
+      // showWhenLocked keeps it VISIBLE (greyed) on the first cave — grip never drops to 3 in
+      // one trip, so it's always locked here; that's the seed. Its payoff is the return trip.
+      { label: "▓▓▓▓▓▓▓▓", requires: { kind: "stat", stat: "grip", op: "<=", value: 3 }, showWhenLocked: true, outcome: { log: "For a moment the scratches almost resolve.", tone: "b", setFlags: { cave_etchings_seen: true, cave_read_illegible: true }, queueEvent: "ux_cave_return" } },
     ],
   },
 

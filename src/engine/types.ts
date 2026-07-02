@@ -145,7 +145,9 @@ export interface GameEvent {
 }
 export interface Choice {
   label: string;
-  requires?: Condition;  // disables/hides the choice if false
+  requires?: Condition;       // gates the choice; false = unavailable (choiceAvailable returns false)
+  showWhenLocked?: boolean;   // UI HINT ONLY (engine ignores this): when `requires` fails, render greyed-but-VISIBLE
+                              // instead of hidden — the deliberate "seed" case (e.g. the illegible option). Default: hide.
   outcome: Outcome;
 }
 
