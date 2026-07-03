@@ -28,7 +28,8 @@ export type Condition =
   | { kind: "tier"; tier: Tier }
   | { kind: "all"; of: Condition[] }
   | { kind: "any"; of: Condition[] }
-  | { kind: "not"; of: Condition };
+  | { kind: "not"; of: Condition }
+  | { kind: "count"; of: Condition[]; op: ">=" | "<=" | ">" | "<" | "=="; value: number }; // how many of `of` currently hold, compared to value
 
 // ---- declarative effects ----
 export interface Outcome {
@@ -69,7 +70,7 @@ export interface Modifier {
   label: string;
   stats?: Partial<Record<StatKey, number>>;       // persistent additive bonuses
   rollMods?: { tag: string; amount: number }[];   // bonus to rolls; tag "*" = all
-  eventTags?: string[];                            // advanced: enable gated events
+  eventTags?: string[];                            // RESERVED (not yet consumed by the engine): the psychic-trait-unlocks-cards mechanic — a trait/item whose tags make certain gated events eligible
 }
 export interface Trait extends Modifier { source: "trait"; }
 export interface Item extends Modifier { source: "item"; slot?: string; }
