@@ -13,7 +13,7 @@ import { renderTranscript, transcriptFilename } from "./transcript";
 import { DEBRIEF_QUESTIONS, FRAMING_SCRIPT, LOCKED_NON_ANSWER, SINGLE_NUDGE } from "./scripts";
 import type { PresentationRecord, StreamRecord } from "./recorder";
 
-const BUILD_TAG = "cave-b2";
+const BUILD_TAG = "cave-b3"; // b3: Loom's echo audit applied (leaked intent-notes fixed); frozen for Batch A
 const SEED = 70499;
 
 // A fixed route by card id (single-option cards default to 0). This deep route

@@ -39,6 +39,11 @@ function renderStep(recs: StreamRecord[]): string {
     out.push(pres.prose + "\n");
     if (pres.options.length) {
       out.push("Options:");
+      // Lock STYLE is provenance, not decoration (Vigil, ratified). The label the author
+      // wrote carries the grammar: structural locks read as greyed readable labels;
+      // grip-illegible options are ▓▓ blocks (you can't read what they'd say); inserted
+      // options (far future) get a distinct silhouette/? costume. The renderer only marks
+      // availability — it never restyles the label, so the three provenances never blur.
       for (const o of pres.options) {
         out.push(`${o.index + 1}. ${o.label}${o.available ? "" : "  *(unavailable)*"}`);
       }

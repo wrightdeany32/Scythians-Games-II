@@ -20,7 +20,7 @@ import {
   LOCKED_OPTION_REFUSAL, DEBRIEF_QUESTIONS,
 } from "./scripts";
 
-const BUILD_TAG = "cave-b2";
+const BUILD_TAG = "cave-b3"; // frozen for Batch A
 
 // A line reader that queues input lines as they arrive (TTY or pipe) and serves
 // them to ask() on demand. After EOF, ask() resolves to "" rather than hanging.
@@ -72,6 +72,11 @@ async function main() {
   say("\nFor each screen: type the reader's think-aloud, then the choice number.");
   rule();
 
+  // Memory-surface amendment (pack §6): a fresh instance on a memory/project-context
+  // surface is NOT cold. Confirm before the first card; it lands in operator-notes.
+  const surface = (await io.ask("  surface — confirm memoryless/incognito/zero project exposure (e.g. 'clean')> ")).trim();
+  rule();
+
   const session = new Session(caveDb, {
     contentId: CAVE_CONTENT_ID, seed, buildTag: BUILD_TAG,
     entryActionId: "ux_act_cave_reese", tier: "outer", townId: "region", mode: "read",
@@ -102,8 +107,8 @@ async function main() {
     say(`  Q: ${q}`);
     qa.push({ q, a: (await io.ask("  A> ")).trim() });
   }
-  const operatorNotes = (await io.ask("\n  operator notes (reader questions, silences, etc.)> ")).trim();
-  session.appendDebrief(qa, operatorNotes);
+  const opNotes = (await io.ask("\n  operator notes (reader questions, silences, etc.)> ")).trim();
+  session.appendDebrief(qa, `surface: ${surface || "UNCONFIRMED"} · ${opNotes}`);
   io.close();
 
   // ---- write transcript ----------------------------------------------------
