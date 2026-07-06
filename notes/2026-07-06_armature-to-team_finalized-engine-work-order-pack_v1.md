@@ -6,9 +6,7 @@
 prior notes (the 07-05 work orders, the centroid synthesis, the coordinate-system note, the round-close
 refinements) into one document with every ratified 07-06 ruling baked in (X=grip, no-meta-reveal, the
 two-space lens model, the draw-pipeline contract, Azimuth's Batch-3 v0.2, Slate's dice refinement, the
-five save/scope refinements, and — this revision — Azimuth's two handoff-sign-off clarifications:
-`proximity_diamond` over (Y,Z) only, and the lens-centroid as an affinity distribution over one-hot vectors).
-Where this and an earlier note of mine differ, **this holds.** It's
+five save/scope refinements). Where this and an earlier note of mine differ, **this holds.** It's
 team-facing/roster (the Fable agent is compass-burned by construction); the sealed cosmology stays in
 Concordance's ledger §2 — this doc references it, never restates it.
 
@@ -80,15 +78,8 @@ you sense the uncanny; lens is how you explain it.*
   coordinate and an ordinal.
 - **Derived on demand** (pure, deterministic, O(resolved-cards), trivial; the log is per-run/bounded, so
   no growth concern and no memoization needed):
-  - `dispositionCentroid(g)` = recency-weighted mean of the log's `diamondCoord`s → **(Y, Z) only.** X is
-    grip, and **grip never enters the draw-Weight step** — it acts only at presentation (band-select, gates,
-    the post-loop dice-tilt). This is what makes *don't-bake-the-spiral* **mechanical**, not merely
-    disciplinary (Azimuth clarification 1): the grip death-spiral cannot be baked at the chokepoint because
-    grip cannot reach it.
-  - `lensCentroid(g)` = the recency-weighted **affinity distribution** over the closed lens vocabulary — each
-    resolved card with a `lensFlavor` appends a **one-hot vector** to the log (untagged resolutions append no
-    lens entry), and the centroid is the recency-weighted average of those vectors (Azimuth clarification 2 —
-    tags don't average; one-hot vectors do).
+  - `dispositionCentroid(g)` = recency-weighted mean of the log's `diamondCoord`s → (Y, Z). X is grip.
+  - `lensCentroid(g)` = recency-weighted mean of the log's `lensFlavor`s.
 - **Recency kernel + window** = `tuning.disposition.window` (in cards, not days — RNG-independent). One
   knob; **Loom's fate-dial** (window lengthens with depth: shallow=free-will, deep=fated) is a *post-tune*
   refinement, not a first build.
@@ -118,17 +109,14 @@ The one resolution order; both Batch-3 contracts live at their named step and no
 ```
 Mount   decks — by physical location, active threads, calendar/schedule
 Filter  eligible cards — tier ∧ tags ∧ requires ∧ date
-Weight  weight × proximity_diamond × proximity_lens × recency/anti-repeat   # proximity_diamond over (Y,Z) ONLY — grip/X never enters Weight
+Weight  weight × proximity_diamond × proximity_lens × recency/anti-repeat
 Draw    seed-deterministic from the weighted pool | nextQueuedEvent for a chained scene
 Resolve-noise-once  band-select at fire, FROZEN on the fired-card record, {trueBand,resolvedBand}→trace
 Apply + record  outcome to state, everything to the trace
 ```
 
-- **Contract 1 — lens-bias = `proximity_lens`** (at Weight): the lens-centroid's **affinity mass on the
-  candidate card's `lensFlavor`**, mapped **linearly** into **[1.0, 1.3]** (no affinity → 1.0, full affinity →
-  1.3); cards with no `lensFlavor` take **1.0 flat**, **no down-weighting**. Continuous, **never a categorical
-  match** — a binary "1.3 if it matches the top affinity" would be jumpy and visible within a day and break the
-  tuning target (Azimuth clarification 2). Research actions are
+- **Contract 1 — lens-bias = `proximity_lens`** (at Weight): lens-centroid × card `lensFlavor`, mapped to a
+  multiplier in **[1.0, 1.3]** (distant=1.0, nearest=1.3), **no down-weighting**. Research actions are
   ordinary card-resolutions carrying `lensFlavor` — no special case. **Never a gate** (floor 1.0, multiplies
   after eligibility). **Deck-scoped random draws only** — never queue/openingQueue/`requires`. Off-switch
   **`tuning.lensBias.enabled`**, independent of the diamond-proximity switch. Tuning target: a coherently
