@@ -4,6 +4,15 @@
 //   draw events · advance a day · create / save / load a game · generate NPCs
 //   and simulate games (Elo) for emergent dynasties.
 // It contains NO content. Everything it operates on comes from the ContentDB.
+//
+// THE NO-TRUTH-STATE INVARIANT (ratified convention, 2026-07-03).
+//   The engine holds NO meaning-state — no reveal flag, no truth accumulator, no
+//   canonical-explanation field, ever. Endings select off accumulated flags and
+//   coordinates, never off a stored "answer." There is nowhere in GameState to
+//   put "what it was really all along," and there must never be. This is the
+//   architectural half of the anti-noun pillar: the machine literally cannot say
+//   "so actually it's X" unless a card says it. Do not add a `truth` enum for
+//   ending-selection; use flags/counts. Cheap to keep, expensive to recover.
 // ============================================================================
 
 import {
@@ -65,6 +74,14 @@ export function evalCondition(c: Condition, g: GameState): boolean {
       return c.of.some((x) => evalCondition(x, g));
     case "not":
       return !evalCondition(c.of, g);
+    case "count": {
+      const n = c.of.reduce((k, x) => k + (evalCondition(x, g) ? 1 : 0), 0);
+      if (c.op === ">=") return n >= c.value;
+      if (c.op === "<=") return n <= c.value;
+      if (c.op === ">") return n > c.value;
+      if (c.op === "<") return n < c.value;
+      return n === c.value;
+    }
   }
 }
 
@@ -267,9 +284,11 @@ function weightedPick(g: GameState, db: ContentDB, pool: GameEvent[]): GameEvent
   return ev;
 }
 
-// Queued (chained) events fire first; otherwise a random eligible event with prob p,
-// optionally drawn from a single deck (tag). `deck` omitted = draw from all decks.
-export function drawEvent(g: GameState, db: ContentDB, p: number, deck?: string): GameEvent | undefined {
+// Pull the next QUEUED (chained) event only — no random fallback. This is the
+// primitive a chained scene advances on: when the queue is empty the scene is
+// over. (drawEvent's random fallback would otherwise pull untagged scene cards
+// out of context, since the no-tag convention only guards DECK-scoped draws.)
+export function nextQueuedEvent(g: GameState, db: ContentDB): GameEvent | undefined {
   while (g.queue.length) {
     const id = g.queue.shift()!;
     const ev = db.events[id];
@@ -278,6 +297,14 @@ export function drawEvent(g: GameState, db: ContentDB, p: number, deck?: string)
       return ev;
     }
   }
+  return undefined;
+}
+
+// Queued (chained) events fire first; otherwise a random eligible event with prob p,
+// optionally drawn from a single deck (tag). `deck` omitted = draw from all decks.
+export function drawEvent(g: GameState, db: ContentDB, p: number, deck?: string): GameEvent | undefined {
+  const queued = nextQueuedEvent(g, db);
+  if (queued) return queued;
   if (!chance(g, p)) return undefined;
   const ev = weightedPick(g, db, eligibleEvents(g, db, deck));
   if (!ev) return undefined;

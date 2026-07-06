@@ -81,7 +81,7 @@ check("cave_deep_seen set", deep.flags.cave_deep_seen === true);
 check("etchings_link_nora set", deep.flags.etchings_link_nora === true);
 check("took_shard set", deep.flags.took_shard === true);
 check("marked_shard in inventory", deep.player.items.includes("marked_shard"));
-check("met_reese set (Aunt Marie unlock)", deep.flags.met_reese === true);
+check("thread_reese set (Aunt Marie unlock)", deep.flags.thread_reese === true);
 check("grip dropped from 10", deep.player.stats.grip < 10);
 
 // Route 2 — the sensible day: turn back early. Proves the safe out ends the

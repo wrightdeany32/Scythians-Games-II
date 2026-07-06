@@ -1,4 +1,4 @@
-# Cold read — cave · build `cave-b2` · seed 70499
+# Cold read — cave · build `cave-b3` · seed 70499
 *schema v1 · reader-facing prose + numbered options; `> trace` lines are analyst-only (never shown to the reader)*
 
 ## Step 1 — `ux_cave_enter`
@@ -61,8 +61,6 @@ Options:
 > trace: day 1 · stats grip -1 · flags cave_heard_voice=true
 
 ## Step 4 — `ux_cave_squeeze`
-
-You let it in.
 
 The passage chokes down to a horizontal slot maybe a foot and a half high — a wet stone throat that goes somewhere; you can feel air moving through it, which means it opens on the far side. Reese is already flat on his belly, lamp poking in, grinning back at you with too many teeth.
 
@@ -136,8 +134,6 @@ Options:
 > trace: day 1 · stats grip -1 · flags cave_etchings_seen=true, etchings_link_nora=true
 
 ## Step 8 — `ux_cave_return`
-
-You let the pattern in — a thread reaches across to Nora.
 
 "We're going," Reese says, and it isn't a suggestion, and you don't argue. The way back is the way you came — the throat again — and going up through a squeeze is worse than down, everyone knows that, and your pack is the widest thing on you now.
 
