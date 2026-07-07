@@ -34,13 +34,12 @@ const SEED = 20260707;
 
 const line = (s = "") => console.log(s);
 let failed = false;
-const mkCheck = (live: boolean) => (name: string, ok: boolean, detail = "") => {
-  if (!live) return;
+function check(name: string, ok: boolean, detail = ""): void {
   if (!ok) failed = true;
   line(`  ${ok ? "OK  " : "FAIL"} ${name}${detail ? `  (${detail})` : ""}`);
-};
-type Check = ReturnType<typeof mkCheck>;
-const quiet: Check = () => {};
+}
+type Check = typeof check;
+const quiet: Check = () => {};   // replay/save-load runs assert nothing — they only rebuild state
 
 const clone = (g: GameState): GameState => deserialize(serialize(g));
 const ids = (xs: { id: string }[]) => xs.map((x) => x.id).sort().join(",");
@@ -116,6 +115,8 @@ function part2(g: GameState, check: Check): void {
   check("morning scene pending (the door)", menu2.pendingScene);
   check("menu reflects what happened (follow-up gated in, venture retired)",
     ids(menu2.bySurface.map ?? []) === "lw_followup");
+  check("actions refused while a morning scene is pending",
+    runAction(g, loopDb, "lw_work").reason === "scene pending");
   const visitor = startQueuedScene(g, loopDb)!;
   check("door beat runs as a scene", visitor.current.card === "lw_visitor");
   driveScene(visitor);
@@ -149,7 +150,6 @@ function part2(g: GameState, check: Check): void {
 // ================================ run it =====================================
 line(`\n=== WO-1/WO-2 acceptance — the daily loop, the centroid, the registry ===\n`);
 line(`-- day → scene → day (seed ${SEED}) --`);
-const check = mkCheck(true);
 const gA = part1(SEED, check);
 const midA = serialize(gA);
 part2(gA, check);
@@ -214,6 +214,10 @@ const gAR = clone(gA);
 const first = drawFromMounted(gAR, dbAntiRepeat, 1)!.id;
 const second = drawFromMounted(gAR, dbAntiRepeat, 1)!.id;
 check("anti-repeat: consecutive random draws differ", first !== second, `${first} then ${second}`);
+const third = drawFromMounted(gAR, dbAntiRepeat, 1);
+check("anti-repeat: exhausted pool draws NOTHING (never a forced repeat)",
+  third !== undefined && drawFromMounted(gAR, dbAntiRepeat, 1) === undefined,
+  "3 distinct draws, then silence");
 
 // -- the designed terminals
 line(`\n-- terminal states --`);
@@ -226,6 +230,18 @@ applyOutcome(gTaken, loopDb, { setFlags: { lw_taken: true } });
 const stTaken = runStatus(gTaken, loopDb);
 check("designed terminal flag ends the run", stTaken.over && stTaken.cause === "flag" && stTaken.flag === "lw_taken");
 check("otherwise the run never ends by itself", !runStatus(gA, loopDb).over);
+
+// The terminal CONTRACT: a flag set mid-scene doesn't abort the scene — the
+// run is over when control returns to the day, surfaced on the next dayMenu.
+const gTrap = clone(gA);
+gTrap.queue.push("lw_trap");
+const trap = startQueuedScene(gTrap, loopDb)!;
+const trapCards = driveScene(trap);
+check("terminal mid-scene: the scene still completes",
+  trapCards.join(">") === "lw_trap>lw_trap_after");
+const menuAfterTrap = dayMenu(gTrap, loopDb);
+check("terminal mid-scene: caught the moment control returns to the day",
+  menuAfterTrap.status.over && menuAfterTrap.status.flag === "lw_taken");
 
 // -- questionnaire cold-start (the other creation path)
 line(`\n-- creation seeding via questionnaire --`);
@@ -247,6 +263,21 @@ check("faction scars persist into the next run",
 check("the next run's per-run state is fresh", (gNext.coordLog ?? []).length === 0 && gNext.day === 1);
 check("the store stays tiny (no meaning, no run state)",
   !serialize(gNext).includes("crossRun") && Object.keys(store).sort().join(",") === "factions,version");
+
+// Content grows between vessels: the store contributes SCARS only — the
+// world's shape is always content's.
+const dbGrown: ContentDB = {
+  ...loopDb,
+  factions: {
+    ...loopDb.factions,
+    faction_noon: { id: "faction_noon", name: "Noon", homeTownId: "region_one", tier: "outer", rating: 50 },
+  },
+};
+const gGrown = newGame({ seed: 778, name: "G", age: 30, body: { height: 0.5, build: 0.5 }, townId: "region_one", tier: "outer", crossRun: store }, dbGrown);
+check("a faction added to content since the harvest still exists (authored power)",
+  gGrown.factions.faction_noon?.rating === 50);
+check("known factions still carry their scars under grown content",
+  gGrown.factions.faction_dawn.rating === gA.factions.faction_dawn.rating);
 
 line(`\n${failed ? "SOME LOOP CRITERIA FAILED" : "ALL LOOP CRITERIA PASS"}\n`);
 if (failed) process.exit(1);

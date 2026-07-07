@@ -61,6 +61,14 @@ export function exposureTuning(db: ContentDB): { max: number; coolPerDay: number
   };
 }
 
+// One deep-clone helper for the load-bearing copies (content → live state,
+// live state → cross-run store). JSON-based on purpose: everything cloned is
+// plain JSON data by design, so the semantics match serialize/deserialize
+// exactly — and there is one place to change if that ever needs to move.
+function deepClone<T>(x: T): T {
+  return JSON.parse(JSON.stringify(x)) as T;
+}
+
 // ---- stat clamping -----------------------------------------------------------
 export function clampStats(s: Stats, exposureMax = 12): void {
   s.money = Math.max(0, Math.round(s.money));
@@ -192,11 +200,11 @@ export function applyOutcome(g: GameState, db: ContentDB, o: Outcome): { roll?: 
   }
   if (o.setTier) setTier(g, db, o.setTier);
   if (o.introduceNpc && db.npcs && db.npcs[o.introduceNpc]) {
-    introduceNpc(g, JSON.parse(JSON.stringify(db.npcs[o.introduceNpc])) as Npc);
+    introduceNpc(g, deepClone(db.npcs[o.introduceNpc]));
   }
   if (o.addToCircle) {
     if (!g.npcs[o.addToCircle] && db.npcs && db.npcs[o.addToCircle]) {
-      introduceNpc(g, JSON.parse(JSON.stringify(db.npcs[o.addToCircle])) as Npc);
+      introduceNpc(g, deepClone(db.npcs[o.addToCircle]));
     }
     assignToCircle(g, o.addToCircle);
   }
@@ -268,21 +276,23 @@ function tierMatch(t: Tier | Tier[] | undefined, cur: Tier): boolean {
   return Array.isArray(t) ? t.includes(cur) : t === cur;
 }
 
-// DECK/SECTOR axis: does this event carry the given deck tag?
-function hasTag(ev: GameEvent, tag: string): boolean {
-  return !!ev.tags && ev.tags.includes(tag);
+// The ONE eligibility predicate — the pipeline's Filter step: depth (tier) ∧
+// deck (tags) ∧ requires, the axis-separation model. `decks` scopes to a tag
+// set (undefined = unscoped). WO-5's date term lands HERE and nowhere else,
+// so every draw path inherits it at once.
+function isEligible(g: GameState, ev: GameEvent, decks?: Set<string>): boolean {
+  return (
+    (!ev.once || !g.flags[ev.once]) &&
+    tierMatch(ev.tier, g.tier) &&
+    (!decks || (!!ev.tags && ev.tags.some((t) => decks.has(t)))) &&
+    (!ev.condition || evalCondition(ev.condition, g))
+  );
 }
 
 // Eligible events, optionally SCOPED to a deck (a tag the event must carry).
-// Eligibility is depth (tier) ∧ deck (tags) ∧ requires — the axis-separation model.
 export function eligibleEvents(g: GameState, db: ContentDB, deck?: string): GameEvent[] {
-  return Object.values(db.events).filter(
-    (ev) =>
-      (!ev.once || !g.flags[ev.once]) &&
-      tierMatch(ev.tier, g.tier) &&
-      (!deck || hasTag(ev, deck)) &&
-      (!ev.condition || evalCondition(ev.condition, g)),
-  );
+  const decks = deck ? new Set([deck]) : undefined;
+  return Object.values(db.events).filter((ev) => isEligible(g, ev, decks));
 }
 
 function fireEvent(g: GameState, ev: GameEvent): void {
@@ -364,14 +374,19 @@ function drawWeight(g: GameState, db: ContentDB, ev: GameEvent): number {
   return w;
 }
 
-// Weighted pick over a pool using drawWeight. Returns undefined for an empty pool.
+// Weighted pick over a pool using drawWeight — each candidate weighed exactly
+// once. Returns undefined for an empty pool, and for a fully ZERO-weighted one:
+// an exhausted pool (e.g. anti-repeat factor 0 with everything recent) draws
+// nothing rather than force-repeating its tail card. No RNG is consumed for an
+// undrawable pool.
 function weightedPick(g: GameState, db: ContentDB, pool: GameEvent[]): GameEvent | undefined {
   if (!pool.length) return undefined;
-  const total = pool.reduce((sum, e) => sum + drawWeight(g, db, e), 0);
+  const weights = pool.map((e) => drawWeight(g, db, e));
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  if (total <= 0) return undefined;
   let r = randFloat(g) * total;
-  let ev = pool[pool.length - 1];
-  for (const cand of pool) { r -= drawWeight(g, db, cand); if (r < 0) { ev = cand; break; } }
-  return ev;
+  for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r < 0) return pool[i]; }
+  return pool[pool.length - 1];   // float-edge fallback (r landed exactly on total)
 }
 
 // Pull the next QUEUED (chained) event only — no random fallback. This is the
@@ -390,17 +405,26 @@ export function nextQueuedEvent(g: GameState, db: ContentDB): GameEvent | undefi
   return undefined;
 }
 
-// Queued (chained) events fire first; otherwise a random eligible event with prob p,
-// optionally drawn from a single deck (tag). `deck` omitted = draw from all decks.
-export function drawEvent(g: GameState, db: ContentDB, p: number, deck?: string): GameEvent | undefined {
+// The ONE draw tail — the pipeline's Draw step, shared by every random draw
+// path so the ritual (queue-first, the p-gate, the seed-deterministic pick,
+// once-flag fire, anti-repeat memory) can never fork. WO-3's Resolve-noise-once
+// (band-select, frozen at fire) lands on this path and nowhere else. The pool
+// is built lazily, AFTER the p-gate, so all paths consume RNG identically.
+function drawFromPool(g: GameState, db: ContentDB, p: number, pool: () => GameEvent[]): GameEvent | undefined {
   const queued = nextQueuedEvent(g, db);
   if (queued) return queued;
   if (!chance(g, p)) return undefined;
-  const ev = weightedPick(g, db, eligibleEvents(g, db, deck));
+  const ev = weightedPick(g, db, pool());
   if (!ev) return undefined;
   fireEvent(g, ev);
   noteDraw(g, db, ev.id);   // random winners enter the anti-repeat memory; queued cards never do
   return ev;
+}
+
+// Queued (chained) events fire first; otherwise a random eligible event with prob p,
+// optionally drawn from a single deck (tag). `deck` omitted = draw from all decks.
+export function drawEvent(g: GameState, db: ContentDB, p: number, deck?: string): GameEvent | undefined {
+  return drawFromPool(g, db, p, () => eligibleEvents(g, db, deck));
 }
 
 // ---- the deck registry (WO-2) ---------------------------------------------------
@@ -414,28 +438,14 @@ export function mountedDecks(g: GameState, db: ContentDB): DeckDef[] {
   );
 }
 
-// The daily draw: queue first (a chained scene in progress always wins), then a
-// seed-deterministic weighted pick over the UNION of every mounted deck's
+// The daily draw: the shared draw tail over the UNION of every mounted deck's
 // eligible cards. A card in several mounted decks enters the pool once — deck
 // membership is a tag, not a copy.
 export function drawFromMounted(g: GameState, db: ContentDB, p: number): GameEvent | undefined {
-  const queued = nextQueuedEvent(g, db);
-  if (queued) return queued;
-  if (!chance(g, p)) return undefined;
-  const ids = new Set(mountedDecks(g, db).map((d) => d.id));
-  if (!ids.size) return undefined;
-  const pool = Object.values(db.events).filter(
-    (ev) =>
-      (!ev.once || !g.flags[ev.once]) &&
-      tierMatch(ev.tier, g.tier) &&
-      !!ev.tags && ev.tags.some((t) => ids.has(t)) &&
-      (!ev.condition || evalCondition(ev.condition, g)),
-  );
-  const ev = weightedPick(g, db, pool);
-  if (!ev) return undefined;
-  fireEvent(g, ev);
-  noteDraw(g, db, ev.id);
-  return ev;
+  return drawFromPool(g, db, p, () => {
+    const ids = new Set(mountedDecks(g, db).map((d) => d.id));
+    return ids.size ? Object.values(db.events).filter((ev) => isEligible(g, ev, ids)) : [];
+  });
 }
 
 export function choiceAvailable(g: GameState, c: { requires?: Condition }): boolean {
@@ -448,32 +458,54 @@ export function resolveChoice(g: GameState, db: ContentDB, ev: GameEvent, idx: n
 }
 
 // ---- the resolved-coordinate log (WO-1c; invariant #3's mechanism) -------------
-// Every card/action resolution ticks the ordinal clock; a resolution whose source
-// carries a coordinate or lens flavor also appends a THIN entry — a coordinate
-// and an ordinal, nothing else. The position itself is never stored here or
-// anywhere: engine/centroid.ts derives it on demand from these events.
+// ONE entry builder for every coordinate-carrying source (a card, an action, a
+// questionnaire answer), so the creation paths and the play path can never
+// drift in entry shape. Returns undefined for a neutral source.
+function coordEntry(index: number, src: { diamondCoord?: DiamondCoord; lensFlavor?: string }): CoordLogEntry | undefined {
+  if (!src.diamondCoord && !src.lensFlavor) return undefined;
+  const entry: CoordLogEntry = { index };
+  if (src.diamondCoord) entry.diamondCoord = { sanction: src.diamondCoord.sanction, vertical: src.diamondCoord.vertical };
+  if (src.lensFlavor) entry.lensFlavor = src.lensFlavor;
+  return entry;
+}
+
+// Every card/action resolution ticks the ordinal clock; a coordinated source
+// also appends its thin entry — a coordinate and an ordinal, nothing else. The
+// position itself is never stored here or anywhere: engine/centroid.ts derives
+// it on demand from these events.
 function recordResolution(g: GameState, src: { diamondCoord?: DiamondCoord; lensFlavor?: string }): void {
   g.resolveCount = (g.resolveCount ?? 0) + 1;
-  if (src.diamondCoord || src.lensFlavor) {
-    const entry: CoordLogEntry = { index: g.resolveCount };
-    if (src.diamondCoord) entry.diamondCoord = { sanction: src.diamondCoord.sanction, vertical: src.diamondCoord.vertical };
-    if (src.lensFlavor) entry.lensFlavor = src.lensFlavor;
-    (g.coordLog ??= []).push(entry);
-  }
+  const entry = coordEntry(g.resolveCount, src);
+  if (entry) (g.coordLog ??= []).push(entry);
 }
 
 // ---- the day loop ------------------------------------------------------------
+// Everything that fires "when the day turns" lives HERE, at one depth, so every
+// day-advance driver gets identical mornings: the exposure consequence, the
+// scheduled sweep, and the met-doors (WO-1d) all queue through this one path.
 export function endDay(g: GameState, db: ContentDB): void {
   const exp = exposureTuning(db);
   g.day += 1;
   g.player.stats.energy = g.player.stats.energyMax;
   g.player.stats.exposure = Math.max(0, g.player.stats.exposure - exp.coolPerDay); // liability cools (coolPerDay 0 = sticky)
   g.log.unshift({ text: `— Day ${g.day}.`, tone: "n" });
-  if (g.player.stats.exposure >= exp.threshold && db.events[exp.consequenceEvent]) g.queue.push(exp.consequenceEvent); // scheduled consequence
+  // the exposure consequence — at most ONE pending copy (matching the door
+  // guard below; N stacked identical discharge scenes was never a design)
+  if (g.player.stats.exposure >= exp.threshold && db.events[exp.consequenceEvent] && !g.queue.includes(exp.consequenceEvent)) {
+    g.queue.push(exp.consequenceEvent);
+  }
   // after the date advances, sweep any timed-event promises now due onto the queue
   if (g.scheduled && g.scheduled.length) {
     for (const s of g.scheduled) if (s.onDay <= g.day) g.queue.push(s.eventId);
     g.scheduled = g.scheduled.filter((s) => s.onDay > g.day);
+  }
+  // met-doors: beats that fire when the NEW morning's state says so
+  for (const door of db.doors ?? []) {
+    const ev = db.events[door.eventId];
+    if (!ev) continue;
+    if (ev.once && g.flags[ev.once]) continue;           // already fired
+    if (g.queue.includes(door.eventId)) continue;         // already waiting
+    if (evalCondition(door.when, g)) g.queue.push(door.eventId);
   }
 }
 
@@ -490,6 +522,13 @@ export interface NewGameOpts {
   crossRun?: CrossRunStore; // the persistent second save scope: a new vessel arrives in the world the last one left
 }
 
+function seedFactions(db: ContentDB, crossRun?: CrossRunStore): Record<string, Faction> {
+  const factions = deepClone(db.factions);
+  const scars = crossRun?.factions ?? {};
+  for (const id in scars) if (factions[id]) factions[id].rating = scars[id].rating;
+  return factions;
+}
+
 export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
   // grip starts fully grounded (GRIP_MAX); content/creation lowers it from there.
   const stats: Stats = { money: 0, energy: 0, energyMax: 3, tradecraft: 0, standing: 0, exposure: 0, grip: GRIP_MAX };
@@ -503,11 +542,8 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
   // origin). No questionnaire → no entries → neutral origins. Creation played
   // as CARDS seeds the log by the ordinary resolveChoice path instead.
   const seedOrigin = (ans: { diamondCoord?: DiamondCoord; lensFlavor?: string }): void => {
-    if (!ans.diamondCoord && !ans.lensFlavor) return;
-    const entry: CoordLogEntry = { index: 0 };
-    if (ans.diamondCoord) entry.diamondCoord = { ...ans.diamondCoord };
-    if (ans.lensFlavor) entry.lensFlavor = ans.lensFlavor;
-    coordLog.push(entry);
+    const entry = coordEntry(0, ans);   // the one entry builder — creation and play can't drift in shape
+    if (entry) coordLog.push(entry);
   };
 
   // Questionnaire is OPTIONAL now (creation can be played cards). Apply it only if present.
@@ -543,15 +579,18 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
       portrait: { face: "f1", skin: "s1", hair: "h1" },
       stats, traits: [], items: [], circle: [],
     },
-    npcs: db.npcs ? (JSON.parse(JSON.stringify(db.npcs)) as Record<string, Npc>) : {}, // spawn authored fixtures
+    npcs: db.npcs ? deepClone(db.npcs) : {}, // spawn authored fixtures
     scheduled: [],
     clocks: {},
     resolveCount: 0,
     coordLog,
     recentDraws: [],   // initialized here AND backfilled in deserialize, so save/load never invents a key mid-run
-    // Live copy; power drifts via simulateClash. Seeded from the cross-run store when
-    // one is handed in — the faction scars an earlier vessel left ARE the new world.
-    factions: JSON.parse(JSON.stringify(opts.crossRun?.factions ?? db.factions)),
+    // Live copy; power drifts via simulateClash. The world's SHAPE is always
+    // content's (db.factions); a handed-in cross-run store contributes only its
+    // SCARS — drifted power for factions content still knows. A faction added to
+    // content since the store was harvested starts at its authored power; one
+    // content dropped does not resurrect from an old store.
+    factions: seedFactions(db, opts.crossRun),
     flags,
     queue: [...(opts.openingQueue ?? db.openingQueue ?? [])], // seed the scripted cold-open, in order
     log: [{ text: db.openingLog ?? DEFAULT_OPENING_LOG, tone: "n" }],
@@ -589,7 +628,7 @@ export function newCrossRunStore(): CrossRunStore {
 }
 
 export function harvestCrossRun(g: GameState, store: CrossRunStore): CrossRunStore {
-  store.factions = JSON.parse(JSON.stringify(g.factions)) as Record<string, Faction>;
+  store.factions = deepClone(g.factions);
   return store;
 }
 

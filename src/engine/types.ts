@@ -228,7 +228,8 @@ export interface EngineTuning {
   terminal?: {
     onGripZero?: boolean;      // grip 0 ends the run ("lost grip"; default true). Content keeps it RECOVERABLE
                                // before that line: grip-raising outcomes and rest beats are content's discipline.
-    flags?: string[];          // designed terminal flags ("taken", ...); any set truthy ends the run (default [])
+    flags?: string[];          // designed terminal flags ("taken", ...); TRUTHY ends the run (default []).
+                               // Same semantics as {kind:"flag"} without `equals` — keep terminal flags boolean.
   };
   // -- the Weight step's switchable factors (WO-2). EVERY factor ships OFF, so
   // seed-matched bot A/Bs can isolate each one's drift before anything ships on
@@ -240,11 +241,10 @@ export interface EngineTuning {
   };
   antiRepeat?: {
     enabled?: boolean;         // default false
-    factor?: number;           // weight multiplier for recently-drawn cards; default 0.5
+    factor?: number;           // weight multiplier for recently-drawn cards; default 0.5. Factor 0 with
+                               // memory >= pool size makes an exhausted deck draw NOTHING until the
+                               // memory rotates — honest silence, never a forced repeat.
     memory?: number;           // how many recent random draws count as "recent"; default 5
-  };
-  dailyDraw?: {
-    p?: number;                // the loop's ambient-draw probability per day (default 0 — content opts in)
   };
 }
 
@@ -257,7 +257,8 @@ export interface EngineTuning {
 // and is NEVER read by either (map ≠ diamond).
 export interface DeckDef {
   id: string;                   // the tag events carry (e.g. "deck:situations") — the id IS the tag
-  mountFlag?: string;           // mounted while this flag is truthy (an active thread); omit = always mounted
+  mountFlag?: string;           // mounted while this flag is TRUTHY — same semantics as {kind:"flag"}
+                                // without `equals`. Use boolean thread flags; a 0/"" value reads unmounted.
   towns?: string[];             // mounted only in these towns (physical location); omit = anywhere
   diamondCoord?: DiamondCoord;  // deck-level (Y, Z) — authored, or Slate's rollup (deckCentroid over members)
   lensFlavor?: string;          // deck-level interpretive register

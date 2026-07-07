@@ -18,13 +18,19 @@
 // The driver's rhythm (a UI, the harness, a bot): morning — startQueuedScene
 // picks up whatever the night queued (doors, scheduled beats, the exposure
 // consequence, the opening queue on day 1); then act while energy lasts; then
-// advanceDay; check runStatus; repeat. The menu each morning reflects what
-// happened, because availability is condition-gated on the flags the player's
-// own resolutions set.
+// advanceDay; repeat. The menu each morning reflects what happened, because
+// availability is condition-gated on the flags the player's own resolutions
+// set.
+//
+// THE TERMINAL CONTRACT: check runStatus (dayMenu carries it as `status`)
+// whenever a scene ends and at every day boundary — a terminal set mid-scene
+// takes effect when control RETURNS TO THE DAY, not mid-card, so an authored
+// pull-back-from-the-brink inside one scene is content's prerogative, but a
+// run that comes back to the day lost is over before anything else happens.
 // ============================================================================
 
 import type { ContentDB, GameState, LocationAction } from "./types";
-import { availableActions, endDay, evalCondition } from "./engine";
+import { availableActions, endDay } from "./engine";
 import { SceneRunner } from "./scene";
 import type { SceneHooks } from "./scene";
 import { dateOf } from "./calendar";
@@ -55,6 +61,7 @@ export interface DayMenu {
   day: number;
   dateLabel: string;
   energy: number;
+  status: RunStatus;                           // the terminal check, surfaced where every driver already looks
   pendingScene: boolean;                       // something queued wants to run before the errands (see startQueuedScene)
   actions: LocationAction[];                   // every action available right now (tier ∧ town ∧ requires)
   bySurface: Record<string, LocationAction[]>; // the same actions, routed by their surface hint ("here" when unset)
@@ -70,6 +77,7 @@ export function dayMenu(g: GameState, db: ContentDB): DayMenu {
     day: g.day,
     dateLabel: dateOf(g.day).label,
     energy: g.player.stats.energy,
+    status: runStatus(g, db),
     pendingScene: g.queue.length > 0,
     actions,
     bySurface,
@@ -79,16 +87,20 @@ export function dayMenu(g: GameState, db: ContentDB): DayMenu {
 // ---- running an action -------------------------------------------------------------
 export interface RunActionResult {
   ok: boolean;
-  reason?: "unknown action" | "unavailable" | "too tired";
+  reason?: "unknown action" | "unavailable" | "too tired" | "scene pending";
   runner?: SceneRunner;   // present when ok — already begun; drive it to done, then return to the day
 }
 
 // Take an action by id, through the one scene path. Polite refusals (no state
-// touched) for the cases a UI must handle: not on today's menu, or not enough
-// energy. When ok, the returned runner has already presented its first screen —
-// a chained scene runs to done; a plain errand is done immediately with its
-// outcome narration on the "__end__" screen.
+// touched) for the cases a UI must handle: not on today's menu, not enough
+// energy, or a queued morning scene that hasn't run yet — an action begun over
+// a non-empty queue would present the PENDING card under the action's opening
+// narration (the runner advances the queue head), so the day must drain via
+// startQueuedScene first. When ok, the returned runner has already presented
+// its first screen — a chained scene runs to done; a plain errand is done
+// immediately with its outcome narration on the "__end__" screen.
 export function runAction(g: GameState, db: ContentDB, actionId: string, hooks?: SceneHooks): RunActionResult {
+  if (g.queue.length) return { ok: false, reason: "scene pending" };
   const action = availableActions(g, db).find((a) => a.id === actionId);
   if (!action) {
     const exists = db.actions.some((a) => a.id === actionId);
@@ -112,19 +124,12 @@ export function startQueuedScene(g: GameState, db: ContentDB, hooks?: SceneHooks
 }
 
 // ---- advancing the day ---------------------------------------------------------------
-// endDay does the substrate (day++, energy refill, exposure cool + threshold
-// consequence, scheduled sweep); then the met-doors are checked against the
-// NEW morning's state. Fired doors queue their events — startQueuedScene
-// presents them. Returns the run status so drivers naturally check the
-// designed terminals at the day boundary.
+// endDay does everything that fires when the day turns — the substrate (day++,
+// energy refill, exposure cool + threshold consequence, scheduled sweep) AND
+// the met-door sweep, all at one depth in the engine so every day-advance
+// driver gets identical mornings. This wrapper adds only the loop's concern:
+// the run-status check at the day boundary.
 export function advanceDay(g: GameState, db: ContentDB): RunStatus {
   endDay(g, db);
-  for (const door of db.doors ?? []) {
-    const ev = db.events[door.eventId];
-    if (!ev) continue;
-    if (ev.once && g.flags[ev.once]) continue;          // already fired
-    if (g.queue.includes(door.eventId)) continue;        // already waiting
-    if (evalCondition(door.when, g)) g.queue.push(door.eventId);
-  }
   return runStatus(g, db);
 }

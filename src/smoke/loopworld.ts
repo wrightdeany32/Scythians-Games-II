@@ -167,6 +167,20 @@ export const loopDb: ContentDB = {
       choices: [{ label: "Tell them a little", outcome: { log: "You keep the strange parts to yourself.", tone: "n", stats: { standing: 1 } } }],
     },
 
+    // --- a terminal mid-scene (the harness proves the terminal contract) --------
+    lw_trap: {
+      id: "lw_trap",
+      title: "The Wrong Door",
+      body: "A neutral card whose outcome is designed to be terminal.",
+      choices: [{ label: "Step through", outcome: { log: "It has you.", tone: "b", setFlags: { lw_taken: true }, queueEvent: "lw_trap_after" } }],
+    },
+    lw_trap_after: {
+      id: "lw_trap_after",
+      title: "One More Card",
+      body: "The scene continues past the terminal flag — the run ends when control returns to the day.",
+      choices: [{ label: "…", outcome: { log: "The scene plays out.", tone: "n" } }],
+    },
+
     // --- the scheduled beat ----------------------------------------------------
     lw_promise: {
       id: "lw_promise",

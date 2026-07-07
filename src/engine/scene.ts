@@ -82,17 +82,20 @@ export class SceneRunner {
 
   // Scene start "option (b)" (Batch 2, ratified): run the entry action so the
   // mechanics land (energy spend, grants, flags, the queued first card), and
-  // present its authored flavor — sub + outcome log — as unnumbered opening
-  // narration: the orientation a real player has. Caller validates availability
-  // and energy first (Session throws; the loop's runAction refuses politely).
+  // open with the action's `sub` followed by what actually HAPPENED — folded
+  // from the log exactly like every later step, one narration rule throughout.
+  // For the ordinary case that is `sub` + the outcome's log line, byte-for-byte
+  // what the frozen cold-read transcripts carry. If the action is refused
+  // (too tired), only the refusal line shows — never the flavor of an action
+  // that didn't run. An entry-action roll is continued and narrated (the old
+  // Session silently dropped entry rolls; this is the deliberate fix).
   beginWithAction(action: LocationAction): void {
+    const logLenBefore = this.g.log.length;
+    const refused = this.g.player.stats.energy < action.cost;
     const res = takeAction(this.g, this.db, action);
-    const parts = [action.sub, action.outcome.log].filter(Boolean) as string[];
-    if (res.roll) {
-      continueRoll(this.g, this.db, res.roll);
-      const branch = res.roll.success ? res.roll.win : res.roll.lose;
-      if (branch.log) parts.push(branch.log);   // roll-branch narration follows the authored flavor
-    }
+    if (res.roll) continueRoll(this.g, this.db, res.roll);
+    const added = this.g.log.slice(0, this.g.log.length - logLenBefore).map((l) => l.text).reverse();
+    const parts = refused ? added : [action.sub, ...added].filter(Boolean);
     this.pendingNarration = parts.join("\n\n");
     this.advance();
   }
