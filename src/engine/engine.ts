@@ -41,8 +41,9 @@ import {
 import type {
   ContentDB, GameState, Stats, StatKey, Modifier, Outcome, ResolvedRoll,
   Condition, GameEvent, LocationAction, Npc, BodyArchetype, Tier, Faction,
-  CrossRunStore, CoordLogEntry, DiamondCoord,
+  CrossRunStore, CoordLogEntry, DiamondCoord, DeckDef,
 } from "./types";
+import { dispositionCentroid } from "./centroid";
 
 // ---- engine tuning seam ------------------------------------------------------
 // Content overrides these; the engine falls back to the exact values it used to
@@ -288,12 +289,79 @@ function fireEvent(g: GameState, ev: GameEvent): void {
   if (ev.once) g.flags[ev.once] = true;
 }
 
-// The draw weight of a card. Today this is just `weight` (the rarity knob).
-// SEAM: the deferred tag-match / coordinate bias (backlog §8.1) bolts on HERE —
-// multiply by closeness between the card's tags and the player's lens/position.
-// Kept as a single chokepoint so that layer is a one-function change, not a rewrite.
-function drawWeight(_g: GameState, _db: ContentDB, ev: GameEvent): number {
-  return ev.weight ?? 1;
+// ---- the draw pipeline (WO-2) --------------------------------------------------
+// THE one resolution order (ratified contract; both Batch-3 contracts live at
+// their named steps and nowhere else):
+//
+//   Mount    mountedDecks — by physical location (towns) and active threads
+//            (mountFlag). Calendar/schedule mounting arrives with {kind:"day"}
+//            (WO-5), when a real card asks.
+//   Filter   eligibility — tier ∧ tags ∧ requires (∧ date, with WO-5).
+//   Weight   drawWeight — weight × proximity_diamond × [proximity_lens, WO-3]
+//            × recency/anti-repeat. EVERY factor independently switchable and
+//            OFF by default, so seed-matched bot A/Bs isolate each factor's
+//            drift before anything ships on.
+//   Draw     weightedPick, seed-deterministic — or nextQueuedEvent for a
+//            chained scene.
+//   Resolve-noise-once   band-select at card-fire, FROZEN on the fired-card
+//            record, {trueBand, resolvedBand} → trace. Lands with WO-3
+//            (Contract 2); the trace slot is already reserved.
+//   Apply + record   applyOutcome + recordResolution (+ the Session's trace).
+
+export function diamondProximityTuning(db: ContentDB): { enabled: boolean; strength: number; range: number } {
+  const t = db.tuning?.diamondProximity;
+  return { enabled: t?.enabled ?? false, strength: t?.strength ?? 0.5, range: t?.range ?? 1.5 };
+}
+
+export function antiRepeatTuning(db: ContentDB): { enabled: boolean; factor: number; memory: number } {
+  const t = db.tuning?.antiRepeat;
+  return { enabled: t?.enabled ?? false, factor: t?.factor ?? 0.5, memory: t?.memory ?? 5 };
+}
+
+// proximity_diamond: closeness between the card's (Y, Z) and the DERIVED
+// disposition centroid, mapped to a boost in [1, 1 + strength] that fades
+// linearly to nothing at `range`. Never a gate (floor 1 by construction), and
+// an uncoordinated card is neutral/ubiquitous (flat 1). Grip/X cannot reach
+// this computation — cards carry no X, and the centroid is (Y, Z) only — so
+// the grip death-spiral cannot be baked at this chokepoint.
+function proximityDiamond(g: GameState, db: ContentDB, ev: GameEvent): number {
+  if (!ev.diamondCoord) return 1;
+  const t = diamondProximityTuning(db);
+  const c = dispositionCentroid(g, db);
+  const dy = ev.diamondCoord.sanction - c.sanction;
+  const dz = ev.diamondCoord.vertical - c.vertical;
+  const near = Math.max(0, 1 - Math.sqrt(dy * dy + dz * dz) / t.range);
+  return 1 + t.strength * near;
+}
+
+// recency/anti-repeat: a card that just won a random draw weighs less for the
+// next few random draws. Queue-chained cards never enter this memory — a
+// scripted scene is not a repeat.
+function antiRepeatFactor(g: GameState, db: ContentDB, ev: GameEvent): number {
+  return (g.recentDraws ?? []).includes(ev.id) ? antiRepeatTuning(db).factor : 1;
+}
+
+function noteDraw(g: GameState, db: ContentDB, id: string): void {
+  const mem = antiRepeatTuning(db).memory;
+  const r = (g.recentDraws ??= []);
+  r.push(id);
+  if (r.length > mem) r.splice(0, r.length - mem);
+}
+
+// The Weight step — kept as the single chokepoint (a ratified seam), so every
+// weighting layer is a one-function change, not a rewrite. With every switch
+// off (the shipped default) this is exactly `ev.weight ?? 1`: behavior
+// identical to the pre-pipeline engine.
+function drawWeight(g: GameState, db: ContentDB, ev: GameEvent): number {
+  let w = ev.weight ?? 1;
+  if (diamondProximityTuning(db).enabled) w *= proximityDiamond(g, db, ev);
+  // [WO-3 seam — Contract 1 multiplies in HERE and nowhere else:
+  //  proximity_lens = lensCentroid's affinity mass on ev.lensFlavor, mapped
+  //  LINEARLY into [1.0, 1.3]; floor 1.0, never a gate, no down-weighting;
+  //  deck-scoped random draws only (never queue/openingQueue/requires);
+  //  switch: tuning.lensBias.enabled, independent of diamondProximity.]
+  if (antiRepeatTuning(db).enabled) w *= antiRepeatFactor(g, db, ev);
+  return w;
 }
 
 // Weighted pick over a pool using drawWeight. Returns undefined for an empty pool.
@@ -331,6 +399,42 @@ export function drawEvent(g: GameState, db: ContentDB, p: number, deck?: string)
   const ev = weightedPick(g, db, eligibleEvents(g, db, deck));
   if (!ev) return undefined;
   fireEvent(g, ev);
+  noteDraw(g, db, ev.id);   // random winners enter the anti-repeat memory; queued cards never do
+  return ev;
+}
+
+// ---- the deck registry (WO-2) ---------------------------------------------------
+// Mount: which decks are live right now — physical location (towns) ∧ active
+// threads (mountFlag). No registry (db.decks absent/empty) mounts nothing;
+// content that predates the registry keeps using deck-scoped drawEvent
+// unchanged.
+export function mountedDecks(g: GameState, db: ContentDB): DeckDef[] {
+  return (db.decks ?? []).filter(
+    (d) => (!d.mountFlag || !!g.flags[d.mountFlag]) && (!d.towns || d.towns.includes(g.townId)),
+  );
+}
+
+// The daily draw: queue first (a chained scene in progress always wins), then a
+// seed-deterministic weighted pick over the UNION of every mounted deck's
+// eligible cards. A card in several mounted decks enters the pool once — deck
+// membership is a tag, not a copy.
+export function drawFromMounted(g: GameState, db: ContentDB, p: number): GameEvent | undefined {
+  const queued = nextQueuedEvent(g, db);
+  if (queued) return queued;
+  if (!chance(g, p)) return undefined;
+  const ids = new Set(mountedDecks(g, db).map((d) => d.id));
+  if (!ids.size) return undefined;
+  const pool = Object.values(db.events).filter(
+    (ev) =>
+      (!ev.once || !g.flags[ev.once]) &&
+      tierMatch(ev.tier, g.tier) &&
+      !!ev.tags && ev.tags.some((t) => ids.has(t)) &&
+      (!ev.condition || evalCondition(ev.condition, g)),
+  );
+  const ev = weightedPick(g, db, pool);
+  if (!ev) return undefined;
+  fireEvent(g, ev);
+  noteDraw(g, db, ev.id);
   return ev;
 }
 
@@ -444,6 +548,7 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
     clocks: {},
     resolveCount: 0,
     coordLog,
+    recentDraws: [],   // initialized here AND backfilled in deserialize, so save/load never invents a key mid-run
     // Live copy; power drifts via simulateClash. Seeded from the cross-run store when
     // one is handed in — the faction scars an earlier vessel left ARE the new world.
     factions: JSON.parse(JSON.stringify(opts.crossRun?.factions ?? db.factions)),
@@ -462,6 +567,7 @@ export function deserialize(s: string): GameState {
   g.clocks ??= {};
   g.resolveCount ??= 0; // backfill the coordinate-log fields (WO-1c) so pre-centroid saves keep loading
   g.coordLog ??= [];
+  g.recentDraws ??= []; // backfill the anti-repeat memory (WO-2)
   // Backfill the Team → Faction rename (WO-0) so pre-rename saves keep loading.
   const legacy = g as GameState & { teams?: Record<string, Faction> };
   g.factions ??= legacy.teams ?? {};

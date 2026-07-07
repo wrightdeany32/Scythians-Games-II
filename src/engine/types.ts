@@ -225,7 +225,51 @@ export interface EngineTuning {
     window?: number;           // recency window for both centroids, in CARD-RESOLUTIONS, not days
                                // (RNG-independent; default in engine/centroid.ts; the fate-dial rides this later)
   };
+  terminal?: {
+    onGripZero?: boolean;      // grip 0 ends the run ("lost grip"; default true). Content keeps it RECOVERABLE
+                               // before that line: grip-raising outcomes and rest beats are content's discipline.
+    flags?: string[];          // designed terminal flags ("taken", ...); any set truthy ends the run (default [])
+  };
+  // -- the Weight step's switchable factors (WO-2). EVERY factor ships OFF, so
+  // seed-matched bot A/Bs can isolate each one's drift before anything ships on
+  // (ratified guardrail). All numbers are tuning PLACEHOLDERS until measured.
+  diamondProximity?: {
+    enabled?: boolean;         // default false — off means drawWeight is exactly ev.weight
+    strength?: number;         // multiplier at zero distance is (1 + strength); default 0.5
+    range?: number;            // distance at which the boost fades to nothing; default 1.5
+  };
+  antiRepeat?: {
+    enabled?: boolean;         // default false
+    factor?: number;           // weight multiplier for recently-drawn cards; default 0.5
+    memory?: number;           // how many recent random draws count as "recent"; default 5
+  };
+  dailyDraw?: {
+    p?: number;                // the loop's ambient-draw probability per day (default 0 — content opts in)
+  };
 }
+
+// ---- the deck registry (WO-2) --------------------------------------------------
+// A deck is a named pool of cards. Membership stays where it always was — an
+// event CARRIES the deck's id in its tags (a card in several decks is an edge
+// card) — so the registry adds mounting rules and deck-level coordinates
+// without moving a single card. The two coordinate fields are deliberately
+// distinct systems: diamondCoord feeds proximity/centroids; mapPos is physical
+// and is NEVER read by either (map ≠ diamond).
+export interface DeckDef {
+  id: string;                   // the tag events carry (e.g. "deck:situations") — the id IS the tag
+  mountFlag?: string;           // mounted while this flag is truthy (an active thread); omit = always mounted
+  towns?: string[];             // mounted only in these towns (physical location); omit = anywhere
+  diamondCoord?: DiamondCoord;  // deck-level (Y, Z) — authored, or Slate's rollup (deckCentroid over members)
+  lensFlavor?: string;          // deck-level interpretive register
+  mapPos?: MapPos;              // physical position for map surfaces — never enters draw math
+}
+
+// A met-door (WO-1d): a beat that fires when the world-state says so, checked
+// once per day advance. If the condition holds (and the event's once-flag
+// hasn't fired), the event is queued and greets the player next morning as a
+// scene. Give door events a `once` unless re-firing every qualifying morning
+// is the intent.
+export interface Door { eventId: string; when: Condition }
 
 export interface ContentDB {
   questionnaire?: Questionnaire;         // OPTIONAL — creation can be played cards instead; newGame must not require it
@@ -236,6 +280,8 @@ export interface ContentDB {
   traits: Record<string, Trait>;
   items: Record<string, Item>;
   npcs?: Record<string, Npc>;            // optional authored NPC fixtures — the Circle seed
+  decks?: DeckDef[];                     // the deck registry (WO-2); the daily draw composes from mounted decks
+  doors?: Door[];                        // met-doors, checked on every day advance (WO-1d)
   openingLog?: string;                   // first line in the new-game log; engine falls back if absent
   openingQueue?: string[];               // event ids seeded into g.queue at new-game (scripted cold-open, in order)
   tuning?: EngineTuning;                 // optional engine-tuning seam; defaults reproduce current behavior
@@ -261,6 +307,7 @@ export interface GameState {
   // player's place from these on demand; no disposition is ever written back.
   resolveCount?: number;                              // total card/action resolutions this run (default 0)
   coordLog?: CoordLogEntry[];                         // append-only; only coordinated resolutions append (default [])
+  recentDraws?: string[];                             // last few RANDOM-draw winners (anti-repeat memory; default [])
   log: { text: string; tone: "g" | "b" | "n" }[];
 }
 
