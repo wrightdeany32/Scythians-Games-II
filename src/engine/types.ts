@@ -102,7 +102,13 @@ export interface Npc {
   relationship: Relationship;
 }
 
-export interface Team { id: string; name: string; homeTownId: string; tier: Tier; rating: number; }
+// A faction: an interest bloc in the living world (was Team, from the fork's
+// basketball heritage — the seeded Elo machinery is kept, reskinned as FACTION-
+// POWER drift). `rating` is the faction's current power; clashes move it (see
+// simulateClash), so influence rises and falls emergently across a run — and,
+// via the cross-run store, across vessels: a later run arrives in a world an
+// earlier one shaped. That silent seeding is the drift's second job.
+export interface Faction { id: string; name: string; homeTownId: string; tier: Tier; rating: number; }
 
 export interface LocationAction {
   id: string;
@@ -114,14 +120,6 @@ export interface LocationAction {
   requires?: Condition;
   isClear?: boolean;     // resolving this clears the hub / unlocks the next tier
   outcome: Outcome;
-}
-
-export interface Arena {
-  id: string;
-  name: string;
-  kind: "main" | "sub";
-  tier: Tier;
-  clear?: { type: "rep_threshold"; value: number };
 }
 
 export interface Town {
@@ -184,14 +182,14 @@ export interface ContentDB {
   events: Record<string, GameEvent>;
   actions: LocationAction[];
   towns: Record<string, Town>;
-  teams: Record<string, Team>;
+  factions: Record<string, Faction>;     // the living world's interest blocs (was `teams`)
   traits: Record<string, Trait>;
   items: Record<string, Item>;
   npcs?: Record<string, Npc>;            // optional authored NPC fixtures — the Circle seed
   openingLog?: string;                   // first line in the new-game log; engine falls back if absent
   openingQueue?: string[];               // event ids seeded into g.queue at new-game (scripted cold-open, in order)
   tuning?: EngineTuning;                 // optional engine-tuning seam; defaults reproduce current behavior
-  names: { first: string[]; last: string[]; teamA: string[]; teamB: string[] };
+  names: { first: string[]; last: string[] };  // NPC name pools (teamA/teamB trimmed with the basketball vestiges — nothing consumed them)
 }
 
 // The entire save file is this object. Content (db) is NOT part of it.
@@ -203,7 +201,7 @@ export interface GameState {
   townId: string;
   player: Player;
   npcs: Record<string, Npc>;
-  teams: Record<string, Team>;
+  factions: Record<string, Faction>;   // live copy; power drifts via simulateClash (loads legacy `teams` saves)
   flags: Record<string, boolean | number | string>;  // the cross-arc memory store
   queue: string[];     // chained event ids waiting to fire
   scheduled?: ScheduledEvent[];                       // timed-event promises due on a future day (default [])
@@ -222,4 +220,22 @@ export interface ScheduledEvent { onDay: number; eventId: string }
 export interface ResolvedRoll {
   tag: string; die: number; mod: number; total: number; target: number; success: boolean;
   win: Outcome; lose: Outcome;
+}
+
+// ---- the cross-run store (WO-0 scaffold) --------------------------------------
+// The SECOND save scope. The per-run save (GameState) resets with each new vessel;
+// this store persists across vessels and is deliberately TINY — it is the
+// meta-story's only mechanical carrier, and it stays a SEPARATE artifact:
+// GameState never embeds it, and it never embeds a GameState.
+// It records what EXISTS and WHERE — never what anything means. No-truth-state
+// and no-meta-reveal apply at the meta level too: a later vessel arrives in a
+// world an earlier one shaped, and the machine never says so.
+export interface ArtifactRecord {
+  itemId: string;   // which object an earlier run left behind
+  townId: string;   // where it waits. Existence + place — deliberately NO meaning/description field.
+}
+export interface CrossRunStore {
+  version: number;                      // store schema version (for forward migration)
+  factions?: Record<string, Faction>;   // faction power as the last vessel left it (the world's scars)
+  artifacts?: ArtifactRecord[];         // stub — the find/place verbs land with WO-5, when a real card asks
 }

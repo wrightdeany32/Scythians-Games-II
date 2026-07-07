@@ -17,10 +17,10 @@ const db: ContentDB = {
   events: caveEvents,
   actions: [caveEntryAction],
   towns: {},
-  teams: {},
+  factions: {},
   traits: {},
   items: caveItems,
-  names: { first: ["A"], last: ["B"], teamA: ["A"], teamB: ["B"] },
+  names: { first: ["A"], last: ["B"] },
 };
 
 const line = (s = "") => console.log(s);

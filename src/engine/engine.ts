@@ -2,17 +2,37 @@
 // engine.ts — all engine logic. Small on purpose. It knows how to:
 //   evaluate conditions · collect modifiers · resolve outcomes & dice rolls ·
 //   draw events · advance a day · create / save / load a game · generate NPCs
-//   and simulate games (Elo) for emergent dynasties.
+//   and simulate faction clashes (Elo) for emergent power drift.
 // It contains NO content. Everything it operates on comes from the ContentDB.
 //
-// THE NO-TRUTH-STATE INVARIANT (ratified convention, 2026-07-03).
-//   The engine holds NO meaning-state — no reveal flag, no truth accumulator, no
-//   canonical-explanation field, ever. Endings select off accumulated flags and
-//   coordinates, never off a stored "answer." There is nowhere in GameState to
-//   put "what it was really all along," and there must never be. This is the
-//   architectural half of the anti-noun pillar: the machine literally cannot say
-//   "so actually it's X" unless a card says it. Do not add a `truth` enum for
-//   ending-selection; use flags/counts. Cheap to keep, expensive to recover.
+// THE FOUR INVARIANTS (ratified 2026-07-03 / 2026-07-06). One negative space:
+// no stored MEANING, no shown STRUCTURE, no stored POSITION, no confirmed META.
+// Iterate freely inside these walls; never build through them.
+//
+// 1 · NO-TRUTH-STATE — the engine holds NO meaning-state: no reveal flag, no
+//     truth accumulator, no canonical-explanation field, ever. Endings select
+//     off accumulated flags and coordinates, never off a stored "answer."
+//     There is nowhere in GameState to put "what it was really all along," and
+//     there must never be. This is the architectural half of the anti-noun
+//     pillar: the machine literally cannot say "so actually it's X" unless a
+//     card says it. Do not add a `truth` enum for ending-selection; use
+//     flags/counts. Cheap to keep, expensive to recover.
+// 2 · NO-CATALOG — surfaces show no structure. What the player KNOWS (places
+//     been, people met, qualitative statuses) may render; what REMAINS never
+//     does: no deck names, no completion meters, no "3 of 12," no unlock
+//     toasts. A content inventory is a truth-state for structure. The engine's
+//     side of the wall: expose no API that enumerates unseen content for a
+//     renderer to count.
+// 3 · NO-STORED-DISPOSITION — the engine stores the EVENTS (the thin resolved-
+//     coordinate log) and DERIVES the player's place in the diamond on demand;
+//     it never persists a disposition coordinate. A hand reaching to add
+//     `player.disposition` is the same reach as adding a `truth` enum — it
+//     hits the same wall. (Grip and tier are the two legitimate mechanical
+//     stats that double as coordinates; nothing else is.)
+// 4 · NO-META-REVEAL — the meta-layer is all seed, never payoff. No card ever
+//     confirms it, and no engine mechanism may either: the cross-run store
+//     carries existence + place (faction drift, artifact stubs), never
+//     meaning. The card that "pays off" the meta-story must never exist.
 // ============================================================================
 
 import {
@@ -20,7 +40,8 @@ import {
 } from "./rng";
 import type {
   ContentDB, GameState, Stats, StatKey, Modifier, Outcome, ResolvedRoll,
-  Condition, GameEvent, LocationAction, Npc, BodyArchetype, Tier,
+  Condition, GameEvent, LocationAction, Npc, BodyArchetype, Tier, Faction,
+  CrossRunStore,
 } from "./types";
 
 // ---- engine tuning seam ------------------------------------------------------
@@ -345,6 +366,7 @@ export interface NewGameOpts {
   townId: string;
   tier: Tier;
   openingQueue?: string[]; // overrides db.openingQueue for this game (scripted cold-open, in order)
+  crossRun?: CrossRunStore; // the persistent second save scope: a new vessel arrives in the world the last one left
 }
 
 export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
@@ -387,7 +409,9 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
     npcs: db.npcs ? (JSON.parse(JSON.stringify(db.npcs)) as Record<string, Npc>) : {}, // spawn authored fixtures
     scheduled: [],
     clocks: {},
-    teams: JSON.parse(JSON.stringify(db.teams)), // live copy; ratings can drift via Elo
+    // Live copy; power drifts via simulateClash. Seeded from the cross-run store when
+    // one is handed in — the faction scars an earlier vessel left ARE the new world.
+    factions: JSON.parse(JSON.stringify(opts.crossRun?.factions ?? db.factions)),
     flags,
     queue: [...(opts.openingQueue ?? db.openingQueue ?? [])], // seed the scripted cold-open, in order
     log: [{ text: db.openingLog ?? DEFAULT_OPENING_LOG, tone: "n" }],
@@ -401,7 +425,38 @@ export function deserialize(s: string): GameState {
   const g = JSON.parse(s) as GameState;
   g.scheduled ??= [];   // backfill time-substrate fields so pre-Milestone-4 saves keep loading
   g.clocks ??= {};
+  // Backfill the Team → Faction rename (WO-0) so pre-rename saves keep loading.
+  const legacy = g as GameState & { teams?: Record<string, Faction> };
+  g.factions ??= legacy.teams ?? {};
+  delete legacy.teams;
   return g;
+}
+
+// ---- the cross-run store (WO-0 scaffold) --------------------------------------
+// The persistent second save scope (see types.ts). Kept as its own tiny artifact:
+// serialize/deserialize are separate from the per-run save on purpose, so the two
+// scopes can never accidentally merge. harvestCrossRun is called when a run ends
+// (or at any checkpoint the caller likes): it copies the world-state the vessel
+// leaves behind — faction power, nothing else yet. Artifact find/place verbs land
+// with WO-5, when a real card asks for them.
+export const CROSS_RUN_VERSION = 1;
+
+export function newCrossRunStore(): CrossRunStore {
+  return { version: CROSS_RUN_VERSION };
+}
+
+export function harvestCrossRun(g: GameState, store: CrossRunStore): CrossRunStore {
+  store.factions = JSON.parse(JSON.stringify(g.factions)) as Record<string, Faction>;
+  return store;
+}
+
+export function serializeCrossRun(store: CrossRunStore): string {
+  return JSON.stringify(store);
+}
+export function deserializeCrossRun(s: string): CrossRunStore {
+  const store = JSON.parse(s) as CrossRunStore;
+  store.version ??= CROSS_RUN_VERSION;
+  return store;
 }
 
 // ---- procedural generation (Phase 4 preview) ---------------------------------
@@ -409,7 +464,7 @@ export function generateName(g: GameState, db: ContentDB): string {
   return pick(g, db.names.first) + " " + pick(g, db.names.last);
 }
 
-// Ratings cluster around the middle with the occasional star (rough bell shape).
+// Ability scores cluster around the middle with the occasional standout (rough bell shape).
 export function rollRating(g: GameState): number {
   return Math.round((randInt(g, 30, 80) + randInt(g, 30, 80) + randInt(g, 40, 70)) / 3);
 }
@@ -429,15 +484,18 @@ export function generateNpc(g: GameState, db: ContentDB, role?: string): Npc {
   };
 }
 
-// Elo expectation + update. Run many of these across a season and dynasties,
-// upsets, and rises/falls emerge on their own (Pillar 7).
+// Elo expectation + update, reskinned from the fork's season sim (WO-0, ratified):
+// a "clash" is any offscreen contest between factions — turf, funding, attention.
+// Run many across a run's days and rises/falls emerge on their own; the drift is
+// the cheap living world, and via the cross-run store it is also the meta-story's
+// silent seeder (a later vessel arrives in a world an earlier one shaped).
 export function expectedScore(rA: number, rB: number): number {
   return 1 / (1 + Math.pow(10, (rB - rA) / 15));
 }
 
-export function simulateGame(g: GameState, db: ContentDB, aId: string, bId: string, k = 4): string {
-  const A = g.teams[aId];
-  const B = g.teams[bId];
+export function simulateClash(g: GameState, _db: ContentDB, aId: string, bId: string, k = 4): string {
+  const A = g.factions[aId];
+  const B = g.factions[bId];
   const eA = expectedScore(A.rating, B.rating);
   const aWins = chance(g, eA);
   A.rating += k * ((aWins ? 1 : 0) - eA);

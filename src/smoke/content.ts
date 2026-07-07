@@ -141,9 +141,9 @@ export const db: ContentDB = {
     },
   },
 
-  teams: {
-    team_alpha: { id: "team_alpha", name: "Alpha", homeTownId: "region_one", tier: "outer", rating: 70 },
-    team_beta: { id: "team_beta", name: "Beta", homeTownId: "region_one", tier: "outer", rating: 55 },
+  factions: {
+    faction_alpha: { id: "faction_alpha", name: "Alpha", homeTownId: "region_one", tier: "outer", rating: 70 },
+    faction_beta: { id: "faction_beta", name: "Beta", homeTownId: "region_one", tier: "outer", rating: 55 },
   },
 
   traits: {
@@ -172,7 +172,5 @@ export const db: ContentDB = {
   names: {
     first: ["Alex", "Sam", "Jordan", "Riley", "Casey"],
     last: ["Vance", "Cole", "Reyes", "Okafor", "Lindqvist"],
-    teamA: ["North", "Iron", "Harbor"],
-    teamB: ["Guild", "Union", "Watch"],
   },
 };
