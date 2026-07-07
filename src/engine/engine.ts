@@ -41,7 +41,7 @@ import {
 import type {
   ContentDB, GameState, Stats, StatKey, Modifier, Outcome, ResolvedRoll,
   Condition, GameEvent, LocationAction, Npc, BodyArchetype, Tier, Faction,
-  CrossRunStore,
+  CrossRunStore, CoordLogEntry, DiamondCoord,
 } from "./types";
 
 // ---- engine tuning seam ------------------------------------------------------
@@ -256,6 +256,7 @@ export function takeAction(g: GameState, db: ContentDB, a: LocationAction): { ro
     return {};
   }
   g.player.stats.energy = Math.max(0, g.player.stats.energy - a.cost);
+  recordResolution(g, a);   // research actions are ordinary card-resolutions — same log, no special case
   return applyOutcome(g, db, a.outcome);
   // Caller checks a.isClear after resolving (and continuing any roll) to detect a clear.
 }
@@ -338,7 +339,23 @@ export function choiceAvailable(g: GameState, c: { requires?: Condition }): bool
 }
 
 export function resolveChoice(g: GameState, db: ContentDB, ev: GameEvent, idx: number): { roll?: ResolvedRoll } {
+  recordResolution(g, ev);   // once per resolved CARD (the coordinate is the card's, not the branch's)
   return applyOutcome(g, db, ev.choices[idx].outcome);
+}
+
+// ---- the resolved-coordinate log (WO-1c; invariant #3's mechanism) -------------
+// Every card/action resolution ticks the ordinal clock; a resolution whose source
+// carries a coordinate or lens flavor also appends a THIN entry — a coordinate
+// and an ordinal, nothing else. The position itself is never stored here or
+// anywhere: engine/centroid.ts derives it on demand from these events.
+function recordResolution(g: GameState, src: { diamondCoord?: DiamondCoord; lensFlavor?: string }): void {
+  g.resolveCount = (g.resolveCount ?? 0) + 1;
+  if (src.diamondCoord || src.lensFlavor) {
+    const entry: CoordLogEntry = { index: g.resolveCount };
+    if (src.diamondCoord) entry.diamondCoord = { sanction: src.diamondCoord.sanction, vertical: src.diamondCoord.vertical };
+    if (src.lensFlavor) entry.lensFlavor = src.lensFlavor;
+    (g.coordLog ??= []).push(entry);
+  }
 }
 
 // ---- the day loop ------------------------------------------------------------
@@ -373,7 +390,21 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
   // grip starts fully grounded (GRIP_MAX); content/creation lowers it from there.
   const stats: Stats = { money: 0, energy: 0, energyMax: 3, tradecraft: 0, standing: 0, exposure: 0, grip: GRIP_MAX };
   const flags: Record<string, boolean | number | string> = {};
+  const coordLog: CoordLogEntry[] = [];
   let archetype = "Player";
+
+  // Cold-start = creation is turn-zero: a questionnaire answer carrying a
+  // coordinate/flavor seeds the centroids as index-0 log entries (the opening
+  // hooks seed the diamond origin; the creation-lens choice seeds the lens
+  // origin). No questionnaire → no entries → neutral origins. Creation played
+  // as CARDS seeds the log by the ordinary resolveChoice path instead.
+  const seedOrigin = (ans: { diamondCoord?: DiamondCoord; lensFlavor?: string }): void => {
+    if (!ans.diamondCoord && !ans.lensFlavor) return;
+    const entry: CoordLogEntry = { index: 0 };
+    if (ans.diamondCoord) entry.diamondCoord = { ...ans.diamondCoord };
+    if (ans.lensFlavor) entry.lensFlavor = ans.lensFlavor;
+    coordLog.push(entry);
+  };
 
   // Questionnaire is OPTIONAL now (creation can be played cards). Apply it only if present.
   const q = db.questionnaire;
@@ -384,12 +415,14 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
       if (a0.base) Object.assign(stats, a0.base);
       if (a0.archetype) archetype = a0.archetype;
       if (a0.flag) flags[a0.flag] = true;
+      seedOrigin(a0);
     }
     for (let i = 1; i < q.questions.length; i++) {
       const ai = q.questions[i].answers[answers[i] ?? 0];
       if (!ai) continue;
       if (ai.patch) for (const k in ai.patch) (stats as any)[k] += (ai.patch as any)[k];
       if (ai.flag) flags[ai.flag] = true;
+      seedOrigin(ai);
     }
   }
   stats.energy = stats.energyMax;
@@ -409,6 +442,8 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
     npcs: db.npcs ? (JSON.parse(JSON.stringify(db.npcs)) as Record<string, Npc>) : {}, // spawn authored fixtures
     scheduled: [],
     clocks: {},
+    resolveCount: 0,
+    coordLog,
     // Live copy; power drifts via simulateClash. Seeded from the cross-run store when
     // one is handed in — the faction scars an earlier vessel left ARE the new world.
     factions: JSON.parse(JSON.stringify(opts.crossRun?.factions ?? db.factions)),
@@ -425,6 +460,8 @@ export function deserialize(s: string): GameState {
   const g = JSON.parse(s) as GameState;
   g.scheduled ??= [];   // backfill time-substrate fields so pre-Milestone-4 saves keep loading
   g.clocks ??= {};
+  g.resolveCount ??= 0; // backfill the coordinate-log fields (WO-1c) so pre-centroid saves keep loading
+  g.coordLog ??= [];
   // Backfill the Team → Faction rename (WO-0) so pre-rename saves keep loading.
   const legacy = g as GameState & { teams?: Record<string, Faction> };
   g.factions ??= legacy.teams ?? {};

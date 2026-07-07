@@ -19,6 +19,33 @@ export interface Stats {
 export type Tier = "outer" | "fringe" | "deep" | "inner" | "core";  // radial depth rings (rim -> center)
 export type Relationship = "ally" | "rival" | "neutral";
 
+// ---- the coordinate system (WO-1c; ledger §5) ----------------------------------
+// The diamond's two EMERGENT axes. X (grounded↔attuned) is the grip stat and is
+// deliberately NOT here: cards carry (Y, Z) only, so grip can never reach the
+// draw's Weight step — the grip death-spiral cannot be baked at the chokepoint
+// (Azimuth clarification 1; grip acts at presentation: bands, gates, dice-tilt).
+// Convention: both components run [-1, 1]; content authors the values.
+export interface DiamondCoord {
+  sanction: number;   // Y — sanctioned (-1) ↔ fringe (+1)
+  vertical: number;   // Z — enable/raise up (+1) ↔ contain/put down (-1)
+}
+
+// The PHYSICAL map coordinate. A separate type on purpose: map ≠ diamond, two
+// independent systems — the centroid and the draw's proximity never read this.
+export interface MapPos { x: number; y: number }
+
+// One entry in the thin, append-only resolved-coordinate log: a coordinate and
+// an ordinal, nothing else (the rich trace stays in the Session, off the save).
+// `index` is the value of the resolution clock (GameState.resolveCount) when
+// the card resolved, so recency decays with PLAY distance — neutral cards push
+// old coordinates into the past. Untagged fields are simply absent: a card with
+// only a lensFlavor appends no diamond component, and vice versa.
+export interface CoordLogEntry {
+  index: number;
+  diamondCoord?: DiamondCoord;
+  lensFlavor?: string;   // one tag from the small closed vocabulary (content canon; Concordance + Loom own the list)
+}
+
 // ---- declarative conditions (gate events, choices, actions) ----
 export type Condition =
   | { kind: "stat"; stat: StatKey; op: ">=" | "<=" | ">" | "<" | "=="; value: number }
@@ -120,6 +147,16 @@ export interface LocationAction {
   requires?: Condition;
   isClear?: boolean;     // resolving this clears the hub / unlocks the next tier
   outcome: Outcome;
+  // -- action-surface metadata (WO-1b): where the day menu routes this action.
+  // Pure routing hints — the engine never branches on them; surfaces (map /
+  // phone / home) group actions by them so no bespoke per-surface system exists.
+  surface?: string;      // e.g. "map" | "phone" | "home"; omit = the default surface ("here")
+  place?: string;        // town/location id the action belongs to on a map surface
+  contact?: string;      // npc id the action belongs to on a phone surface
+  // -- coordinates (WO-1c): research actions are ordinary card-resolutions —
+  // resolving a coordinated action appends to the same log as a card. No special case.
+  diamondCoord?: DiamondCoord;
+  lensFlavor?: string;
 }
 
 export interface Town {
@@ -138,6 +175,8 @@ export interface GameEvent {
   once?: string;         // a flag set when this fires (one-time events)
   condition?: Condition;
   weight?: number;       // relative weight for the random draw (default 1; <1 = rarer)
+  diamondCoord?: DiamondCoord; // (Y, Z) — where resolving this card pulls the player's derived position. Omit = neutral/ubiquitous.
+  lensFlavor?: string;   // the card's dominant interpretive register (tag sparingly — register, not topic)
   title: string;
   body: string;
   choices: Choice[];
@@ -159,6 +198,13 @@ export interface Questionnaire {
       base?: Partial<Stats>;       // first question sets base stats
       patch?: Partial<Stats>;      // later questions tweak
       flag?: string;
+      // Cold-start seeding (WO-1c): creation is turn-zero. An answer carrying a
+      // coordinate/flavor writes an index-0 log entry, so the opening hooks seed
+      // the diamond origin and the creation-lens choice seeds the lens origin.
+      // (Creation played as CARDS needs none of this — coordinated cards resolved
+      // through the SceneRunner seed the log by the ordinary path.)
+      diamondCoord?: DiamondCoord;
+      lensFlavor?: string;
     }[];
   }[];
 }
@@ -174,6 +220,10 @@ export interface EngineTuning {
     coolPerDay?: number;       // amount exposure drops each endDay (default 1; set 0 for a STICKY meter)
     threshold?: number;        // at/above this, the consequence event is queued (default 6)
     consequenceEvent?: string; // event id queued when threshold is met (default "ev_exposure_discharge")
+  };
+  disposition?: {
+    window?: number;           // recency window for both centroids, in CARD-RESOLUTIONS, not days
+                               // (RNG-independent; default in engine/centroid.ts; the fate-dial rides this later)
   };
 }
 
@@ -206,6 +256,11 @@ export interface GameState {
   queue: string[];     // chained event ids waiting to fire
   scheduled?: ScheduledEvent[];                       // timed-event promises due on a future day (default [])
   clocks?: Record<string, Clock>;                     // progress clocks by id (default {})
+  // The events, never the position (invariant #3): a resolution clock and the
+  // thin coordinate log it stamps. dispositionCentroid/lensCentroid DERIVE the
+  // player's place from these on demand; no disposition is ever written back.
+  resolveCount?: number;                              // total card/action resolutions this run (default 0)
+  coordLog?: CoordLogEntry[];                         // append-only; only coordinated resolutions append (default [])
   log: { text: string; tone: "g" | "b" | "n" }[];
 }
 
