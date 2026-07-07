@@ -21,10 +21,11 @@
 // ============================================================================
 
 import type {
-  ContentDB, GameState, GameEvent, LocationAction, Stats,
+  ContentDB, GameState, GameEvent, GripBand, LocationAction, Stats,
 } from "./types";
 import {
   takeAction, nextQueuedEvent, resolveChoice, continueRoll, choiceAvailable,
+  resolveBand,
 } from "./engine";
 
 // What the player (or reader) sees for one step of a scene.
@@ -45,6 +46,9 @@ export interface SceneResolution {
   statDeltas: Record<string, number>;
   flagsChanged: Record<string, boolean | number | string>;
   roll: { tag: string; target: number; die: number; mod: number; total: number; success: boolean } | null;
+  // Band-select (Contract 2), FROZEN at this card's fire — null for unbanded
+  // cards. resolvedBand chose the presented variant; telemetry audits the leak.
+  band: { trueBand: GripBand; resolvedBand: GripBand } | null;
 }
 
 export interface SceneHooks {
@@ -72,6 +76,7 @@ export class SceneRunner {
   done = false;
   private stepCounter = 0;
   private currentEvent: GameEvent | null = null;
+  private currentBand: { trueBand: GripBand; resolvedBand: GripBand } | null = null;
   private pendingNarration = "";
 
   constructor(
@@ -150,6 +155,7 @@ export class SceneRunner {
       statDeltas: diffStats(beforeStats, this.g.player.stats),
       flagsChanged: diffFlags(beforeFlags, this.g.flags),
       roll,
+      band: this.currentBand,   // frozen at fire — never re-rolled between fire and resolve
     });
 
     this.advance();
@@ -162,6 +168,7 @@ export class SceneRunner {
     if (!ev) {
       this.done = true;
       this.currentEvent = null;
+      this.currentBand = null;
       const prose = this.pendingNarration.trim();
       this.current = { step: this.stepCounter, card: "__end__", prose, options: [] };
       this.hooks.onScreen?.(this.current);
@@ -169,7 +176,12 @@ export class SceneRunner {
       return;
     }
     this.currentEvent = ev;
-    const prose = (this.pendingNarration ? this.pendingNarration + "\n\n" : "") + ev.body;
+    // Resolve-noise-once (Contract 2): a banded card resolves its band HERE, at
+    // fire — once, frozen for this fire, selecting an authored variant of the
+    // body. Unbanded cards never touch the resolver (and consume no RNG).
+    this.currentBand = ev.bandText ? resolveBand(this.g, this.db, this.g.player.stats.grip, ev.noiseProfile) : null;
+    const body = (this.currentBand && ev.bandText?.[this.currentBand.resolvedBand]) || ev.body;
+    const prose = (this.pendingNarration ? this.pendingNarration + "\n\n" : "") + body;
     this.pendingNarration = "";
     const options = ev.choices.map((c, i) => ({
       index: i, label: c.label, available: choiceAvailable(this.g, c), showWhenLocked: !!c.showWhenLocked,

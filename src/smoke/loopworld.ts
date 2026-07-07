@@ -204,6 +204,27 @@ export const loopDb: ContentDB = {
       body: "Another neutral street card.",
       choices: [{ label: "Fine", outcome: { log: "Street two.", tone: "n" } }],
     },
+    lw_street_lens: {
+      id: "lw_street_lens",
+      tags: ["deck:street"],
+      lensFlavor: "lens_two",
+      title: "Street Scene, Read a Certain Way",
+      body: "A flavored street card the lens-bias should favor for a lens_two digger.",
+      choices: [{ label: "Fine", outcome: { log: "Street, slanted.", tone: "n" } }],
+    },
+
+    // --- a banded card (Contract 2 harness target; queued directly by the test) --
+    lw_banded: {
+      id: "lw_banded",
+      title: "The Same Room, Three Ways",
+      body: "The unbanded fallback body.",
+      bandText: {
+        grounded: "The room is just a room. You can see where every sound comes from.",
+        worn: "The room is mostly just a room. One sound arrives without a source, once.",
+        frayed: "The room will not resolve into a room. The sounds have no sources at all.",
+      },
+      choices: [{ label: "Leave", outcome: { log: "You leave.", tone: "n" } }],
+    },
 
     // --- the undercurrent deck (thread-mounted; coordinated near the scene) -----
     lw_undercurrent_1: {

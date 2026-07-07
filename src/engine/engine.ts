@@ -41,9 +41,9 @@ import {
 import type {
   ContentDB, GameState, Stats, StatKey, Modifier, Outcome, ResolvedRoll,
   Condition, GameEvent, LocationAction, Npc, BodyArchetype, Tier, Faction,
-  CrossRunStore, CoordLogEntry, DiamondCoord, DeckDef,
+  CrossRunStore, CoordLogEntry, DiamondCoord, DeckDef, GripBand,
 } from "./types";
-import { dispositionCentroid } from "./centroid";
+import { dispositionCentroid, lensCentroid } from "./centroid";
 
 // ---- engine tuning seam ------------------------------------------------------
 // Content overrides these; the engine falls back to the exact values it used to
@@ -307,15 +307,15 @@ function fireEvent(g: GameState, ev: GameEvent): void {
 //            (mountFlag). Calendar/schedule mounting arrives with {kind:"day"}
 //            (WO-5), when a real card asks.
 //   Filter   eligibility — tier ∧ tags ∧ requires (∧ date, with WO-5).
-//   Weight   drawWeight — weight × proximity_diamond × [proximity_lens, WO-3]
-//            × recency/anti-repeat. EVERY factor independently switchable and
+//   Weight   drawWeight — weight × proximity_diamond × proximity_lens ×
+//            recency/anti-repeat. EVERY factor independently switchable and
 //            OFF by default, so seed-matched bot A/Bs isolate each factor's
 //            drift before anything ships on.
 //   Draw     weightedPick, seed-deterministic — or nextQueuedEvent for a
 //            chained scene.
-//   Resolve-noise-once   band-select at card-fire, FROZEN on the fired-card
-//            record, {trueBand, resolvedBand} → trace. Lands with WO-3
-//            (Contract 2); the trace slot is already reserved.
+//   Resolve-noise-once   band-select at card-fire (resolveBand), FROZEN on the
+//            fired-card record, {trueBand, resolvedBand} → trace. Wired in the
+//            SceneRunner's advance — the one card-fire path scenes present on.
 //   Apply + record   applyOutcome + recordResolution (+ the Session's trace).
 
 export function diamondProximityTuning(db: ContentDB): { enabled: boolean; strength: number; range: number } {
@@ -323,9 +323,30 @@ export function diamondProximityTuning(db: ContentDB): { enabled: boolean; stren
   return { enabled: t?.enabled ?? false, strength: t?.strength ?? 0.5, range: t?.range ?? 1.5 };
 }
 
+export function lensBiasTuning(db: ContentDB): { enabled: boolean; strength: number } {
+  const t = db.tuning?.lensBias;
+  return { enabled: t?.enabled ?? false, strength: t?.strength ?? 0.3 };
+}
+
 export function antiRepeatTuning(db: ContentDB): { enabled: boolean; factor: number; memory: number } {
   const t = db.tuning?.antiRepeat;
   return { enabled: t?.enabled ?? false, factor: t?.factor ?? 0.5, memory: t?.memory ?? 5 };
+}
+
+// The centroids are invariant across a single draw, so they are derived ONCE
+// per draw here and handed into the weight step (Armature's review note on
+// PR #6) — and only derived at all when their switch is on. A null field means
+// "factor off" to drawWeight.
+interface WeightContext {
+  diamond: DiamondCoord | null;
+  lens: Record<string, number> | null;
+}
+
+function weightContext(g: GameState, db: ContentDB): WeightContext {
+  return {
+    diamond: diamondProximityTuning(db).enabled ? dispositionCentroid(g, db) : null,
+    lens: lensBiasTuning(db).enabled ? lensCentroid(g, db) : null,
+  };
 }
 
 // proximity_diamond: closeness between the card's (Y, Z) and the DERIVED
@@ -334,14 +355,28 @@ export function antiRepeatTuning(db: ContentDB): { enabled: boolean; factor: num
 // an uncoordinated card is neutral/ubiquitous (flat 1). Grip/X cannot reach
 // this computation — cards carry no X, and the centroid is (Y, Z) only — so
 // the grip death-spiral cannot be baked at this chokepoint.
-function proximityDiamond(g: GameState, db: ContentDB, ev: GameEvent): number {
+function proximityDiamond(db: ContentDB, c: DiamondCoord, ev: GameEvent): number {
   if (!ev.diamondCoord) return 1;
   const t = diamondProximityTuning(db);
-  const c = dispositionCentroid(g, db);
   const dy = ev.diamondCoord.sanction - c.sanction;
   const dz = ev.diamondCoord.vertical - c.vertical;
   const near = Math.max(0, 1 - Math.sqrt(dy * dy + dz * dz) / t.range);
   return 1 + t.strength * near;
+}
+
+// proximity_lens — Contract 1 (Batch-3 v0.2): the lens-centroid's affinity
+// mass on the candidate's lensFlavor, mapped LINEARLY into [1, 1 + strength]
+// (defaults ⇒ [1.0, 1.3]). Floor 1.0 — never a gate, no down-weighting: every
+// eligible card stays drawable at every lens; untagged cards take 1.0 flat.
+// CONTINUOUS, never a categorical top-affinity match (binary would be jumpy
+// and visible within a day, breaking the tuning target: perceptible across a
+// run, unprovable within one). Reaches only deck-scoped RANDOM draws by
+// construction — this multiplies inside drawWeight, which only weightedPick
+// calls, which only the random draw tail reaches; queue-chained cards, the
+// openingQueue, and `requires` never touch a weight.
+function proximityLens(db: ContentDB, lens: Record<string, number>, ev: GameEvent): number {
+  if (!ev.lensFlavor) return 1;
+  return 1 + lensBiasTuning(db).strength * (lens[ev.lensFlavor] ?? 0);
 }
 
 // recency/anti-repeat: a card that just won a random draw weighs less for the
@@ -362,31 +397,64 @@ function noteDraw(g: GameState, db: ContentDB, id: string): void {
 // weighting layer is a one-function change, not a rewrite. With every switch
 // off (the shipped default) this is exactly `ev.weight ?? 1`: behavior
 // identical to the pre-pipeline engine.
-function drawWeight(g: GameState, db: ContentDB, ev: GameEvent): number {
+function drawWeight(g: GameState, db: ContentDB, ev: GameEvent, ctx: WeightContext): number {
   let w = ev.weight ?? 1;
-  if (diamondProximityTuning(db).enabled) w *= proximityDiamond(g, db, ev);
-  // [WO-3 seam — Contract 1 multiplies in HERE and nowhere else:
-  //  proximity_lens = lensCentroid's affinity mass on ev.lensFlavor, mapped
-  //  LINEARLY into [1.0, 1.3]; floor 1.0, never a gate, no down-weighting;
-  //  deck-scoped random draws only (never queue/openingQueue/requires);
-  //  switch: tuning.lensBias.enabled, independent of diamondProximity.]
+  if (ctx.diamond) w *= proximityDiamond(db, ctx.diamond, ev);
+  if (ctx.lens) w *= proximityLens(db, ctx.lens, ev);
   if (antiRepeatTuning(db).enabled) w *= antiRepeatFactor(g, db, ev);
   return w;
 }
 
 // Weighted pick over a pool using drawWeight — each candidate weighed exactly
-// once. Returns undefined for an empty pool, and for a fully ZERO-weighted one:
-// an exhausted pool (e.g. anti-repeat factor 0 with everything recent) draws
-// nothing rather than force-repeating its tail card. No RNG is consumed for an
-// undrawable pool.
+// once, against centroids derived once. Returns undefined for an empty pool,
+// and for a fully ZERO-weighted one: an exhausted pool (e.g. anti-repeat
+// factor 0 with everything recent) draws nothing rather than force-repeating
+// its tail card. No RNG is consumed for an undrawable pool.
 function weightedPick(g: GameState, db: ContentDB, pool: GameEvent[]): GameEvent | undefined {
   if (!pool.length) return undefined;
-  const weights = pool.map((e) => drawWeight(g, db, e));
+  const ctx = weightContext(g, db);
+  const weights = pool.map((e) => drawWeight(g, db, e, ctx));
   const total = weights.reduce((sum, w) => sum + w, 0);
   if (total <= 0) return undefined;
   let r = randFloat(g) * total;
   for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r < 0) return pool[i]; }
   return pool[pool.length - 1];   // float-edge fallback (r landed exactly on total)
+}
+
+// ---- band-select — Contract 2 (Batch-3 v0.2), the Resolve-noise-once step ------
+// ONE presentation-time mechanism: a meter maps to its band (grounded 7–10 /
+// worn 4–6 / frayed 0–3 — one boundary system with the grip<=3 illegible line),
+// and with the noise switch on, the true band LEAKS to an ADJACENT band with
+// probability p — never a two-band jump: that is the mechanical line between
+// unfalsifiable and incoherent. Symmetric from the middle. Bands select among
+// AUTHORED variants only (GameEvent.bandText), never generate text, never gate
+// a choice, and are resolved ONCE at card-fire and frozen on the fired-card
+// record — never re-rolled, never inside `requires`.
+// With tuning.bandNoise.enabled off (the shipped default), resolvedBand ===
+// trueBand and no RNG is consumed: banded cards still select their variant
+// deterministically; the switch isolates the LEAK so bots can measure its
+// drift. Meter-agnostic on purpose — companion-keyed calls pass the
+// companion's meter with the same bands.
+export function bandOf(meter: number): GripBand {
+  return meter >= 7 ? "grounded" : meter >= 4 ? "worn" : "frayed";
+}
+
+export function bandNoiseTuning(db: ContentDB): { enabled: boolean; p: number } {
+  const t = db.tuning?.bandNoise;
+  return { enabled: t?.enabled ?? false, p: t?.p ?? 0.2 };
+}
+
+export function resolveBand(
+  g: GameState, db: ContentDB, meter: number, noiseProfile?: number,
+): { trueBand: GripBand; resolvedBand: GripBand } {
+  const trueBand = bandOf(meter);
+  const t = bandNoiseTuning(db);
+  if (!t.enabled) return { trueBand, resolvedBand: trueBand };
+  let resolvedBand = trueBand;
+  if (chance(g, noiseProfile ?? t.p)) {
+    resolvedBand = trueBand === "worn" ? (chance(g, 0.5) ? "grounded" : "frayed") : "worn";
+  }
+  return { trueBand, resolvedBand };
 }
 
 // Pull the next QUEUED (chained) event only — no random fallback. This is the

@@ -19,6 +19,11 @@ export interface Stats {
 export type Tier = "outer" | "fringe" | "deep" | "inner" | "core";  // radial depth rings (rim -> center)
 export type Relationship = "ally" | "rival" | "neutral";
 
+// The grip bands (Batch-3 Contract 2): one boundary system, matching the
+// illegible option's existing grip <= 3 line. Companion-keyed calls read the
+// companion's meter with the same bands.
+export type GripBand = "grounded" | "worn" | "frayed";   // 7–10 · 4–6 · 0–3
+
 // ---- the coordinate system (WO-1c; ledger §5) ----------------------------------
 // The diamond's two EMERGENT axes. X (grounded↔attuned) is the grip stat and is
 // deliberately NOT here: cards carry (Y, Z) only, so grip can never reach the
@@ -177,6 +182,14 @@ export interface GameEvent {
   weight?: number;       // relative weight for the random draw (default 1; <1 = rarer)
   diamondCoord?: DiamondCoord; // (Y, Z) — where resolving this card pulls the player's derived position. Omit = neutral/ubiquitous.
   lensFlavor?: string;   // the card's dominant interpretive register (tag sparingly — register, not topic)
+  // -- band-select (Batch-3 Contract 2): AUTHORED variants of the body, selected
+  // by the resolved grip band at card-fire and frozen on the fired-card record.
+  // Selection only — bands never generate text and never gate a choice. A band
+  // with no authored variant falls back to `body`. Carrying bandText is how a
+  // card opts in; `noiseProfile` overrides the leak probability for this card
+  // (e.g. Reese 0.15, environmental 0.25 — proposals, tuned later).
+  bandText?: Partial<Record<GripBand, string>>;
+  noiseProfile?: number;
   title: string;
   body: string;
   choices: Choice[];
@@ -245,6 +258,17 @@ export interface EngineTuning {
                                // memory >= pool size makes an exhausted deck draw NOTHING until the
                                // memory rotates — honest silence, never a forced repeat.
     memory?: number;           // how many recent random draws count as "recent"; default 5
+  };
+  lensBias?: {
+    enabled?: boolean;         // Contract 1's switch — independent of diamondProximity, ships OFF;
+                               // tuned against research content as it lands
+    strength?: number;         // boost at full affinity: multiplier = 1 + strength × mass; default 0.3 ⇒ [1.0, 1.3]
+  };
+  bandNoise?: {
+    enabled?: boolean;         // Contract 2's NOISE switch, ships OFF. Off ⇒ resolvedBand === trueBand:
+                               // banded cards still select their authored variant deterministically;
+                               // the switch controls the unfalsifiable leak, so bot A/Bs isolate its drift.
+    p?: number;                // adjacent-leak probability; default 0.2; per-card noiseProfile overrides
   };
 }
 
