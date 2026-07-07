@@ -2,8 +2,8 @@
 // content/cave.db.ts — assembles the Cave scene into a complete, runnable
 // ContentDB. The cave chain is authored in cave.ts; this file is the thin glue
 // that wraps it with the empty stubs a self-contained scene needs (no
-// questionnaire, no towns/teams, minimal names) so newGame() and the cold-read
-// Session can run it standalone.
+// questionnaire, no towns/factions, minimal names) so newGame() and the
+// cold-read Session can run it standalone.
 // ============================================================================
 
 import type { ContentDB } from "../engine/types";
@@ -16,8 +16,8 @@ export const caveDb: ContentDB = {
   events: caveEvents,
   actions: [caveEntryAction],
   towns: {},
-  teams: {},
+  factions: {},
   traits: {},
   items: caveItems,
-  names: { first: ["Alex"], last: ["Vance"], teamA: ["North"], teamB: ["Guild"] },
+  names: { first: ["Alex"], last: ["Vance"] },
 };

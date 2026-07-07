@@ -2,17 +2,37 @@
 // engine.ts — all engine logic. Small on purpose. It knows how to:
 //   evaluate conditions · collect modifiers · resolve outcomes & dice rolls ·
 //   draw events · advance a day · create / save / load a game · generate NPCs
-//   and simulate games (Elo) for emergent dynasties.
+//   and simulate faction clashes (Elo) for emergent power drift.
 // It contains NO content. Everything it operates on comes from the ContentDB.
 //
-// THE NO-TRUTH-STATE INVARIANT (ratified convention, 2026-07-03).
-//   The engine holds NO meaning-state — no reveal flag, no truth accumulator, no
-//   canonical-explanation field, ever. Endings select off accumulated flags and
-//   coordinates, never off a stored "answer." There is nowhere in GameState to
-//   put "what it was really all along," and there must never be. This is the
-//   architectural half of the anti-noun pillar: the machine literally cannot say
-//   "so actually it's X" unless a card says it. Do not add a `truth` enum for
-//   ending-selection; use flags/counts. Cheap to keep, expensive to recover.
+// THE FOUR INVARIANTS (ratified 2026-07-03 / 2026-07-06). One negative space:
+// no stored MEANING, no shown STRUCTURE, no stored POSITION, no confirmed META.
+// Iterate freely inside these walls; never build through them.
+//
+// 1 · NO-TRUTH-STATE — the engine holds NO meaning-state: no reveal flag, no
+//     truth accumulator, no canonical-explanation field, ever. Endings select
+//     off accumulated flags and coordinates, never off a stored "answer."
+//     There is nowhere in GameState to put "what it was really all along," and
+//     there must never be. This is the architectural half of the anti-noun
+//     pillar: the machine literally cannot say "so actually it's X" unless a
+//     card says it. Do not add a `truth` enum for ending-selection; use
+//     flags/counts. Cheap to keep, expensive to recover.
+// 2 · NO-CATALOG — surfaces show no structure. What the player KNOWS (places
+//     been, people met, qualitative statuses) may render; what REMAINS never
+//     does: no deck names, no completion meters, no "3 of 12," no unlock
+//     toasts. A content inventory is a truth-state for structure. The engine's
+//     side of the wall: expose no API that enumerates unseen content for a
+//     renderer to count.
+// 3 · NO-STORED-DISPOSITION — the engine stores the EVENTS (the thin resolved-
+//     coordinate log) and DERIVES the player's place in the diamond on demand;
+//     it never persists a disposition coordinate. A hand reaching to add
+//     `player.disposition` is the same reach as adding a `truth` enum — it
+//     hits the same wall. (Grip and tier are the two legitimate mechanical
+//     stats that double as coordinates; nothing else is.)
+// 4 · NO-META-REVEAL — the meta-layer is all seed, never payoff. No card ever
+//     confirms it, and no engine mechanism may either: the cross-run store
+//     carries existence + place (faction drift, artifact stubs), never
+//     meaning. The card that "pays off" the meta-story must never exist.
 // ============================================================================
 
 import {
@@ -20,8 +40,10 @@ import {
 } from "./rng";
 import type {
   ContentDB, GameState, Stats, StatKey, Modifier, Outcome, ResolvedRoll,
-  Condition, GameEvent, LocationAction, Npc, BodyArchetype, Tier,
+  Condition, GameEvent, LocationAction, Npc, BodyArchetype, Tier, Faction,
+  CrossRunStore, CoordLogEntry, DiamondCoord, DeckDef,
 } from "./types";
+import { dispositionCentroid } from "./centroid";
 
 // ---- engine tuning seam ------------------------------------------------------
 // Content overrides these; the engine falls back to the exact values it used to
@@ -37,6 +59,14 @@ export function exposureTuning(db: ContentDB): { max: number; coolPerDay: number
     threshold: e?.threshold ?? 6,
     consequenceEvent: e?.consequenceEvent ?? "ev_exposure_discharge",
   };
+}
+
+// One deep-clone helper for the load-bearing copies (content → live state,
+// live state → cross-run store). JSON-based on purpose: everything cloned is
+// plain JSON data by design, so the semantics match serialize/deserialize
+// exactly — and there is one place to change if that ever needs to move.
+function deepClone<T>(x: T): T {
+  return JSON.parse(JSON.stringify(x)) as T;
 }
 
 // ---- stat clamping -----------------------------------------------------------
@@ -170,11 +200,11 @@ export function applyOutcome(g: GameState, db: ContentDB, o: Outcome): { roll?: 
   }
   if (o.setTier) setTier(g, db, o.setTier);
   if (o.introduceNpc && db.npcs && db.npcs[o.introduceNpc]) {
-    introduceNpc(g, JSON.parse(JSON.stringify(db.npcs[o.introduceNpc])) as Npc);
+    introduceNpc(g, deepClone(db.npcs[o.introduceNpc]));
   }
   if (o.addToCircle) {
     if (!g.npcs[o.addToCircle] && db.npcs && db.npcs[o.addToCircle]) {
-      introduceNpc(g, JSON.parse(JSON.stringify(db.npcs[o.addToCircle])) as Npc);
+      introduceNpc(g, deepClone(db.npcs[o.addToCircle]));
     }
     assignToCircle(g, o.addToCircle);
   }
@@ -235,6 +265,7 @@ export function takeAction(g: GameState, db: ContentDB, a: LocationAction): { ro
     return {};
   }
   g.player.stats.energy = Math.max(0, g.player.stats.energy - a.cost);
+  recordResolution(g, a);   // research actions are ordinary card-resolutions — same log, no special case
   return applyOutcome(g, db, a.outcome);
   // Caller checks a.isClear after resolving (and continuing any roll) to detect a clear.
 }
@@ -245,43 +276,117 @@ function tierMatch(t: Tier | Tier[] | undefined, cur: Tier): boolean {
   return Array.isArray(t) ? t.includes(cur) : t === cur;
 }
 
-// DECK/SECTOR axis: does this event carry the given deck tag?
-function hasTag(ev: GameEvent, tag: string): boolean {
-  return !!ev.tags && ev.tags.includes(tag);
+// The ONE eligibility predicate — the pipeline's Filter step: depth (tier) ∧
+// deck (tags) ∧ requires, the axis-separation model. `decks` scopes to a tag
+// set (undefined = unscoped). WO-5's date term lands HERE and nowhere else,
+// so every draw path inherits it at once.
+function isEligible(g: GameState, ev: GameEvent, decks?: Set<string>): boolean {
+  return (
+    (!ev.once || !g.flags[ev.once]) &&
+    tierMatch(ev.tier, g.tier) &&
+    (!decks || (!!ev.tags && ev.tags.some((t) => decks.has(t)))) &&
+    (!ev.condition || evalCondition(ev.condition, g))
+  );
 }
 
 // Eligible events, optionally SCOPED to a deck (a tag the event must carry).
-// Eligibility is depth (tier) ∧ deck (tags) ∧ requires — the axis-separation model.
 export function eligibleEvents(g: GameState, db: ContentDB, deck?: string): GameEvent[] {
-  return Object.values(db.events).filter(
-    (ev) =>
-      (!ev.once || !g.flags[ev.once]) &&
-      tierMatch(ev.tier, g.tier) &&
-      (!deck || hasTag(ev, deck)) &&
-      (!ev.condition || evalCondition(ev.condition, g)),
-  );
+  const decks = deck ? new Set([deck]) : undefined;
+  return Object.values(db.events).filter((ev) => isEligible(g, ev, decks));
 }
 
 function fireEvent(g: GameState, ev: GameEvent): void {
   if (ev.once) g.flags[ev.once] = true;
 }
 
-// The draw weight of a card. Today this is just `weight` (the rarity knob).
-// SEAM: the deferred tag-match / coordinate bias (backlog §8.1) bolts on HERE —
-// multiply by closeness between the card's tags and the player's lens/position.
-// Kept as a single chokepoint so that layer is a one-function change, not a rewrite.
-function drawWeight(_g: GameState, _db: ContentDB, ev: GameEvent): number {
-  return ev.weight ?? 1;
+// ---- the draw pipeline (WO-2) --------------------------------------------------
+// THE one resolution order (ratified contract; both Batch-3 contracts live at
+// their named steps and nowhere else):
+//
+//   Mount    mountedDecks — by physical location (towns) and active threads
+//            (mountFlag). Calendar/schedule mounting arrives with {kind:"day"}
+//            (WO-5), when a real card asks.
+//   Filter   eligibility — tier ∧ tags ∧ requires (∧ date, with WO-5).
+//   Weight   drawWeight — weight × proximity_diamond × [proximity_lens, WO-3]
+//            × recency/anti-repeat. EVERY factor independently switchable and
+//            OFF by default, so seed-matched bot A/Bs isolate each factor's
+//            drift before anything ships on.
+//   Draw     weightedPick, seed-deterministic — or nextQueuedEvent for a
+//            chained scene.
+//   Resolve-noise-once   band-select at card-fire, FROZEN on the fired-card
+//            record, {trueBand, resolvedBand} → trace. Lands with WO-3
+//            (Contract 2); the trace slot is already reserved.
+//   Apply + record   applyOutcome + recordResolution (+ the Session's trace).
+
+export function diamondProximityTuning(db: ContentDB): { enabled: boolean; strength: number; range: number } {
+  const t = db.tuning?.diamondProximity;
+  return { enabled: t?.enabled ?? false, strength: t?.strength ?? 0.5, range: t?.range ?? 1.5 };
 }
 
-// Weighted pick over a pool using drawWeight. Returns undefined for an empty pool.
+export function antiRepeatTuning(db: ContentDB): { enabled: boolean; factor: number; memory: number } {
+  const t = db.tuning?.antiRepeat;
+  return { enabled: t?.enabled ?? false, factor: t?.factor ?? 0.5, memory: t?.memory ?? 5 };
+}
+
+// proximity_diamond: closeness between the card's (Y, Z) and the DERIVED
+// disposition centroid, mapped to a boost in [1, 1 + strength] that fades
+// linearly to nothing at `range`. Never a gate (floor 1 by construction), and
+// an uncoordinated card is neutral/ubiquitous (flat 1). Grip/X cannot reach
+// this computation — cards carry no X, and the centroid is (Y, Z) only — so
+// the grip death-spiral cannot be baked at this chokepoint.
+function proximityDiamond(g: GameState, db: ContentDB, ev: GameEvent): number {
+  if (!ev.diamondCoord) return 1;
+  const t = diamondProximityTuning(db);
+  const c = dispositionCentroid(g, db);
+  const dy = ev.diamondCoord.sanction - c.sanction;
+  const dz = ev.diamondCoord.vertical - c.vertical;
+  const near = Math.max(0, 1 - Math.sqrt(dy * dy + dz * dz) / t.range);
+  return 1 + t.strength * near;
+}
+
+// recency/anti-repeat: a card that just won a random draw weighs less for the
+// next few random draws. Queue-chained cards never enter this memory — a
+// scripted scene is not a repeat.
+function antiRepeatFactor(g: GameState, db: ContentDB, ev: GameEvent): number {
+  return (g.recentDraws ?? []).includes(ev.id) ? antiRepeatTuning(db).factor : 1;
+}
+
+function noteDraw(g: GameState, db: ContentDB, id: string): void {
+  const mem = antiRepeatTuning(db).memory;
+  const r = (g.recentDraws ??= []);
+  r.push(id);
+  if (r.length > mem) r.splice(0, r.length - mem);
+}
+
+// The Weight step — kept as the single chokepoint (a ratified seam), so every
+// weighting layer is a one-function change, not a rewrite. With every switch
+// off (the shipped default) this is exactly `ev.weight ?? 1`: behavior
+// identical to the pre-pipeline engine.
+function drawWeight(g: GameState, db: ContentDB, ev: GameEvent): number {
+  let w = ev.weight ?? 1;
+  if (diamondProximityTuning(db).enabled) w *= proximityDiamond(g, db, ev);
+  // [WO-3 seam — Contract 1 multiplies in HERE and nowhere else:
+  //  proximity_lens = lensCentroid's affinity mass on ev.lensFlavor, mapped
+  //  LINEARLY into [1.0, 1.3]; floor 1.0, never a gate, no down-weighting;
+  //  deck-scoped random draws only (never queue/openingQueue/requires);
+  //  switch: tuning.lensBias.enabled, independent of diamondProximity.]
+  if (antiRepeatTuning(db).enabled) w *= antiRepeatFactor(g, db, ev);
+  return w;
+}
+
+// Weighted pick over a pool using drawWeight — each candidate weighed exactly
+// once. Returns undefined for an empty pool, and for a fully ZERO-weighted one:
+// an exhausted pool (e.g. anti-repeat factor 0 with everything recent) draws
+// nothing rather than force-repeating its tail card. No RNG is consumed for an
+// undrawable pool.
 function weightedPick(g: GameState, db: ContentDB, pool: GameEvent[]): GameEvent | undefined {
   if (!pool.length) return undefined;
-  const total = pool.reduce((sum, e) => sum + drawWeight(g, db, e), 0);
+  const weights = pool.map((e) => drawWeight(g, db, e));
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  if (total <= 0) return undefined;
   let r = randFloat(g) * total;
-  let ev = pool[pool.length - 1];
-  for (const cand of pool) { r -= drawWeight(g, db, cand); if (r < 0) { ev = cand; break; } }
-  return ev;
+  for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r < 0) return pool[i]; }
+  return pool[pool.length - 1];   // float-edge fallback (r landed exactly on total)
 }
 
 // Pull the next QUEUED (chained) event only — no random fallback. This is the
@@ -300,16 +405,47 @@ export function nextQueuedEvent(g: GameState, db: ContentDB): GameEvent | undefi
   return undefined;
 }
 
-// Queued (chained) events fire first; otherwise a random eligible event with prob p,
-// optionally drawn from a single deck (tag). `deck` omitted = draw from all decks.
-export function drawEvent(g: GameState, db: ContentDB, p: number, deck?: string): GameEvent | undefined {
+// The ONE draw tail — the pipeline's Draw step, shared by every random draw
+// path so the ritual (queue-first, the p-gate, the seed-deterministic pick,
+// once-flag fire, anti-repeat memory) can never fork. WO-3's Resolve-noise-once
+// (band-select, frozen at fire) lands on this path and nowhere else. The pool
+// is built lazily, AFTER the p-gate, so all paths consume RNG identically.
+function drawFromPool(g: GameState, db: ContentDB, p: number, pool: () => GameEvent[]): GameEvent | undefined {
   const queued = nextQueuedEvent(g, db);
   if (queued) return queued;
   if (!chance(g, p)) return undefined;
-  const ev = weightedPick(g, db, eligibleEvents(g, db, deck));
+  const ev = weightedPick(g, db, pool());
   if (!ev) return undefined;
   fireEvent(g, ev);
+  noteDraw(g, db, ev.id);   // random winners enter the anti-repeat memory; queued cards never do
   return ev;
+}
+
+// Queued (chained) events fire first; otherwise a random eligible event with prob p,
+// optionally drawn from a single deck (tag). `deck` omitted = draw from all decks.
+export function drawEvent(g: GameState, db: ContentDB, p: number, deck?: string): GameEvent | undefined {
+  return drawFromPool(g, db, p, () => eligibleEvents(g, db, deck));
+}
+
+// ---- the deck registry (WO-2) ---------------------------------------------------
+// Mount: which decks are live right now — physical location (towns) ∧ active
+// threads (mountFlag). No registry (db.decks absent/empty) mounts nothing;
+// content that predates the registry keeps using deck-scoped drawEvent
+// unchanged.
+export function mountedDecks(g: GameState, db: ContentDB): DeckDef[] {
+  return (db.decks ?? []).filter(
+    (d) => (!d.mountFlag || !!g.flags[d.mountFlag]) && (!d.towns || d.towns.includes(g.townId)),
+  );
+}
+
+// The daily draw: the shared draw tail over the UNION of every mounted deck's
+// eligible cards. A card in several mounted decks enters the pool once — deck
+// membership is a tag, not a copy.
+export function drawFromMounted(g: GameState, db: ContentDB, p: number): GameEvent | undefined {
+  return drawFromPool(g, db, p, () => {
+    const ids = new Set(mountedDecks(g, db).map((d) => d.id));
+    return ids.size ? Object.values(db.events).filter((ev) => isEligible(g, ev, ids)) : [];
+  });
 }
 
 export function choiceAvailable(g: GameState, c: { requires?: Condition }): boolean {
@@ -317,21 +453,59 @@ export function choiceAvailable(g: GameState, c: { requires?: Condition }): bool
 }
 
 export function resolveChoice(g: GameState, db: ContentDB, ev: GameEvent, idx: number): { roll?: ResolvedRoll } {
+  recordResolution(g, ev);   // once per resolved CARD (the coordinate is the card's, not the branch's)
   return applyOutcome(g, db, ev.choices[idx].outcome);
 }
 
+// ---- the resolved-coordinate log (WO-1c; invariant #3's mechanism) -------------
+// ONE entry builder for every coordinate-carrying source (a card, an action, a
+// questionnaire answer), so the creation paths and the play path can never
+// drift in entry shape. Returns undefined for a neutral source.
+function coordEntry(index: number, src: { diamondCoord?: DiamondCoord; lensFlavor?: string }): CoordLogEntry | undefined {
+  if (!src.diamondCoord && !src.lensFlavor) return undefined;
+  const entry: CoordLogEntry = { index };
+  if (src.diamondCoord) entry.diamondCoord = { sanction: src.diamondCoord.sanction, vertical: src.diamondCoord.vertical };
+  if (src.lensFlavor) entry.lensFlavor = src.lensFlavor;
+  return entry;
+}
+
+// Every card/action resolution ticks the ordinal clock; a coordinated source
+// also appends its thin entry — a coordinate and an ordinal, nothing else. The
+// position itself is never stored here or anywhere: engine/centroid.ts derives
+// it on demand from these events.
+function recordResolution(g: GameState, src: { diamondCoord?: DiamondCoord; lensFlavor?: string }): void {
+  g.resolveCount = (g.resolveCount ?? 0) + 1;
+  const entry = coordEntry(g.resolveCount, src);
+  if (entry) (g.coordLog ??= []).push(entry);
+}
+
 // ---- the day loop ------------------------------------------------------------
+// Everything that fires "when the day turns" lives HERE, at one depth, so every
+// day-advance driver gets identical mornings: the exposure consequence, the
+// scheduled sweep, and the met-doors (WO-1d) all queue through this one path.
 export function endDay(g: GameState, db: ContentDB): void {
   const exp = exposureTuning(db);
   g.day += 1;
   g.player.stats.energy = g.player.stats.energyMax;
   g.player.stats.exposure = Math.max(0, g.player.stats.exposure - exp.coolPerDay); // liability cools (coolPerDay 0 = sticky)
   g.log.unshift({ text: `— Day ${g.day}.`, tone: "n" });
-  if (g.player.stats.exposure >= exp.threshold && db.events[exp.consequenceEvent]) g.queue.push(exp.consequenceEvent); // scheduled consequence
+  // the exposure consequence — at most ONE pending copy (matching the door
+  // guard below; N stacked identical discharge scenes was never a design)
+  if (g.player.stats.exposure >= exp.threshold && db.events[exp.consequenceEvent] && !g.queue.includes(exp.consequenceEvent)) {
+    g.queue.push(exp.consequenceEvent);
+  }
   // after the date advances, sweep any timed-event promises now due onto the queue
   if (g.scheduled && g.scheduled.length) {
     for (const s of g.scheduled) if (s.onDay <= g.day) g.queue.push(s.eventId);
     g.scheduled = g.scheduled.filter((s) => s.onDay > g.day);
+  }
+  // met-doors: beats that fire when the NEW morning's state says so
+  for (const door of db.doors ?? []) {
+    const ev = db.events[door.eventId];
+    if (!ev) continue;
+    if (ev.once && g.flags[ev.once]) continue;           // already fired
+    if (g.queue.includes(door.eventId)) continue;         // already waiting
+    if (evalCondition(door.when, g)) g.queue.push(door.eventId);
   }
 }
 
@@ -345,13 +519,32 @@ export interface NewGameOpts {
   townId: string;
   tier: Tier;
   openingQueue?: string[]; // overrides db.openingQueue for this game (scripted cold-open, in order)
+  crossRun?: CrossRunStore; // the persistent second save scope: a new vessel arrives in the world the last one left
+}
+
+function seedFactions(db: ContentDB, crossRun?: CrossRunStore): Record<string, Faction> {
+  const factions = deepClone(db.factions);
+  const scars = crossRun?.factions ?? {};
+  for (const id in scars) if (factions[id]) factions[id].rating = scars[id].rating;
+  return factions;
 }
 
 export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
   // grip starts fully grounded (GRIP_MAX); content/creation lowers it from there.
   const stats: Stats = { money: 0, energy: 0, energyMax: 3, tradecraft: 0, standing: 0, exposure: 0, grip: GRIP_MAX };
   const flags: Record<string, boolean | number | string> = {};
+  const coordLog: CoordLogEntry[] = [];
   let archetype = "Player";
+
+  // Cold-start = creation is turn-zero: a questionnaire answer carrying a
+  // coordinate/flavor seeds the centroids as index-0 log entries (the opening
+  // hooks seed the diamond origin; the creation-lens choice seeds the lens
+  // origin). No questionnaire → no entries → neutral origins. Creation played
+  // as CARDS seeds the log by the ordinary resolveChoice path instead.
+  const seedOrigin = (ans: { diamondCoord?: DiamondCoord; lensFlavor?: string }): void => {
+    const entry = coordEntry(0, ans);   // the one entry builder — creation and play can't drift in shape
+    if (entry) coordLog.push(entry);
+  };
 
   // Questionnaire is OPTIONAL now (creation can be played cards). Apply it only if present.
   const q = db.questionnaire;
@@ -362,12 +555,14 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
       if (a0.base) Object.assign(stats, a0.base);
       if (a0.archetype) archetype = a0.archetype;
       if (a0.flag) flags[a0.flag] = true;
+      seedOrigin(a0);
     }
     for (let i = 1; i < q.questions.length; i++) {
       const ai = q.questions[i].answers[answers[i] ?? 0];
       if (!ai) continue;
       if (ai.patch) for (const k in ai.patch) (stats as any)[k] += (ai.patch as any)[k];
       if (ai.flag) flags[ai.flag] = true;
+      seedOrigin(ai);
     }
   }
   stats.energy = stats.energyMax;
@@ -384,10 +579,18 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
       portrait: { face: "f1", skin: "s1", hair: "h1" },
       stats, traits: [], items: [], circle: [],
     },
-    npcs: db.npcs ? (JSON.parse(JSON.stringify(db.npcs)) as Record<string, Npc>) : {}, // spawn authored fixtures
+    npcs: db.npcs ? deepClone(db.npcs) : {}, // spawn authored fixtures
     scheduled: [],
     clocks: {},
-    teams: JSON.parse(JSON.stringify(db.teams)), // live copy; ratings can drift via Elo
+    resolveCount: 0,
+    coordLog,
+    recentDraws: [],   // initialized here AND backfilled in deserialize, so save/load never invents a key mid-run
+    // Live copy; power drifts via simulateClash. The world's SHAPE is always
+    // content's (db.factions); a handed-in cross-run store contributes only its
+    // SCARS — drifted power for factions content still knows. A faction added to
+    // content since the store was harvested starts at its authored power; one
+    // content dropped does not resurrect from an old store.
+    factions: seedFactions(db, opts.crossRun),
     flags,
     queue: [...(opts.openingQueue ?? db.openingQueue ?? [])], // seed the scripted cold-open, in order
     log: [{ text: db.openingLog ?? DEFAULT_OPENING_LOG, tone: "n" }],
@@ -401,7 +604,41 @@ export function deserialize(s: string): GameState {
   const g = JSON.parse(s) as GameState;
   g.scheduled ??= [];   // backfill time-substrate fields so pre-Milestone-4 saves keep loading
   g.clocks ??= {};
+  g.resolveCount ??= 0; // backfill the coordinate-log fields (WO-1c) so pre-centroid saves keep loading
+  g.coordLog ??= [];
+  g.recentDraws ??= []; // backfill the anti-repeat memory (WO-2)
+  // Backfill the Team → Faction rename (WO-0) so pre-rename saves keep loading.
+  const legacy = g as GameState & { teams?: Record<string, Faction> };
+  g.factions ??= legacy.teams ?? {};
+  delete legacy.teams;
   return g;
+}
+
+// ---- the cross-run store (WO-0 scaffold) --------------------------------------
+// The persistent second save scope (see types.ts). Kept as its own tiny artifact:
+// serialize/deserialize are separate from the per-run save on purpose, so the two
+// scopes can never accidentally merge. harvestCrossRun is called when a run ends
+// (or at any checkpoint the caller likes): it copies the world-state the vessel
+// leaves behind — faction power, nothing else yet. Artifact find/place verbs land
+// with WO-5, when a real card asks for them.
+export const CROSS_RUN_VERSION = 1;
+
+export function newCrossRunStore(): CrossRunStore {
+  return { version: CROSS_RUN_VERSION };
+}
+
+export function harvestCrossRun(g: GameState, store: CrossRunStore): CrossRunStore {
+  store.factions = deepClone(g.factions);
+  return store;
+}
+
+export function serializeCrossRun(store: CrossRunStore): string {
+  return JSON.stringify(store);
+}
+export function deserializeCrossRun(s: string): CrossRunStore {
+  const store = JSON.parse(s) as CrossRunStore;
+  store.version ??= CROSS_RUN_VERSION;
+  return store;
 }
 
 // ---- procedural generation (Phase 4 preview) ---------------------------------
@@ -409,7 +646,7 @@ export function generateName(g: GameState, db: ContentDB): string {
   return pick(g, db.names.first) + " " + pick(g, db.names.last);
 }
 
-// Ratings cluster around the middle with the occasional star (rough bell shape).
+// Ability scores cluster around the middle with the occasional standout (rough bell shape).
 export function rollRating(g: GameState): number {
   return Math.round((randInt(g, 30, 80) + randInt(g, 30, 80) + randInt(g, 40, 70)) / 3);
 }
@@ -429,15 +666,18 @@ export function generateNpc(g: GameState, db: ContentDB, role?: string): Npc {
   };
 }
 
-// Elo expectation + update. Run many of these across a season and dynasties,
-// upsets, and rises/falls emerge on their own (Pillar 7).
+// Elo expectation + update, reskinned from the fork's season sim (WO-0, ratified):
+// a "clash" is any offscreen contest between factions — turf, funding, attention.
+// Run many across a run's days and rises/falls emerge on their own; the drift is
+// the cheap living world, and via the cross-run store it is also the meta-story's
+// silent seeder (a later vessel arrives in a world an earlier one shaped).
 export function expectedScore(rA: number, rB: number): number {
   return 1 / (1 + Math.pow(10, (rB - rA) / 15));
 }
 
-export function simulateGame(g: GameState, db: ContentDB, aId: string, bId: string, k = 4): string {
-  const A = g.teams[aId];
-  const B = g.teams[bId];
+export function simulateClash(g: GameState, _db: ContentDB, aId: string, bId: string, k = 4): string {
+  const A = g.factions[aId];
+  const B = g.factions[bId];
   const eA = expectedScore(A.rating, B.rating);
   const aWins = chance(g, eA);
   A.rating += k * ((aWins ? 1 : 0) - eA);

@@ -19,6 +19,33 @@ export interface Stats {
 export type Tier = "outer" | "fringe" | "deep" | "inner" | "core";  // radial depth rings (rim -> center)
 export type Relationship = "ally" | "rival" | "neutral";
 
+// ---- the coordinate system (WO-1c; ledger §5) ----------------------------------
+// The diamond's two EMERGENT axes. X (grounded↔attuned) is the grip stat and is
+// deliberately NOT here: cards carry (Y, Z) only, so grip can never reach the
+// draw's Weight step — the grip death-spiral cannot be baked at the chokepoint
+// (Azimuth clarification 1; grip acts at presentation: bands, gates, dice-tilt).
+// Convention: both components run [-1, 1]; content authors the values.
+export interface DiamondCoord {
+  sanction: number;   // Y — sanctioned (-1) ↔ fringe (+1)
+  vertical: number;   // Z — enable/raise up (+1) ↔ contain/put down (-1)
+}
+
+// The PHYSICAL map coordinate. A separate type on purpose: map ≠ diamond, two
+// independent systems — the centroid and the draw's proximity never read this.
+export interface MapPos { x: number; y: number }
+
+// One entry in the thin, append-only resolved-coordinate log: a coordinate and
+// an ordinal, nothing else (the rich trace stays in the Session, off the save).
+// `index` is the value of the resolution clock (GameState.resolveCount) when
+// the card resolved, so recency decays with PLAY distance — neutral cards push
+// old coordinates into the past. Untagged fields are simply absent: a card with
+// only a lensFlavor appends no diamond component, and vice versa.
+export interface CoordLogEntry {
+  index: number;
+  diamondCoord?: DiamondCoord;
+  lensFlavor?: string;   // one tag from the small closed vocabulary (content canon; Concordance + Loom own the list)
+}
+
 // ---- declarative conditions (gate events, choices, actions) ----
 export type Condition =
   | { kind: "stat"; stat: StatKey; op: ">=" | "<=" | ">" | "<" | "=="; value: number }
@@ -102,7 +129,13 @@ export interface Npc {
   relationship: Relationship;
 }
 
-export interface Team { id: string; name: string; homeTownId: string; tier: Tier; rating: number; }
+// A faction: an interest bloc in the living world (was Team, from the fork's
+// basketball heritage — the seeded Elo machinery is kept, reskinned as FACTION-
+// POWER drift). `rating` is the faction's current power; clashes move it (see
+// simulateClash), so influence rises and falls emergently across a run — and,
+// via the cross-run store, across vessels: a later run arrives in a world an
+// earlier one shaped. That silent seeding is the drift's second job.
+export interface Faction { id: string; name: string; homeTownId: string; tier: Tier; rating: number; }
 
 export interface LocationAction {
   id: string;
@@ -114,14 +147,16 @@ export interface LocationAction {
   requires?: Condition;
   isClear?: boolean;     // resolving this clears the hub / unlocks the next tier
   outcome: Outcome;
-}
-
-export interface Arena {
-  id: string;
-  name: string;
-  kind: "main" | "sub";
-  tier: Tier;
-  clear?: { type: "rep_threshold"; value: number };
+  // -- action-surface metadata (WO-1b): where the day menu routes this action.
+  // Pure routing hints — the engine never branches on them; surfaces (map /
+  // phone / home) group actions by them so no bespoke per-surface system exists.
+  surface?: string;      // e.g. "map" | "phone" | "home"; omit = the default surface ("here")
+  place?: string;        // town/location id the action belongs to on a map surface
+  contact?: string;      // npc id the action belongs to on a phone surface
+  // -- coordinates (WO-1c): research actions are ordinary card-resolutions —
+  // resolving a coordinated action appends to the same log as a card. No special case.
+  diamondCoord?: DiamondCoord;
+  lensFlavor?: string;
 }
 
 export interface Town {
@@ -140,6 +175,8 @@ export interface GameEvent {
   once?: string;         // a flag set when this fires (one-time events)
   condition?: Condition;
   weight?: number;       // relative weight for the random draw (default 1; <1 = rarer)
+  diamondCoord?: DiamondCoord; // (Y, Z) — where resolving this card pulls the player's derived position. Omit = neutral/ubiquitous.
+  lensFlavor?: string;   // the card's dominant interpretive register (tag sparingly — register, not topic)
   title: string;
   body: string;
   choices: Choice[];
@@ -161,6 +198,13 @@ export interface Questionnaire {
       base?: Partial<Stats>;       // first question sets base stats
       patch?: Partial<Stats>;      // later questions tweak
       flag?: string;
+      // Cold-start seeding (WO-1c): creation is turn-zero. An answer carrying a
+      // coordinate/flavor writes an index-0 log entry, so the opening hooks seed
+      // the diamond origin and the creation-lens choice seeds the lens origin.
+      // (Creation played as CARDS needs none of this — coordinated cards resolved
+      // through the SceneRunner seed the log by the ordinary path.)
+      diamondCoord?: DiamondCoord;
+      lensFlavor?: string;
     }[];
   }[];
 }
@@ -177,21 +221,72 @@ export interface EngineTuning {
     threshold?: number;        // at/above this, the consequence event is queued (default 6)
     consequenceEvent?: string; // event id queued when threshold is met (default "ev_exposure_discharge")
   };
+  disposition?: {
+    window?: number;           // recency window for both centroids, in CARD-RESOLUTIONS, not days
+                               // (RNG-independent; default in engine/centroid.ts; the fate-dial rides this later)
+  };
+  terminal?: {
+    onGripZero?: boolean;      // grip 0 ends the run ("lost grip"; default true). Content keeps it RECOVERABLE
+                               // before that line: grip-raising outcomes and rest beats are content's discipline.
+    flags?: string[];          // designed terminal flags ("taken", ...); TRUTHY ends the run (default []).
+                               // Same semantics as {kind:"flag"} without `equals` — keep terminal flags boolean.
+  };
+  // -- the Weight step's switchable factors (WO-2). EVERY factor ships OFF, so
+  // seed-matched bot A/Bs can isolate each one's drift before anything ships on
+  // (ratified guardrail). All numbers are tuning PLACEHOLDERS until measured.
+  diamondProximity?: {
+    enabled?: boolean;         // default false — off means drawWeight is exactly ev.weight
+    strength?: number;         // multiplier at zero distance is (1 + strength); default 0.5
+    range?: number;            // distance at which the boost fades to nothing; default 1.5
+  };
+  antiRepeat?: {
+    enabled?: boolean;         // default false
+    factor?: number;           // weight multiplier for recently-drawn cards; default 0.5. Factor 0 with
+                               // memory >= pool size makes an exhausted deck draw NOTHING until the
+                               // memory rotates — honest silence, never a forced repeat.
+    memory?: number;           // how many recent random draws count as "recent"; default 5
+  };
 }
+
+// ---- the deck registry (WO-2) --------------------------------------------------
+// A deck is a named pool of cards. Membership stays where it always was — an
+// event CARRIES the deck's id in its tags (a card in several decks is an edge
+// card) — so the registry adds mounting rules and deck-level coordinates
+// without moving a single card. The two coordinate fields are deliberately
+// distinct systems: diamondCoord feeds proximity/centroids; mapPos is physical
+// and is NEVER read by either (map ≠ diamond).
+export interface DeckDef {
+  id: string;                   // the tag events carry (e.g. "deck:situations") — the id IS the tag
+  mountFlag?: string;           // mounted while this flag is TRUTHY — same semantics as {kind:"flag"}
+                                // without `equals`. Use boolean thread flags; a 0/"" value reads unmounted.
+  towns?: string[];             // mounted only in these towns (physical location); omit = anywhere
+  diamondCoord?: DiamondCoord;  // deck-level (Y, Z) — authored, or Slate's rollup (deckCentroid over members)
+  lensFlavor?: string;          // deck-level interpretive register
+  mapPos?: MapPos;              // physical position for map surfaces — never enters draw math
+}
+
+// A met-door (WO-1d): a beat that fires when the world-state says so, checked
+// once per day advance. If the condition holds (and the event's once-flag
+// hasn't fired), the event is queued and greets the player next morning as a
+// scene. Give door events a `once` unless re-firing every qualifying morning
+// is the intent.
+export interface Door { eventId: string; when: Condition }
 
 export interface ContentDB {
   questionnaire?: Questionnaire;         // OPTIONAL — creation can be played cards instead; newGame must not require it
   events: Record<string, GameEvent>;
   actions: LocationAction[];
   towns: Record<string, Town>;
-  teams: Record<string, Team>;
+  factions: Record<string, Faction>;     // the living world's interest blocs (was `teams`)
   traits: Record<string, Trait>;
   items: Record<string, Item>;
   npcs?: Record<string, Npc>;            // optional authored NPC fixtures — the Circle seed
+  decks?: DeckDef[];                     // the deck registry (WO-2); the daily draw composes from mounted decks
+  doors?: Door[];                        // met-doors, checked on every day advance (WO-1d)
   openingLog?: string;                   // first line in the new-game log; engine falls back if absent
   openingQueue?: string[];               // event ids seeded into g.queue at new-game (scripted cold-open, in order)
   tuning?: EngineTuning;                 // optional engine-tuning seam; defaults reproduce current behavior
-  names: { first: string[]; last: string[]; teamA: string[]; teamB: string[] };
+  names: { first: string[]; last: string[] };  // NPC name pools (teamA/teamB trimmed with the basketball vestiges — nothing consumed them)
 }
 
 // The entire save file is this object. Content (db) is NOT part of it.
@@ -203,11 +298,17 @@ export interface GameState {
   townId: string;
   player: Player;
   npcs: Record<string, Npc>;
-  teams: Record<string, Team>;
+  factions: Record<string, Faction>;   // live copy; power drifts via simulateClash (loads legacy `teams` saves)
   flags: Record<string, boolean | number | string>;  // the cross-arc memory store
   queue: string[];     // chained event ids waiting to fire
   scheduled?: ScheduledEvent[];                       // timed-event promises due on a future day (default [])
   clocks?: Record<string, Clock>;                     // progress clocks by id (default {})
+  // The events, never the position (invariant #3): a resolution clock and the
+  // thin coordinate log it stamps. dispositionCentroid/lensCentroid DERIVE the
+  // player's place from these on demand; no disposition is ever written back.
+  resolveCount?: number;                              // total card/action resolutions this run (default 0)
+  coordLog?: CoordLogEntry[];                         // append-only; only coordinated resolutions append (default [])
+  recentDraws?: string[];                             // last few RANDOM-draw winners (anti-repeat memory; default [])
   log: { text: string; tone: "g" | "b" | "n" }[];
 }
 
@@ -222,4 +323,22 @@ export interface ScheduledEvent { onDay: number; eventId: string }
 export interface ResolvedRoll {
   tag: string; die: number; mod: number; total: number; target: number; success: boolean;
   win: Outcome; lose: Outcome;
+}
+
+// ---- the cross-run store (WO-0 scaffold) --------------------------------------
+// The SECOND save scope. The per-run save (GameState) resets with each new vessel;
+// this store persists across vessels and is deliberately TINY — it is the
+// meta-story's only mechanical carrier, and it stays a SEPARATE artifact:
+// GameState never embeds it, and it never embeds a GameState.
+// It records what EXISTS and WHERE — never what anything means. No-truth-state
+// and no-meta-reveal apply at the meta level too: a later vessel arrives in a
+// world an earlier one shaped, and the machine never says so.
+export interface ArtifactRecord {
+  itemId: string;   // which object an earlier run left behind
+  townId: string;   // where it waits. Existence + place — deliberately NO meaning/description field.
+}
+export interface CrossRunStore {
+  version: number;                      // store schema version (for forward migration)
+  factions?: Record<string, Faction>;   // faction power as the last vessel left it (the world's scars)
+  artifacts?: ArtifactRecord[];         // stub — the find/place verbs land with WO-5, when a real card asks
 }

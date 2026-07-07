@@ -13,7 +13,7 @@
 import { db } from "./smoke/content";
 import {
   newGame, availableActions, takeAction, continueRoll, drawEvent, resolveChoice,
-  choiceAvailable, endDay, serialize, deserialize, generateNpc, simulateGame,
+  choiceAvailable, endDay, serialize, deserialize, generateNpc, simulateClash,
   assignToCircle, applyOutcome,
 } from "./engine/engine";
 import type { GameState, ResolvedRoll } from "./engine/types";
@@ -110,10 +110,10 @@ for (let i = 0; i < 3; i++) {
   line(`   ${n.name}  (ability ${n.ability}, loyalty ${n.loyalty})`);
 }
 
-line(`\n-- season sim: Alpha (70) vs Beta (55), 20 games --`);
+line(`\n-- faction-power drift: Alpha (70) vs Beta (55), 20 clashes --`);
 let a = 0, b = 0;
-for (let i = 0; i < 20; i++) (simulateGame(g, db, "team_alpha", "team_beta") === "team_alpha" ? a++ : b++);
-line(`   record: Alpha ${a} - ${b} Beta   (ratings now ${g.teams.team_alpha.rating.toFixed(0)} / ${g.teams.team_beta.rating.toFixed(0)})`);
+for (let i = 0; i < 20; i++) (simulateClash(g, db, "faction_alpha", "faction_beta") === "faction_alpha" ? a++ : b++);
+line(`   record: Alpha ${a} - ${b} Beta   (power now ${g.factions.faction_alpha.rating.toFixed(0)} / ${g.factions.faction_beta.rating.toFixed(0)})`);
 
 const saved = serialize(g);
 const g2 = deserialize(saved);
