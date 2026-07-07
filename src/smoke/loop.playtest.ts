@@ -22,7 +22,7 @@
 import { loopDb } from "./loopworld";
 import {
   newGame, serialize, deserialize, applyOutcome, simulateClash,
-  drawFromMounted, mountedDecks, harvestCrossRun, newCrossRunStore,
+  drawFromMounted, mountedDecks, harvestCrossRun, newCrossRunStore, bandOf,
 } from "../engine/engine";
 import { dayMenu, runAction, startQueuedScene, advanceDay, runStatus } from "../engine/loop";
 import { dispositionCentroid, lensCentroid } from "../engine/centroid";
@@ -185,7 +185,7 @@ const fresh = newGame({ seed: 1, name: "N", age: 25, body: { height: 0.5, build:
 check("location-mounted only, pre-thread", ids(mountedDecks(fresh, loopDb)) === "deck:street");
 check("thread-mounted after the flag", ids(mountedDecks(gA, loopDb)) === "deck:street,deck:undercurrent");
 
-const poolIds = ["lw_street_1", "lw_street_2", "lw_undercurrent_1"];
+const poolIds = ["lw_street_1", "lw_street_2", "lw_street_lens", "lw_undercurrent_1"];
 const gDraw = clone(gA);
 const drawn = drawFromMounted(gDraw, loopDb, 1);
 check("union draw stays inside mounted decks", !!drawn && poolIds.includes(drawn.id), drawn?.id ?? "none");
@@ -211,13 +211,105 @@ check("proximity ON: draw drifts toward the centroid", winsOn > winsOff && winsO
 
 const dbAntiRepeat: ContentDB = { ...loopDb, tuning: { ...loopDb.tuning, antiRepeat: { enabled: true, factor: 0, memory: 5 } } };
 const gAR = clone(gA);
-const first = drawFromMounted(gAR, dbAntiRepeat, 1)!.id;
-const second = drawFromMounted(gAR, dbAntiRepeat, 1)!.id;
-check("anti-repeat: consecutive random draws differ", first !== second, `${first} then ${second}`);
-const third = drawFromMounted(gAR, dbAntiRepeat, 1);
+const arSeen = new Set<string>();
+for (let i = 0; i < poolIds.length; i++) {
+  const d = drawFromMounted(gAR, dbAntiRepeat, 1);
+  if (d) arSeen.add(d.id);
+}
+check("anti-repeat: factor 0 never repeats within memory", arSeen.size === poolIds.length, `${arSeen.size} distinct draws`);
 check("anti-repeat: exhausted pool draws NOTHING (never a forced repeat)",
-  third !== undefined && drawFromMounted(gAR, dbAntiRepeat, 1) === undefined,
-  "3 distinct draws, then silence");
+  drawFromMounted(gAR, dbAntiRepeat, 1) === undefined, "then silence");
+
+// -- Contract 1: lens-bias = proximity in lens space (WO-3), off by default
+line(`\n-- lens-bias (Contract 1) --`);
+const dbLensOn: ContentDB = { ...loopDb, tuning: { ...loopDb.tuning, lensBias: { enabled: true, strength: 9 } } };
+const countLensWins = (db: ContentDB): number => {
+  let wins = 0;
+  for (let i = 0; i < 30; i++) {
+    const gi = clone(gA);
+    gi.rngState = seedToState(9000 + i);
+    if (drawFromMounted(gi, db, 1)?.id === "lw_street_lens") wins++;
+  }
+  return wins;
+};
+const lensOff = countLensWins(loopDb);
+const lensOn = countLensWins(dbLensOn);
+check("lens-bias OFF: flavored card wins ~1/4 of draws", lensOff >= 2 && lensOff <= 15, `${lensOff}/30`);
+check("lens-bias ON: draw drifts toward the digger's register", lensOn > lensOff && lensOn >= 13, `${lensOn}/30`);
+
+// Floor 1.0, never a gate: a card whose flavor has ZERO affinity mass stays
+// fully drawable (a one-card pool must still draw it with the bias on).
+const dbZero: ContentDB = {
+  ...dbLensOn,
+  decks: [{ id: "deck:zero" }],
+  events: {
+    ...loopDb.events,
+    lw_zero: { id: "lw_zero", tags: ["deck:zero"], lensFlavor: "lens_three", title: "Zero Affinity", body: "…", choices: [{ label: "ok", outcome: {} }] },
+  },
+};
+const gZero = clone(gA);
+check("lens-bias never gates: zero-affinity card still draws (floor 1.0)",
+  drawFromMounted(gZero, dbZero, 1)?.id === "lw_zero");
+check("lens-bias is deterministic under a fixed seed", (() => {
+  const g1 = clone(gA); g1.rngState = seedToState(4242);
+  const g2 = clone(gA); g2.rngState = seedToState(4242);
+  return drawFromMounted(g1, dbLensOn, 1)?.id === drawFromMounted(g2, dbLensOn, 1)?.id;
+})());
+
+// -- Contract 2: band-select at card-fire (WO-3), noise off by default
+line(`\n-- band-select (Contract 2) --`);
+check("band boundaries: 7-10 grounded / 4-6 worn / 0-3 frayed",
+  bandOf(10) === "grounded" && bandOf(7) === "grounded" && bandOf(6) === "worn" &&
+  bandOf(4) === "worn" && bandOf(3) === "frayed" && bandOf(0) === "frayed");
+
+// A banded card selects its authored variant by the player's TRUE band when
+// the noise is off — deterministic presentation, no RNG consumed.
+const fireBanded = (g: GameState, db: ContentDB) => {
+  const resolutions: { band: { trueBand: string; resolvedBand: string } | null }[] = [];
+  g.queue.push("lw_banded");
+  const r = startQueuedScene(g, db, { onResolve: (res) => resolutions.push({ band: res.band }) })!;
+  const prose = r.current.prose;
+  const rng = g.rngState;
+  driveScene(r);
+  return { prose, band: resolutions[0]?.band ?? null, rngAtFire: rng };
+};
+const gB1 = clone(gA);                        // grip 10 → grounded
+const b1 = fireBanded(gB1, loopDb);
+check("noise off: variant = the true band, frozen on the record",
+  b1.prose.includes("just a room") && b1.band?.trueBand === "grounded" && b1.band?.resolvedBand === "grounded");
+const gB2 = clone(gA);
+applyOutcome(gB2, loopDb, { stats: { grip: -8 } });   // grip 2 → frayed
+const b2 = fireBanded(gB2, loopDb);
+check("bands read the meter at fire (frayed shows the frayed room)",
+  b2.prose.includes("will not resolve") && b2.band?.trueBand === "frayed");
+
+const dbNoise: ContentDB = { ...loopDb, tuning: { ...loopDb.tuning, bandNoise: { enabled: true, p: 1 } } };
+const gB3 = clone(gA);                        // grounded, p=1 → MUST leak, adjacent only
+const b3 = fireBanded(gB3, dbNoise);
+check("noise on (p=1): grounded leaks exactly one band, to worn",
+  b3.band?.trueBand === "grounded" && b3.band?.resolvedBand === "worn" && b3.prose.includes("mostly just a room"));
+const gB4 = clone(gA);
+applyOutcome(gB4, loopDb, { stats: { grip: -8 } });   // frayed, p=1 → worn (never a two-band jump)
+const b4 = fireBanded(gB4, dbNoise);
+check("noise on (p=1): frayed leaks to worn, never two bands",
+  b4.band?.trueBand === "frayed" && b4.band?.resolvedBand === "worn");
+const gB5 = clone(gA);
+applyOutcome(gB5, loopDb, { stats: { grip: -5 } });   // grip 5, worn, p=1 → leaves worn, either way
+const b5 = fireBanded(gB5, dbNoise);
+check("noise on (p=1): worn leaks symmetrically off worn",
+  b5.band?.trueBand === "worn" && (b5.band?.resolvedBand === "grounded" || b5.band?.resolvedBand === "frayed"));
+check("band-select is seed-deterministic", (() => {
+  const x = clone(gA); x.rngState = seedToState(777);
+  const y = clone(gA); y.rngState = seedToState(777);
+  return fireBanded(x, dbNoise).band?.resolvedBand === fireBanded(y, dbNoise).band?.resolvedBand;
+})());
+check("unbanded cards never touch the resolver (band slot stays null)", (() => {
+  const g = clone(gA);
+  const res: (object | null)[] = [];
+  g.queue.push("lw_promise");
+  driveScene(startQueuedScene(g, dbNoise, { onResolve: (r) => res.push(r.band) })!);
+  return res.length === 1 && res[0] === null;
+})());
 
 // -- the designed terminals
 line(`\n-- terminal states --`);

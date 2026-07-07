@@ -61,7 +61,7 @@ export class Session {
           choiceIndex: r.choiceIndex, choiceLabel: r.choiceLabel,
           statDeltas: r.statDeltas, flagsChanged: r.flagsChanged,
           roll: r.roll,
-          band: { trueBand: null, resolvedBand: null },   // reserved (Batch 3)
+          band: r.band ?? { trueBand: null, resolvedBand: null },   // live since Batch 3 (WO-3); null for unbanded cards
         });
       },
     });
