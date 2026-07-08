@@ -584,6 +584,21 @@ function recordResolution(g: GameState, src: CoordSource, branch?: CoordSource):
   if (entry) (g.coordLog ??= []).push(entry);
 }
 
+// ---- the terminal check --------------------------------------------------------
+// The designed terminals' tuning, shared by loop.ts's runStatus and endDay's
+// precedence guard below (defined HERE so the guard needs no engine→loop import).
+export function terminalTuning(db: ContentDB): { onGripZero: boolean; flags: string[] } {
+  const t = db.tuning?.terminal;
+  return { onGripZero: t?.onGripZero ?? true, flags: t?.flags ?? [] };
+}
+
+// Does a designed terminal already hold? The boolean core of runStatus.
+export function terminalHolds(g: GameState, db: ContentDB): boolean {
+  const t = terminalTuning(db);
+  if (t.onGripZero && g.player.stats.grip <= 0) return true;
+  return t.flags.some((f) => !!g.flags[f]);
+}
+
 // ---- the day loop ------------------------------------------------------------
 // Everything that fires "when the day turns" lives HERE, at one depth, so every
 // day-advance driver gets identical mornings: the exposure consequence, the
@@ -594,6 +609,13 @@ export function endDay(g: GameState, db: ContentDB): void {
   g.player.stats.energy = g.player.stats.energyMax;
   g.player.stats.exposure = Math.max(0, g.player.stats.exposure - exp.coolPerDay); // liability cools (coolPerDay 0 = sticky)
   g.log.unshift({ text: `— Day ${g.day}.`, tone: "n" });
+  // TERMINAL PRECEDENCE (ratified round decision: grip-zero-wins). When a
+  // designed terminal already holds at the day boundary, the morning queues
+  // NOTHING new — no exposure consequence, no scheduled sweep, no doors, no
+  // stages, and above all no calendar ending stacked on top of the terminal.
+  // The run is over the moment control returns to the day (loop.ts's terminal
+  // contract); the substrate above still runs so the boundary stays uniform.
+  if (terminalHolds(g, db)) return;
   // the exposure consequence — at most ONE pending copy (matching the door
   // guard below; N stacked identical discharge scenes was never a design)
   if (g.player.stats.exposure >= exp.threshold && db.events[exp.consequenceEvent] && !g.queue.includes(exp.consequenceEvent)) {

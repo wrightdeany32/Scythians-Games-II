@@ -426,6 +426,13 @@ const miniDb: ContentDB = {
         { label: "let it drift", outcome: {} },   // inherits the card's +0.3
       ],
     },
+    // exposure snapshot (Phase 2): the resolution raises the meter AFTER fire
+    m_exposed: {
+      id: "m_exposed",
+      title: "Exposed",
+      body: "…",
+      choices: [{ label: "push it", outcome: { stats: { exposure: 3 } } }],
+    },
     // conditional text
     m_echo: {
       id: "m_echo",
@@ -601,6 +608,34 @@ check("attune: the card-level value is inherited when the branch carries none",
 check("linter: out-of-range attune is an error",
   lintContent({ ...miniDb, events: { ...miniDb.events, m_bad_att: { id: "m_bad_att", title: "x", body: "…", choices: [{ label: "a", attune: 2, outcome: {} }] } } }, "att")
     .some((i) => i.level === "error" && i.message.includes("attune out of range")));
+
+// -- Phase 2: terminal precedence (grip-zero-wins) + the exposure snapshot --------
+line(`\n-- Phase 2: terminal precedence, exposure snapshot --`);
+// grip zero at the boundary: the morning queues NOTHING — no stages, no
+// consequence, and no calendar ending stacked on top of the terminal.
+const gT = newMini(32);
+applyOutcome(gT, miniDb, { stats: { grip: -10, exposure: 7 } });   // terminal + past both stage thresholds
+while (gT.day <= 3) advanceDay(gT, miniDb);                        // crosses lastDay too
+check("terminal precedence: a lost morning queues nothing (no stages, no ending)",
+  gT.queue.length === 0 && runStatus(gT, miniDb).cause === "grip");
+// a designed terminal flag takes the same precedence
+const gT2 = newMini(33);
+gT2.flags.ended_quietly = true;
+while (gT2.day <= 3) advanceDay(gT2, miniDb);
+check("terminal precedence: a terminal flag also silences the selector",
+  gT2.queue.length === 0 && runStatus(gT2, miniDb).flag === "ended_quietly");
+// the substrate still runs at a lost boundary (uniform day turn)
+check("terminal precedence: the substrate still turns the day", gT.day === 4 && gT2.day === 4);
+// the exposure snapshot: frozen at card fire, before the resolution moves the meter
+const gX = newMini(34);
+applyOutcome(gX, miniDb, { stats: { exposure: 5 } });
+gX.queue.push("m_exposed");
+const snap: number[] = [];
+const rX = new SceneRunner(gX, miniDb, { onResolve: (r) => snap.push(r.exposure) });
+rX.begin();
+rX.pick(0);
+check("exposure snapshot: frozen at fire (5, not the post-resolution 8)",
+  snap[0] === 5 && gX.player.stats.exposure === 8);
 
 line(`\n${failed ? "SOME LOOP CRITERIA FAILED" : "ALL LOOP CRITERIA PASS"}\n`);
 if (failed) process.exit(1);

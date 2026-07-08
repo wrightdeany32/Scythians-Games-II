@@ -62,6 +62,7 @@ export class Session {
           statDeltas: r.statDeltas, flagsChanged: r.flagsChanged,
           roll: r.roll,
           band: r.band ?? { trueBand: null, resolvedBand: null },   // live since Batch 3 (WO-3); null for unbanded cards
+          exposure: r.exposure,   // fire-time snapshot (Phase 2) — analyst-only, never rendered
         });
       },
     });

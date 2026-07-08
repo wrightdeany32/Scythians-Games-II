@@ -49,6 +49,11 @@ export interface SceneResolution {
   // Band-select (Contract 2), FROZEN at this card's fire — null for unbanded
   // cards. resolvedBand chose the presented variant; telemetry audits the leak.
   band: { trueBand: GripBand; resolvedBand: GripBand } | null;
+  // The exposure meter at THIS card's fire, frozen like band (ratified round
+  // decision: the snapshot is first-class on fire records, not reconstructed).
+  // On every resolution — a stage-fire record reads its trigger value here,
+  // and statDeltas already carries what the resolution then did to the meter.
+  exposure: number;
 }
 
 export interface SceneHooks {
@@ -77,6 +82,7 @@ export class SceneRunner {
   private stepCounter = 0;
   private currentEvent: GameEvent | null = null;
   private currentBand: { trueBand: GripBand; resolvedBand: GripBand } | null = null;
+  private currentExposure = 0;   // frozen at card fire, like currentBand
   private pendingNarration = "";
 
   constructor(
@@ -156,6 +162,7 @@ export class SceneRunner {
       flagsChanged: diffFlags(beforeFlags, this.g.flags),
       roll,
       band: this.currentBand,   // frozen at fire — never re-rolled between fire and resolve
+      exposure: this.currentExposure,   // likewise frozen at fire (the stage-pacing snapshot)
     });
 
     this.advance();
@@ -180,6 +187,7 @@ export class SceneRunner {
     // fire — once, frozen for this fire, selecting an authored variant of the
     // body. Unbanded cards never touch the resolver (and consume no RNG).
     this.currentBand = ev.bandText ? resolveBand(this.g, this.db, this.g.player.stats.grip, ev.noiseProfile) : null;
+    this.currentExposure = this.g.player.stats.exposure;   // fire-time snapshot for the resolution record
     // Conditional card text, evaluated once at fire and frozen: the base is the
     // band variant (banded cards) or the first matching bodyVariant (the
     // charge-gate pattern), else `body`; every matching bodyExtra appends in

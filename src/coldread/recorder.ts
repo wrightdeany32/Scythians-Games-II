@@ -36,6 +36,11 @@ export interface TraceRecord {
   // Reserved for Batch 3 (band-select). Empty until then; present now so
   // Batch-2 streams stay parseable against Batch-3 ones.
   band: { trueBand: string | null; resolvedBand: string | null };
+  // The exposure meter at this card's fire (Phase 2, ratified: the stage-fire
+  // pacing snapshot is FIRST-CLASS, not reconstructed). Additive within schema
+  // v1 — readers tolerate its absence on pre-Phase-2 streams; the transcript
+  // renderer does not print it, so frozen transcripts are unchanged.
+  exposure: number;
 }
 
 // What the reader actually SAW for one screen — prose + ALL options (incl. greyed).
