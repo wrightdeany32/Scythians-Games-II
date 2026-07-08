@@ -415,6 +415,17 @@ const miniDb: ContentDB = {
       choices: [{ label: "ok", outcome: {} }],
     },
     m_after: { id: "m_after", title: "After", body: "the continuation", choices: [{ label: "ok", outcome: {} }] },
+    // attune (Phase 2, option 3): card-level default, branch-level override
+    m_intro: {
+      id: "m_intro",
+      title: "Introspective",
+      body: "…",
+      attune: 0.3,
+      choices: [
+        { label: "ground yourself", attune: -0.5, outcome: {} },
+        { label: "let it drift", outcome: {} },   // inherits the card's +0.3
+      ],
+    },
     // conditional text
     m_echo: {
       id: "m_echo",
@@ -569,6 +580,27 @@ check("linter: dead terminals and ghost counters warn", has('"never_set"', "warn
 check("linter: the shipped dbs carry zero errors",
   lintContent(loopDb, "l").every((i) => i.level !== "error") &&
   lintContent(miniDb, "m").every((i) => i.level !== "error"));
+
+// -- Phase 2: attune (option 3 — record now, read later) --------------------------
+line(`\n-- Phase 2: attune (record-now-read-later) --`);
+const gA1 = newMini(30);
+gA1.queue.push("m_intro");
+driveScene(startQueuedScene(gA1, miniDb)!, { m_intro: 0 });
+const aEntry = (gA1.coordLog ?? [])[0];
+check("attune: the chosen branch's value overrides the card's", aEntry?.attune === -0.5);
+check("attune: an attune-only source appends index + attune, nothing else",
+  aEntry?.diamondCoord === undefined && aEntry?.lensFlavor === undefined);
+check("attune: recorded, never derived — both centroids ignore it",
+  dispositionCentroid(gA1, miniDb).sanction === 0 && dispositionCentroid(gA1, miniDb).vertical === 0 &&
+  Object.keys(lensCentroid(gA1, miniDb)).length === 0);
+const gA2 = newMini(31);
+gA2.queue.push("m_intro");
+driveScene(startQueuedScene(gA2, miniDb)!, { m_intro: 1 });
+check("attune: the card-level value is inherited when the branch carries none",
+  (gA2.coordLog ?? [])[0]?.attune === 0.3);
+check("linter: out-of-range attune is an error",
+  lintContent({ ...miniDb, events: { ...miniDb.events, m_bad_att: { id: "m_bad_att", title: "x", body: "…", choices: [{ label: "a", attune: 2, outcome: {} }] } } }, "att")
+    .some((i) => i.level === "error" && i.message.includes("attune out of range")));
 
 line(`\n${failed ? "SOME LOOP CRITERIA FAILED" : "ALL LOOP CRITERIA PASS"}\n`);
 if (failed) process.exit(1);

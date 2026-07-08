@@ -8,6 +8,8 @@
 //   · trait/item/npc refs resolve
 //   · diamondCoord components in [-1, 1] (events, actions, choices, decks,
 //     questionnaire answers)
+//   · attune in [-1, 1] (events, actions, choices, questionnaire answers) —
+//     range only; the two-reader fence is the engine's, by type
 //   · lensFlavor ∈ the declared vocabulary (tuning.lens.vocabulary; skipped
 //     when content declares none), nullFlavor ∈ vocabulary
 //   · the intent-note leak: *…* in any `log` string (author-facing italics
@@ -55,6 +57,17 @@ function checkCoord(issues: LintIssue[], where: string, c?: DiamondCoord): void 
   if (!c) return;
   if (Math.abs(c.sanction) > 1 || Math.abs(c.vertical) > 1) {
     issues.push({ level: "error", where, message: `diamondCoord out of range [-1, 1]: {sanction: ${c.sanction}, vertical: ${c.vertical}}` });
+  }
+}
+
+// attune (the option-3 X-volition scalar): −1 grounded … +1 attuned. Range is
+// the linter's to enforce; the READER fence (telemetry + the narrow-door
+// ending-selector only) is the engine's, by type — attune never enters
+// DiamondCoord, so no weight/dice path can reach it.
+function checkAttune(issues: LintIssue[], where: string, a?: number): void {
+  if (a == null) return;
+  if (Math.abs(a) > 1 || Number.isNaN(a)) {
+    issues.push({ level: "error", where, message: `attune out of range [-1, 1]: ${a}` });
   }
 }
 
@@ -153,20 +166,24 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
     const ev = db.events[id];
     checkCoord(issues, `event ${id}`, ev.diamondCoord);
     checkFlavor(`event ${id}`, ev.lensFlavor);
+    checkAttune(issues, `event ${id}`, ev.attune);
     ev.choices.forEach((c, i) => {
       checkCoord(issues, `event ${id} choice[${i}]`, c.diamondCoord);
       checkFlavor(`event ${id} choice[${i}]`, c.lensFlavor);
+      checkAttune(issues, `event ${id} choice[${i}]`, c.attune);
     });
   }
   for (const a of db.actions) {
     checkCoord(issues, `action ${a.id}`, a.diamondCoord);
     checkFlavor(`action ${a.id}`, a.lensFlavor);
+    checkAttune(issues, `action ${a.id}`, a.attune);
   }
   for (const d of db.decks ?? []) checkFlavor(`deck ${d.id}`, d.lensFlavor);
   for (const q of db.questionnaire?.questions ?? []) {
     q.answers.forEach((ans, i) => {
       checkCoord(issues, `questionnaire "${q.q.slice(0, 30)}" answer[${i}]`, ans.diamondCoord);
       checkFlavor(`questionnaire "${q.q.slice(0, 30)}" answer[${i}]`, ans.lensFlavor);
+      checkAttune(issues, `questionnaire "${q.q.slice(0, 30)}" answer[${i}]`, ans.attune);
     });
   }
 
