@@ -25,7 +25,7 @@ import type {
 } from "./types";
 import {
   takeAction, nextQueuedEvent, resolveChoice, continueRoll, choiceAvailable,
-  resolveBand,
+  resolveBand, evalCondition,
 } from "./engine";
 
 // What the player (or reader) sees for one step of a scene.
@@ -180,7 +180,18 @@ export class SceneRunner {
     // fire — once, frozen for this fire, selecting an authored variant of the
     // body. Unbanded cards never touch the resolver (and consume no RNG).
     this.currentBand = ev.bandText ? resolveBand(this.g, this.db, this.g.player.stats.grip, ev.noiseProfile) : null;
-    const body = (this.currentBand && ev.bandText?.[this.currentBand.resolvedBand]) || ev.body;
+    // Conditional card text, evaluated once at fire and frozen: the base is the
+    // band variant (banded cards) or the first matching bodyVariant (the
+    // charge-gate pattern), else `body`; every matching bodyExtra appends in
+    // authored order (the thread-echo pattern). Pure condition reads — no RNG.
+    let body = (this.currentBand && ev.bandText?.[this.currentBand.resolvedBand]) || ev.body;
+    if (!ev.bandText && ev.bodyVariants) {
+      const variant = ev.bodyVariants.find((v) => evalCondition(v.when, this.g));
+      if (variant) body = variant.text;
+    }
+    if (ev.bodyExtras) {
+      for (const extra of ev.bodyExtras) if (evalCondition(extra.when, this.g)) body += "\n\n" + extra.text;
+    }
     const prose = (this.pendingNarration ? this.pendingNarration + "\n\n" : "") + body;
     this.pendingNarration = "";
     const options = ev.choices.map((c, i) => ({

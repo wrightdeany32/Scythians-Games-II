@@ -79,20 +79,30 @@ export function dispositionCentroid(g: GameState, db: ContentDB): DiamondCoord {
 // ---- the lens space ---------------------------------------------------------------
 // The player's interpretive affinity: each lens-carrying resolution is a one-hot
 // vector over the (content-owned, closed) vocabulary; the centroid of those is a
-// distribution — affinity mass per flavor, summing to 1. Empty object before any
-// lens-carrying card resolves (⇒ every proximity_lens factor is a flat 1.0).
-// The engine never hardcodes the vocabulary: the distribution ranges over
-// whatever flavors the log actually contains.
+// distribution — affinity mass per flavor. Empty object before any lens-carrying
+// card resolves (⇒ every proximity_lens factor is a flat 1.0). The engine never
+// hardcodes the vocabulary: the distribution ranges over whatever positive
+// flavors the log actually contains.
+//
+// THE NULL POLE (Batch-3 v0.2.1, content names it via tuning.lens.nullFlavor —
+// the pack's `skeptic`): a null-flavored resolution appends its recency WEIGHT
+// with the ZERO vector — it dilutes every affinity toward 0 instead of raising
+// its own. Leaning null buys the unbiased world: the centroid decays toward the
+// origin, multipliers settle to ~1.0, and null-flavored cards can never
+// accumulate mass, so the null frame is structurally incapable of forming a
+// filter bubble. The math and the meaning are the same object.
 export function lensCentroid(g: GameState, db: ContentDB): Record<string, number> {
   const window = dispositionTuning(db).window;
   const now = g.resolveCount ?? 0;
+  const nullFlavor = db.tuning?.lens?.nullFlavor;
   const entries = (g.coordLog ?? []).filter((e) => e.lensFlavor);
   if (!entries.length) return {};
-  const flavors = [...new Set(entries.map((e) => e.lensFlavor!))];
+  const flavors = [...new Set(entries.map((e) => e.lensFlavor!).filter((f) => f !== nullFlavor))];
+  if (!flavors.length) return {};   // pure-null play: fully at the origin
   const c = weightedCentroid(
     entries.map((e) => ({
       w: recencyWeight(now - e.index, window),
-      v: flavors.map((f) => (f === e.lensFlavor ? 1 : 0)),   // the one-hot vector
+      v: flavors.map((f) => (f === e.lensFlavor ? 1 : 0)),   // one-hot; a nullFlavor entry is all-zero
     })),
   );
   const out: Record<string, number> = {};

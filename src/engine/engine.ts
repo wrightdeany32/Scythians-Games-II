@@ -112,6 +112,15 @@ export function evalCondition(c: Condition, g: GameState): boolean {
       if (c.op === "<") return n < c.value;
       return n === c.value;
     }
+    case "counter": {
+      const raw = g.flags[c.flag];
+      const n = typeof raw === "number" ? raw : 0;   // unset (or non-numeric) reads 0
+      if (c.op === ">=") return n >= c.value;
+      if (c.op === "<=") return n <= c.value;
+      if (c.op === ">") return n > c.value;
+      if (c.op === "<") return n < c.value;
+      return n === c.value;
+    }
   }
 }
 
@@ -189,12 +198,28 @@ export function setTier(g: GameState, db: ContentDB, tier: Tier): void {
 // the resolved roll for the caller to surface (show dice), then continue.
 export function applyOutcome(g: GameState, db: ContentDB, o: Outcome): { roll?: ResolvedRoll } {
   if (o.stats) {
-    for (const k in o.stats) (g.player.stats as any)[k] += (o.stats as any)[k];
+    for (const k in o.stats) {
+      const key = k as StatKey;
+      const delta = o.stats[key]!;
+      const before = g.player.stats[key];
+      let after = before + delta;
+      // soft ceiling: this outcome's POSITIVE delta never lifts the stat above
+      // its named cap (and never lowers a stat already above it)
+      const cap = o.statsMax?.[key];
+      if (cap != null && delta > 0 && after > cap) after = Math.max(before, cap);
+      (g.player.stats as any)[key] = after;
+    }
     clampStats(g.player.stats, exposureTuning(db).max);
   }
   if (o.grantTraits) for (const t of o.grantTraits) if (!g.player.traits.includes(t)) g.player.traits.push(t);
   if (o.removeTraits) g.player.traits = g.player.traits.filter((t) => !o.removeTraits!.includes(t));
   if (o.setFlags) Object.assign(g.flags, o.setFlags);
+  if (o.addFlags) {
+    for (const k in o.addFlags) {
+      const raw = g.flags[k];
+      g.flags[k] = (typeof raw === "number" ? raw : 0) + o.addFlags[k];
+    }
+  }
   if (o.setRelationship && g.npcs[o.setRelationship.npcId]) {
     g.npcs[o.setRelationship.npcId].relationship = o.setRelationship.value;
   }
@@ -225,6 +250,7 @@ export function applyOutcome(g: GameState, db: ContentDB, o: Outcome): { roll?: 
   }
   if (o.clearClock && g.clocks) delete g.clocks[o.clearClock];   // abandon a clock without firing onFull
   if (o.queueEvent) g.queue.push(o.queueEvent);
+  if (o.queueEvents) g.queue.push(...o.queueEvents);   // several in order; conditional inserts self-select via nextQueuedEvent's skip
   if (o.log) g.log.unshift({ text: o.log, tone: o.tone ?? "n" });
 
   if (o.roll) {
@@ -521,7 +547,7 @@ export function choiceAvailable(g: GameState, c: { requires?: Condition }): bool
 }
 
 export function resolveChoice(g: GameState, db: ContentDB, ev: GameEvent, idx: number): { roll?: ResolvedRoll } {
-  recordResolution(g, ev);   // once per resolved CARD (the coordinate is the card's, not the branch's)
+  recordResolution(g, ev, ev.choices[idx]);   // once per resolved card, at BRANCH granularity (the wiring gate)
   return applyOutcome(g, db, ev.choices[idx].outcome);
 }
 
@@ -540,10 +566,19 @@ function coordEntry(index: number, src: { diamondCoord?: DiamondCoord; lensFlavo
 // Every card/action resolution ticks the ordinal clock; a coordinated source
 // also appends its thin entry — a coordinate and an ordinal, nothing else. The
 // position itself is never stored here or anywhere: engine/centroid.ts derives
-// it on demand from these events.
-function recordResolution(g: GameState, src: { diamondCoord?: DiamondCoord; lensFlavor?: string }): void {
+// it on demand from these events. Branch granularity: the CHOSEN branch's
+// field wins, per-field, falling back to the card's (a branch may carry a
+// flavor while inheriting the card's coordinate).
+function recordResolution(
+  g: GameState,
+  src: { diamondCoord?: DiamondCoord; lensFlavor?: string },
+  branch?: { diamondCoord?: DiamondCoord; lensFlavor?: string },
+): void {
   g.resolveCount = (g.resolveCount ?? 0) + 1;
-  const entry = coordEntry(g.resolveCount, src);
+  const entry = coordEntry(g.resolveCount, {
+    diamondCoord: branch?.diamondCoord ?? src.diamondCoord,
+    lensFlavor: branch?.lensFlavor ?? src.lensFlavor,
+  });
   if (entry) (g.coordLog ??= []).push(entry);
 }
 
@@ -575,6 +610,31 @@ export function endDay(g: GameState, db: ContentDB): void {
     if (g.queue.includes(door.eventId)) continue;         // already waiting
     if (evalCondition(door.when, g)) g.queue.push(door.eventId);
   }
+  // staged exposure (the pressure gradient): the LOWEST unfired stage whose
+  // threshold is met queues — one stage per day boundary at most, so a big
+  // exposure jump escalates across consecutive mornings rather than stacking.
+  // "Fires once" reads the stage event's `once` flag (the linter warns when
+  // a stage event lacks one). The plateau is free: fired stages never refire.
+  for (const s of db.tuning?.exposure?.stages ?? []) {
+    const ev = db.events[s.eventId];
+    if (!ev) continue;
+    if (ev.once && g.flags[ev.once]) continue;
+    if (g.queue.includes(s.eventId)) continue;
+    if (g.player.stats.exposure >= s.at) { g.queue.push(s.eventId); break; }
+  }
+  // the calendar end + the ending-selector (THE NARROW DOOR — see types.ts):
+  // past the last day, the FIRST ending whose condition holds greets the
+  // morning as a scene; its exit flag is the terminal. Flags-only in v1.
+  const lastDay = db.tuning?.calendar?.lastDay;
+  if (lastDay != null && g.day > lastDay) {
+    for (const e of db.endings ?? []) {
+      const ev = db.events[e.eventId];
+      if (!ev) continue;
+      if (ev.once && g.flags[ev.once]) continue;
+      if (g.queue.includes(e.eventId)) continue;
+      if (!e.when || evalCondition(e.when, g)) { g.queue.push(e.eventId); break; }
+    }
+  }
 }
 
 // ---- new game / save / load --------------------------------------------------
@@ -603,6 +663,9 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
   const flags: Record<string, boolean | number | string> = {};
   const coordLog: CoordLogEntry[] = [];
   let archetype = "Player";
+
+  // Cross-run seeds arrive FIRST, so creation state may read (or overwrite) them.
+  if (opts.crossRun?.seeds) Object.assign(flags, opts.crossRun.seeds);
 
   // Cold-start = creation is turn-zero: a questionnaire answer carrying a
   // coordinate/flavor seeds the centroids as index-0 log entries (the opening
@@ -695,8 +758,17 @@ export function newCrossRunStore(): CrossRunStore {
   return { version: CROSS_RUN_VERSION };
 }
 
-export function harvestCrossRun(g: GameState, store: CrossRunStore): CrossRunStore {
+export function harvestCrossRun(g: GameState, db: ContentDB, store: CrossRunStore): CrossRunStore {
   store.factions = deepClone(g.factions);
+  // Seeds: only the flags CONTENT declared persist (denied_knife, held_truth, …)
+  // — copied verbatim if set. Existence, never meaning; the next run's content
+  // decides what an old scar colors.
+  const harvest = db.tuning?.crossRun?.harvestFlags ?? [];
+  if (harvest.length) {
+    const seeds: Record<string, boolean | number | string> = { ...(store.seeds ?? {}) };
+    for (const f of harvest) if (g.flags[f] !== undefined) seeds[f] = g.flags[f];
+    if (Object.keys(seeds).length) store.seeds = seeds;
+  }
   return store;
 }
 
