@@ -348,7 +348,7 @@ check("questionnaire seeds index-0 origins", (gQ.coordLog ?? [])[0]?.index === 0
 
 // -- the cross-run store: the next vessel arrives in a scarred world
 line(`\n-- cross-run store --`);
-const store = harvestCrossRun(gA, newCrossRunStore());
+const store = harvestCrossRun(gA, loopDb, newCrossRunStore());
 const gNext = newGame({ seed: 777, name: "Next", age: 30, body: { height: 0.5, build: 0.5 }, townId: "region_one", tier: "outer", crossRun: store }, loopDb);
 check("faction scars persist into the next run",
   gNext.factions.faction_dawn.rating === gA.factions.faction_dawn.rating && gNext.factions.faction_dawn.rating !== 60);
@@ -370,6 +370,170 @@ check("a faction added to content since the harvest still exists (authored power
   gGrown.factions.faction_noon?.rating === 50);
 check("known factions still carry their scars under grown content",
   gGrown.factions.faction_dawn.rating === gA.factions.faction_dawn.rating);
+
+// ================= Phase 1 additives (the content-wave prerequisites) ========
+line(`\n-- Phase 1: branch-level fields, counters, multi-queue, statsMax --`);
+
+// A mini world exercising every additive at once.
+const miniDb: ContentDB = {
+  ...loopDb,
+  openingQueue: [],
+  tuning: {
+    ...loopDb.tuning,
+    exposure: { coolPerDay: 0, stages: [{ at: 3, eventId: "p_stage1" }, { at: 6, eventId: "p_stage2" }] },
+    calendar: { lastDay: 3 },
+    lens: { vocabulary: ["lens_one", "lens_two", "null_lens"], nullFlavor: "null_lens" },
+    crossRun: { harvestFlags: ["denied_thing"] },
+    terminal: { onGripZero: true, flags: ["ended_quietly"] },
+  },
+  endings: [
+    { eventId: "end_special", when: { kind: "flag", flag: "special_path" } },
+    { eventId: "end_default" },
+  ],
+  doors: [],
+  decks: [],
+  events: {
+    // branch-level fields + counters + multi-queue conditional insert
+    m_fork: {
+      id: "m_fork",
+      title: "Fork",
+      body: "base",
+      diamondCoord: { sanction: 0.2, vertical: 0.2 },
+      choices: [
+        // branch coord+flavor override the card's
+        { label: "a", diamondCoord: { sanction: -1, vertical: 1 }, lensFlavor: "lens_one", outcome: { addFlags: { theory: 1 }, queueEvents: ["m_insert", "m_after"] } },
+        // branch flavor only — the card's coord inherits
+        { label: "b", lensFlavor: "null_lens", outcome: { addFlags: { theory: 1 }, queueEvents: ["m_insert", "m_after"] } },
+      ],
+    },
+    m_insert: {
+      id: "m_insert",
+      condition: { kind: "counter", flag: "theory", op: ">=", value: 2 },   // the conditional insert
+      title: "Insert",
+      body: "the insert fired",
+      choices: [{ label: "ok", outcome: {} }],
+    },
+    m_after: { id: "m_after", title: "After", body: "the continuation", choices: [{ label: "ok", outcome: {} }] },
+    // conditional text
+    m_echo: {
+      id: "m_echo",
+      title: "Echo",
+      body: "plain base",
+      bodyVariants: [{ when: { kind: "flag", flag: "charged" }, text: "charged base" }],
+      bodyExtras: [
+        { when: { kind: "flag", flag: "met_x" }, text: "echo of x" },
+        { when: { kind: "flag", flag: "met_y" }, text: "echo of y" },
+      ],
+      choices: [{ label: "ok", outcome: {} }],
+    },
+    p_stage1: { id: "p_stage1", once: "p1_seen", title: "Stage 1", body: "…", choices: [{ label: "ok", outcome: { setFlags: { pressure_stage: 1 } } }] },
+    p_stage2: { id: "p_stage2", once: "p2_seen", title: "Stage 2", body: "…", choices: [{ label: "ok", outcome: { setFlags: { pressure_stage: 2 } } }] },
+    end_special: { id: "end_special", once: "end_special_seen", title: "Special End", body: "…", choices: [{ label: "ok", outcome: { setFlags: { ended_quietly: true } } }] },
+    end_default: { id: "end_default", once: "end_default_seen", title: "Default End", body: "…", choices: [{ label: "ok", outcome: { setFlags: { ended_quietly: true, denied_thing: true } } }] },
+  },
+  actions: [
+    { id: "m_train", name: "Train", sub: "…", cost: 1, outcome: { stats: { tradecraft: 2 }, statsMax: { tradecraft: 3 } } },
+  ],
+};
+const newMini = (seed: number): GameState =>
+  newGame({ seed, name: "M", age: 25, body: { height: 0.5, build: 0.5 }, townId: "region_one", tier: "outer" }, miniDb);
+
+// branch-level fields feed the log at branch granularity
+const gM = newMini(11);
+gM.queue.push("m_fork");
+driveScene(startQueuedScene(gM, miniDb)!, { m_fork: 0 });
+const entryA = (gM.coordLog ?? [])[0];
+check("branch coord+flavor override the card's",
+  entryA?.diamondCoord?.sanction === -1 && entryA?.diamondCoord?.vertical === 1 && entryA?.lensFlavor === "lens_one");
+check("conditional insert skipped below its counter (theory 1 < 2)",
+  gM.flags.theory === 1 && !gM.flags.p1_seen && serialize(gM).includes('"m_insert"') === false);
+
+const gM2 = newMini(12);
+gM2.flags.theory = 1;                       // second dig: counter reaches 2 → the insert fires
+gM2.queue.push("m_fork");
+const cardsM2 = driveScene(startQueuedScene(gM2, miniDb)!, { m_fork: 1 });
+check("conditional insert fires at its counter (theory 2)",
+  cardsM2.join(">") === "m_fork>m_insert>m_after" && gM2.flags.theory === 2);
+const entryB = (gM2.coordLog ?? [])[0];
+check("branch flavor with inherited card coord (per-field fallback)",
+  entryB?.lensFlavor === "null_lens" && entryB?.diamondCoord?.sanction === 0.2);
+
+// statsMax: the soft ceiling
+const gS = newMini(13);
+driveScene(runAction(gS, miniDb, "m_train").runner!);
+driveScene(runAction(gS, miniDb, "m_train").runner!);
+check("statsMax caps the repeatable raiser (2+2 → 3, not 4)", gS.player.stats.tradecraft === 3);
+gS.player.stats.tradecraft = 5;             // already above the cap: a raise never lowers it
+gS.player.stats.energy = 1;
+driveScene(runAction(gS, miniDb, "m_train").runner!);
+check("statsMax never lowers a stat already above the cap", gS.player.stats.tradecraft === 5);
+
+// conditional card text, frozen at fire
+line(`\n-- Phase 1: conditional text, stages, endings, null pole, seeds --`);
+const fireEcho = (setup: Record<string, boolean>): string => {
+  const g = newMini(14);
+  Object.assign(g.flags, setup);
+  g.queue.push("m_echo");
+  const r = startQueuedScene(g, miniDb)!;
+  const prose = r.current.prose;
+  driveScene(r);
+  return prose;
+};
+check("bodyVariants: first match replaces the base", fireEcho({ charged: true }).startsWith("charged base"));
+check("bodyVariants: no match keeps the base", fireEcho({}).startsWith("plain base"));
+check("bodyExtras: every match appends in order",
+  fireEcho({ met_x: true, met_y: true }) === "plain base\n\necho of x\n\necho of y");
+check("bodyExtras: absent flags drop their echo", fireEcho({ met_y: true }) === "plain base\n\necho of y");
+
+// staged exposure: one stage per morning, in order, plateau
+const gP = newMini(15);
+applyOutcome(gP, miniDb, { stats: { exposure: 7 } });   // past BOTH thresholds at once
+advanceDay(gP, miniDb);
+check("stages: the lowest unfired stage queues first", gP.queue.join(",") === "p_stage1");
+driveScene(startQueuedScene(gP, miniDb)!);
+advanceDay(gP, miniDb);
+check("stages: the next stage follows on the next morning", gP.queue.join(",") === "p_stage2");
+driveScene(startQueuedScene(gP, miniDb)!);
+advanceDay(gP, miniDb);   // (day 4 also queues the calendar ending — the selector, not a stage)
+check("stages: the plateau holds (fired stages never refire)",
+  !gP.queue.includes("p_stage1") && !gP.queue.includes("p_stage2") && gP.flags.pressure_stage === 2);
+
+// the calendar end + the ending-selector (flags-only, first match, once)
+const gE = newMini(16);
+gE.flags.special_path = true;
+while (gE.day <= 3) advanceDay(gE, miniDb);
+check("ending-selector: first matching ending greets the morning", gE.queue.join(",") === "end_special");
+const endStatus = (() => { driveScene(startQueuedScene(gE, miniDb)!); return dayMenu(gE, miniDb).status; })();
+check("ending's exit flag is the terminal", endStatus.over && endStatus.flag === "ended_quietly");
+const gE2 = newMini(17);
+while (gE2.day <= 3) advanceDay(gE2, miniDb);
+check("ending-selector: unconditional fallback selected otherwise", gE2.queue.join(",") === "end_default");
+
+// the null pole: null-flavored resolutions dilute every affinity toward zero
+const gN = newMini(18);
+for (let i = 0; i < 2; i++) { gN.queue.push("m_fork"); driveScene(startQueuedScene(gN, miniDb)!, { m_fork: 0 }); gN.flags.theory = 0; }
+const massBefore = lensCentroid(gN, miniDb).lens_one ?? 0;
+for (let i = 0; i < 4; i++) { gN.queue.push("m_fork"); driveScene(startQueuedScene(gN, miniDb)!, { m_fork: 1 }); gN.flags.theory = 0; }
+const after = lensCentroid(gN, miniDb);
+check("null pole: leaning null decays the centroid toward origin",
+  (after.lens_one ?? 0) < massBefore * 0.5, `${massBefore.toFixed(2)} → ${(after.lens_one ?? 0).toFixed(2)}`);
+check("null pole: the null flavor never accumulates mass of its own", after.null_lens === undefined);
+const gN2 = newMini(19);
+gN2.queue.push("m_fork");
+driveScene(startQueuedScene(gN2, miniDb)!, { m_fork: 1 });
+check("null pole: pure-null play sits at the origin (empty distribution)",
+  Object.keys(lensCentroid(gN2, miniDb)).length === 0);
+
+// cross-run seeds: content-declared flags persist, verbatim
+const gEnd = newMini(20);
+while (gEnd.day <= 3) advanceDay(gEnd, miniDb);
+driveScene(startQueuedScene(gEnd, miniDb)!);            // end_default sets denied_thing
+const storeSeeds = harvestCrossRun(gEnd, miniDb, newCrossRunStore());
+const gVessel2 = newGame({ seed: 21, name: "V2", age: 30, body: { height: 0.5, build: 0.5 }, townId: "region_one", tier: "outer", crossRun: storeSeeds }, miniDb);
+check("cross-run seeds: declared exit flags persist into the next vessel",
+  storeSeeds.seeds?.denied_thing === true && gVessel2.flags.denied_thing === true);
+check("cross-run seeds: undeclared flags never enter the store",
+  Object.keys(storeSeeds.seeds ?? {}).join(",") === "denied_thing");
 
 line(`\n${failed ? "SOME LOOP CRITERIA FAILED" : "ALL LOOP CRITERIA PASS"}\n`);
 if (failed) process.exit(1);

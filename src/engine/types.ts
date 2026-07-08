@@ -61,7 +61,8 @@ export type Condition =
   | { kind: "all"; of: Condition[] }
   | { kind: "any"; of: Condition[] }
   | { kind: "not"; of: Condition }
-  | { kind: "count"; of: Condition[]; op: ">=" | "<=" | ">" | "<" | "=="; value: number }; // how many of `of` currently hold, compared to value
+  | { kind: "count"; of: Condition[]; op: ">=" | "<=" | ">" | "<" | "=="; value: number } // how many of `of` currently hold, compared to value
+  | { kind: "counter"; flag: string; op: ">=" | "<=" | ">" | "<" | "=="; value: number }; // numeric flag comparison (unset reads 0) — the theory_* ladders
 
 // ---- declarative effects ----
 export interface Outcome {
@@ -71,6 +72,7 @@ export interface Outcome {
   grantTraits?: string[];
   removeTraits?: string[];
   setFlags?: Record<string, boolean | number | string>;
+  addFlags?: Record<string, number>;            // numeric flag INCREMENT (creates at 0; applied after setFlags) — counters for {kind:"counter"} gates
   setRelationship?: { npcId: string; value: Relationship };
   setTier?: Tier;                               // move the player along the tier ladder (promotion — or demotion/getting-busted)
   introduceNpc?: string;                        // db.npcs id — you've met this person (into g.npcs)
@@ -83,6 +85,12 @@ export interface Outcome {
   advanceClock?: { id: string; by: number; label?: string; max?: number; onFull?: string }; // tick a progress clock; created on first touch, queues onFull (an event id) when it fills
   clearClock?: string;                          // clock id — abandon a clock WITHOUT firing its onFull ("a lead goes cold")
   queueEvent?: string;                          // chain: fire this event next
+  queueEvents?: string[];                       // chain SEVERAL, in order (after queueEvent if both). With per-event
+                                                // `condition`s and nextQueuedEvent's skip, this is the conditional-insert
+                                                // pattern: queue [insert, continuation] and the insert self-selects.
+  statsMax?: Partial<Record<StatKey, number>>;  // soft ceilings for THIS outcome's positive deltas: a raise never lifts the
+                                                // stat above the named cap (and never lowers one already above it). The
+                                                // repeatable-raiser discipline (workout tradecraft, breather grip).
   roll?: RollSpec;
 }
 
@@ -190,6 +198,14 @@ export interface GameEvent {
   // (e.g. Reese 0.15, environmental 0.25 — proposals, tuned later).
   bandText?: Partial<Record<GripBand, string>>;
   noiseProfile?: number;
+  // -- conditional card text, evaluated ONCE at fire and frozen (deterministic;
+  // no RNG). bodyVariants: the FIRST matching variant replaces `body` (the
+  // charge-gate pattern — took_shard vs not). bodyExtras: EVERY matching extra
+  // appends, in authored order (the thread-echo pattern — one ending card that
+  // renders this player's run). A card carrying bandText uses that for its base
+  // instead of bodyVariants (one base mechanism per card; extras stack on both).
+  bodyVariants?: { when: Condition; text: string }[];
+  bodyExtras?: { when: Condition; text: string }[];
   title: string;
   body: string;
   choices: Choice[];
@@ -199,6 +215,12 @@ export interface Choice {
   requires?: Condition;       // gates the choice; false = unavailable (choiceAvailable returns false)
   showWhenLocked?: boolean;   // UI HINT ONLY (engine ignores this): when `requires` fails, render greyed-but-VISIBLE
                               // instead of hidden — the deliberate "seed" case (e.g. the illegible option). Default: hide.
+  // -- branch-level coordinates (the content wave's wiring gate): the CHOSEN
+  // branch's field feeds the coordinate log, per-field, falling back to the
+  // card's (a branch may carry a flavor while inheriting the card's coord).
+  // Introspective beats and framed reads live here.
+  diamondCoord?: DiamondCoord;
+  lensFlavor?: string;
   outcome: Outcome;
 }
 
@@ -233,6 +255,10 @@ export interface EngineTuning {
     coolPerDay?: number;       // amount exposure drops each endDay (default 1; set 0 for a STICKY meter)
     threshold?: number;        // at/above this, the consequence event is queued (default 6)
     consequenceEvent?: string; // event id queued when threshold is met (default "ev_exposure_discharge")
+    stages?: { at: number; eventId: string }[]; // STAGED escalation (the pressure beat): each fires once, in
+                               // authored order, one per day boundary at most. Give stage events a `once`
+                               // flag — that is what "fires once" reads (the linter warns otherwise).
+                               // Stage 3's plateau is free: a fired stage never refires.
   };
   disposition?: {
     window?: number;           // recency window for both centroids, in CARD-RESOLUTIONS, not days
@@ -269,6 +295,20 @@ export interface EngineTuning {
                                // banded cards still select their authored variant deterministically;
                                // the switch controls the unfalsifiable leak, so bot A/Bs isolate its drift.
     p?: number;                // adjacent-leak probability; default 0.2; per-card noiseProfile overrides
+  };
+  lens?: {
+    vocabulary?: string[];     // the closed lensFlavor list, DECLARED by content (the engine stays agnostic;
+                               // the linter enforces membership). The pack's lock: spiritual·physics·institutional·skeptic.
+    nullFlavor?: string;       // the NULL POLE (Batch-3 v0.2.1): a resolution carrying this flavor appends the
+                               // ZERO vector — the lens centroid decays toward origin under null-leaning play,
+                               // multipliers settle to ~1.0, and null-flavored cards can never bubble-boost.
+  };
+  calendar?: {
+    lastDay?: number;          // the run's calendar end: past this day, the ending-selector fires (db.endings)
+  };
+  crossRun?: {
+    harvestFlags?: string[];   // run flags harvestCrossRun copies into the store's seeds — CONTENT declares what
+                               // persists across vessels (denied_knife, held_truth, ...); the engine never decides.
   };
 }
 
@@ -307,6 +347,15 @@ export interface ContentDB {
   npcs?: Record<string, Npc>;            // optional authored NPC fixtures — the Circle seed
   decks?: DeckDef[];                     // the deck registry (WO-2); the daily draw composes from mounted decks
   doors?: Door[];                        // met-doors, checked on every day advance (WO-1d)
+  // The ending-selector — THE NARROW DOOR: the one place that may ever read the
+  // player's derived position, at the moment the run is already over. v1 is
+  // flags-only (this pack's endings need no position read); the position-reading
+  // extension lands only when an authored ending asks. Ordinary gates NEVER
+  // read position — that ruling holds everywhere else in the engine.
+  // Past tuning.calendar.lastDay, the FIRST ending whose `when` holds is queued
+  // as the morning's scene; its exit flag is the terminal. Give ending events a
+  // `once` flag.
+  endings?: { eventId: string; when?: Condition }[];
   openingLog?: string;                   // first line in the new-game log; engine falls back if absent
   openingQueue?: string[];               // event ids seeded into g.queue at new-game (scripted cold-open, in order)
   tuning?: EngineTuning;                 // optional engine-tuning seam; defaults reproduce current behavior
@@ -365,4 +414,6 @@ export interface CrossRunStore {
   version: number;                      // store schema version (for forward migration)
   factions?: Record<string, Faction>;   // faction power as the last vessel left it (the world's scars)
   artifacts?: ArtifactRecord[];         // stub — the find/place verbs land with WO-5, when a real card asks
+  seeds?: Record<string, boolean | number | string>; // exit flags content declared (tuning.crossRun.harvestFlags),
+                                        // injected verbatim into the next run's flags — existence, never meaning
 }
