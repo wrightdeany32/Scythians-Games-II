@@ -584,6 +584,7 @@ check("linter: out-of-range coords are errors", has("out of range", "error"));
 check("linter: vocabulary violations are errors", has('"not_in_vocab"', "error") && has('nullFlavor "lens_two"', "error"));
 check("linter: the intent-note leak is an error", has("*intent-note*", "error"));
 check("linter: dead terminals and ghost counters warn", has('"never_set"', "warning") && has('"ghost_counter"', "warning"));
+check("linter: the flag-web warns on a gate nothing writes", has('flag "f" is read', "warning"));
 check("linter: the shipped dbs carry zero errors",
   lintContent(loopDb, "l").every((i) => i.level !== "error") &&
   lintContent(miniDb, "m").every((i) => i.level !== "error"));

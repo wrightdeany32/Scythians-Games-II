@@ -20,6 +20,9 @@
 //   · unreachable events (no tags to draw by, referenced by nothing) and
 //     tags matching no registered deck — warnings, not errors
 //   · dead terminal flags (listed in tuning.terminal.flags, set by nothing)
+//   · the flag-web (Phase 2): boolean flag reads cross-referenced against
+//     writes — a gate on a flag nothing writes warns per-flag (a typo'd gate
+//     can never open); writes nothing reads warn as one aggregate line
 // Errors fail the run; warnings inform it. The engine stays agnostic — the
 // linter is where content's declared conventions get enforced.
 // ============================================================================
@@ -81,6 +84,20 @@ function conditionCounterFlags(c: Condition | undefined, out: Set<string>): void
     case "all": case "any": c.of.forEach((x) => conditionCounterFlags(x, out)); return;
     case "count": c.of.forEach((x) => conditionCounterFlags(x, out)); return;
     case "not": conditionCounterFlags(c.of, out); return;
+    default: return;
+  }
+}
+
+// The flag-web walker (Phase 2): boolean flag READS in a condition tree —
+// {kind:"flag"} and {kind:"noflag"} only. Counter reads stay with the ghost-
+// counter check above (one finding per accident, never two).
+function conditionFlagReads(c: Condition | undefined, out: Set<string>): void {
+  if (!c) return;
+  switch (c.kind) {
+    case "flag": case "noflag": out.add(c.flag); return;
+    case "all": case "any": c.of.forEach((x) => conditionFlagReads(x, out)); return;
+    case "count": c.of.forEach((x) => conditionFlagReads(x, out)); return;
+    case "not": conditionFlagReads(c.of, out); return;
     default: return;
   }
 }
@@ -221,6 +238,50 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
     if (!addedFlags.has(f) && !setFlags.has(f)) {
       warn("counters", `{kind:"counter"} compares flag "${f}" but no outcome ever sets or adds to it`);
     }
+  }
+
+  // -- the flag-web (Phase 2): boolean reads cross-referenced against writes --------
+  // Writes: outcome setFlags/addFlags (collected above), every event's `once`
+  // (engine-written at fire), questionnaire answer flags. Reads: every condition
+  // tree (events, choices, variants/extras, actions, doors, endings), deck
+  // mountFlags, and crossRun.harvestFlags (the harvest reads the run's flags).
+  // Terminal flags are excluded here — the dead-terminal check above owns them —
+  // and counter reads live with the ghost-counter check. Warnings, not errors:
+  // a read-never-written gate is almost always a typo (it can never open), while
+  // written-never-read is often legitimate (journal percepts, telemetry, a
+  // cross-pack hook) and reports as ONE aggregate line, not a flood.
+  const onceFlags = new Set<string>();
+  const flagWrites = new Set<string>(setFlags);
+  for (const id in db.events) {
+    const once = db.events[id].once;
+    if (once) { onceFlags.add(once); flagWrites.add(once); }
+  }
+  for (const q of db.questionnaire?.questions ?? []) {
+    for (const ans of q.answers) if (ans.flag) flagWrites.add(ans.flag);
+  }
+  const flagReads = new Set<string>();
+  for (const id in db.events) {
+    const ev = db.events[id];
+    conditionFlagReads(ev.condition, flagReads);
+    ev.choices.forEach((c) => conditionFlagReads(c.requires, flagReads));
+    for (const v of [...(ev.bodyVariants ?? []), ...(ev.bodyExtras ?? [])]) conditionFlagReads(v.when, flagReads);
+  }
+  for (const a of db.actions) conditionFlagReads(a.requires, flagReads);
+  for (const d of db.doors ?? []) conditionFlagReads(d.when, flagReads);
+  for (const e of db.endings ?? []) conditionFlagReads(e.when, flagReads);
+  for (const d of db.decks ?? []) if (d.mountFlag) flagReads.add(d.mountFlag);
+  for (const f of db.tuning?.crossRun?.harvestFlags ?? []) flagReads.add(f);
+  const terminalFlags = new Set(db.tuning?.terminal?.flags ?? []);
+  for (const f of [...flagReads].sort()) {
+    if (!flagWrites.has(f) && !terminalFlags.has(f)) {
+      warn("flag-web", `flag "${f}" is read (gates something) but never written by any outcome, once-flag, or questionnaire answer in this db`);
+    }
+  }
+  const orphans = [...flagWrites]
+    .filter((f) => !flagReads.has(f) && !onceFlags.has(f) && !terminalFlags.has(f))
+    .sort();
+  if (orphans.length) {
+    warn("flag-web", `written but never read in this db (fine if journal/telemetry/cross-pack): ${orphans.join(", ")}`);
   }
 
   return issues.map((i) => ({ ...i, where: `[${label}] ${i.where}` }));
