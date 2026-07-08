@@ -20,6 +20,7 @@
 // ============================================================================
 
 import { loopDb } from "./loopworld";
+import { explorerDb } from "../content/explorer";
 import {
   newGame, serialize, deserialize, applyOutcome, simulateClash,
   drawFromMounted, mountedDecks, harvestCrossRun, newCrossRunStore, bandOf,
@@ -637,6 +638,140 @@ rX.begin();
 rX.pick(0);
 check("exposure snapshot: frozen at fire (5, not the post-resolution 8)",
   snap[0] === 5 && gX.player.stats.exposure === 8);
+
+// -- Phase 2: the Explorer pack, verified by driving ---------------------------------
+// A scripted two-week run through the wired content: opening → threads →
+// pressure gradient → the return terminal; then the never-returned calendar
+// ending on a second game. Cave correctness is the cave playtest's job — the
+// cave exit flags are set directly here so this section tests the NEW wiring.
+line(`\n-- Phase 2: the Explorer pack (scripted run) --`);
+
+const newExplorer = (seed: number): GameState =>
+  newGame({ seed, name: "You", age: 27, body: { height: 0.5, build: 0.5 }, townId: "town_edge", tier: "outer" }, explorerDb);
+
+const gU = newExplorer(41);
+// Day 1: the opening stub (creation-as-turn-zero), then Doug's workout.
+driveScene(startQueuedScene(gU, explorerDb)!);
+check("explorer: the opening sets the start flags and schedules Marie",
+  gU.flags.arrived_town === true && gU.flags.thread_doug === true &&
+  (gU.scheduled ?? []).some((s) => s.eventId === "ux_marie_warning"));
+driveScene(runAction(gU, explorerDb, "ux_act_doug_workout").runner!, { ux_doug_workout_first: 0 });
+check("explorer: the workout beat fires once and schedules the message",
+  gU.flags.doug_warmth === true && gU.player.stats.tradecraft === 1 &&
+  (gU.scheduled ?? []).some((s) => s.eventId === "ux_doug_message"));
+check("explorer: the workout introspective is locked before any anomaly",
+  (() => { gU.queue.push("ux_doug_workout_first"); const r = startQueuedScene(gU, explorerDb); if (r && !r.done) { const ok = r.current.card === "__end__"; return ok; } return true; })());
+// (the once-flag ate the re-queue: the scene ends immediately)
+advanceDay(gU, explorerDb);
+advanceDay(gU, explorerDb);
+// Day 3: Marie's warning + Doug's message land together; engage Marie, note the text.
+driveScene(startQueuedScene(gU, explorerDb)!, { ux_marie_warning: 1, ux_doug_message: 0, ux_marie_offer: 0 });
+check("explorer: Marie engaged — the woods are planned",
+  gU.flags.marie_engaged === true && gU.flags.marie_woods_planned === true &&
+  (gU.scheduled ?? []).some((s) => s.eventId === "ux_marie_woods"));
+// The first cave trip stands in as flags (the cave playtest owns that scene).
+applyOutcome(gU, explorerDb, { setFlags: { cave_done: true, took_shard: true, cave_etchings_seen: true, etchings_link_nora: true, cave_heard_voice: true } });
+advanceDay(gU, explorerDb);
+// Day 4: the doors fire — Nora's intro and the shard's first night.
+driveScene(startQueuedScene(gU, explorerDb)!, { ux_nora_intro: 0, ux_shard_settles: 0 });
+check("explorer: doors establish Nora and charge the shard",
+  gU.flags.thread_nora === true && gU.flags.nora_center_known === true && gU.player.stats.exposure === 2);
+// The day-trip (a committed day): skeptic read, the rangers, the gentle path.
+driveScene(runAction(gU, explorerDb, "ux_act_nora_daytrip").runner!,
+  { ux_nora_daytrip: 0, ux_nora_arrive: 0, ux_nora_explore: 0, ux_nora_rangers: 0, ux_nora_escape: 0, ux_nora_breakdown: 1, ux_nora_close: 0 });
+check("explorer: the day-trip lands — pact kept, exposure raised, skeptic read logged",
+  gU.flags.nora_pact === true && gU.flags.nora_daytrip_done === true && gU.player.stats.exposure === 4 &&
+  (gU.coordLog ?? []).some((e) => e.lensFlavor === "skeptic"));
+advanceDay(gU, explorerDb);
+// Day 5: the woods walk (scheduled) + pressure stage 1 (exposure 4 >= 3), interleaved by queue order.
+check("explorer: stage 1 queued beside the scheduled walk", gU.queue.includes("ux_pressure_stage1"));
+driveScene(startQueuedScene(gU, explorerDb)!,
+  { ux_marie_woods: 0, ux_pressure_stage1: 0, ux_marie_ellen: 2, ux_marie_grave: 0, ux_marie_close: 0 });
+check("explorer: the walk opens the pattern and the suspicion; stage 1 fired once",
+  gU.flags.pattern_open === true && gU.flags.grave_suspicion === true &&
+  gU.flags.pressure_stage === 1 && gU.flags.pressure1_seen === true);
+// Day 6: the convergence percept (both gates now hold) — then research + the vault.
+advanceDay(gU, explorerDb);
+check("explorer: the convergence door fires once both threads have spoken", gU.queue.includes("ux_convergence_pattern"));
+const coordLenBeforeConv = (gU.coordLog ?? []).length;
+driveScene(startQueuedScene(gU, explorerDb)!);
+check("explorer: the convergence is coordinate- and lens-silent",
+  gU.flags.convergence_seen === true && (gU.coordLog ?? []).length === coordLenBeforeConv);
+driveScene(runAction(gU, explorerDb, "ux_act_research_symbol").runner!, { ux_research_symbol: 1 });
+check("explorer: the shallow dig advances the theory without the grip cost",
+  gU.flags.theory_spiritual === 1 && gU.player.stats.grip === 10);
+driveScene(runAction(gU, explorerDb, "ux_act_grave_visit").runner!, { ux_grave_visit: 0, ux_grave_look: 0, ux_grave_close: 0 });
+check("explorer: the vault opens once and the action retires",
+  gU.flags.grave_confirmed_empty === true && gU.flags.grave_beat_done === true &&
+  !dayMenu(gU, explorerDb).actions.some((a) => a.id === "ux_act_grave_visit"));
+check("explorer: disturbances accumulate on the sticky meter", gU.player.stats.exposure === 6);   // shard 2 + rangers 2 + vault 2 (the shallow dig carries no charge)
+advanceDay(gU, explorerDb);
+// Day 7: stage 2 + Doug's nudge (unanswered message), then the reply → dinner invite.
+driveScene(startQueuedScene(gU, explorerDb)!, { ux_doug_nudge: 0, ux_pressure_stage2: 0 });
+check("explorer: stage 2 fired; the nudge fired for the silent player", gU.flags.pressure_stage === 2 && gU.flags.doug_nudge_seen === true);
+driveScene(runAction(gU, explorerDb, "ux_act_doug_reply").runner!, { ux_doug_dinner_invite: 0 });
+check("explorer: the reply reaches back and books the dinner",
+  gU.flags.doug_reached_back === true && (gU.scheduled ?? []).some((s) => s.eventId === "ux_doug_dinner_arrive"));
+advanceDay(gU, explorerDb);
+// Day 8: the dinner — take the knife (the heavier enable footstep).
+driveScene(startQueuedScene(gU, explorerDb)!,
+  { ux_doug_dinner_arrive: 0, ux_doug_dinner_cake: 0, ux_doug_dinner_cut: 3, ux_doug_dinner_close: 0 });
+check("explorer: the knife is complicity — flag set, enable-lean logged",
+  gU.flags.dinner_took_knife === true &&
+  (gU.coordLog ?? []).some((e) => e.diamondCoord?.vertical === 0.3));
+advanceDay(gU, explorerDb); advanceDay(gU, explorerDb); advanceDay(gU, explorerDb);
+// Day 11: the ask — commit (money set aside), meeting in two days.
+driveScene(startQueuedScene(gU, explorerDb)!, { ux_doug_invitation: 0 });
+check("explorer: the commitment hook sets the money aside",
+  gU.flags.doug_committed === true && gU.flags.money_set_aside_doug === true);
+advanceDay(gU, explorerDb); advanceDay(gU, explorerDb);
+// Day 13: the observation meeting — the mark insert fires off the cave flag.
+const meetingCards = driveScene(startQueuedScene(gU, explorerDb)!,
+  { ux_doug_meeting_arrive: 0, ux_doug_meeting_observe: 0, ux_doug_meeting_mark: 0, ux_doug_meeting_close: 1 });
+check("explorer: the meeting chain runs with the conditional mark insert",
+  meetingCards.join(">") === "ux_doug_meeting_arrive>ux_doug_meeting_observe>ux_doug_meeting_mark>ux_doug_meeting_close" &&
+  gU.flags.meeting_mark_seen === true && gU.flags.doug_meeting_embraced === true);
+advanceDay(gU, explorerDb);
+// Day 14: the return — introspective entry (attune), grounded descent, the truth held.
+const returnCards = driveScene(runAction(gU, explorerDb, "ux_act_return_whites").runner!,
+  { ux_return_enter: 1, ux_return_descend: 0, ux_return_erased: 0, ux_return_fork: 0, ux_return_deep: 0, ux_return_knife_deep: 3, ux_return_end: 0 });
+check("explorer: the illegible insert stays shut at high grip",
+  !returnCards.includes("ux_return_illegible") && returnCards.includes("ux_return_deep"));
+check("explorer: attune recorded on the introspective entry",
+  (gU.coordLog ?? []).some((e) => e.attune === 0.25));
+check("explorer: the run ends on the authored terminal",
+  gU.flags.run_end_whites_return === true && gU.flags.held_truth === true && gU.flags.reese_strained === true &&
+  runStatus(gU, explorerDb).flag === "run_end_whites_return");
+advanceDay(gU, explorerDb);
+check("explorer: terminal precedence — the lost morning queues nothing", gU.queue.length === 0);
+const harvestU = harvestCrossRun(gU, explorerDb, newCrossRunStore());
+check("explorer: held_truth persists across vessels; denied_knife does not (not chosen)",
+  harvestU.seeds?.held_truth === true && harvestU.seeds?.denied_knife === undefined);
+
+// The never-returned run: dismiss Marie, never go back, reach the calendar's end.
+const gV = newExplorer(42);
+driveScene(startQueuedScene(gV, explorerDb)!);
+applyOutcome(gV, explorerDb, { setFlags: { doug_lingering: true, money_set_aside_doug: true, cave_etchings_seen: true } });
+let endingProse = "";
+for (let i = 0; i < 20 && !runStatus(gV, explorerDb).over; i++) {
+  advanceDay(gV, explorerDb);
+  const r = startQueuedScene(gV, explorerDb);
+  if (r) {
+    endingProse = r.current.prose;
+    driveScene(r, { ux_marie_warning: 0, ux_ending_never_returned: 0, ux_ending_never_close: 1 });
+    if (r.current.card === "__end__" && endingProse.includes("season turns")) break;
+  }
+}
+check("explorer: the calendar hands the quiet run its authored ending",
+  gV.flags.run_end_never_returned === true && runStatus(gV, explorerDb).flag === "run_end_never_returned");
+check("explorer: the ending reflects THIS run (echoes present, absent ones dropped)",
+  endingProse.includes("Doug still picks you up at six") &&
+  endingProse.includes("The pieces you bought that night") &&
+  !endingProse.includes("Nora calls, eventually"));
+check("explorer: the closing attune fork recorded the kept question",
+  (gV.coordLog ?? []).some((e) => e.attune === 0.25));
+check("linter: the explorer db carries zero errors",
+  lintContent(explorerDb, "explorer").every((i) => i.level !== "error"));
 
 line(`\n${failed ? "SOME LOOP CRITERIA FAILED" : "ALL LOOP CRITERIA PASS"}\n`);
 if (failed) process.exit(1);

@@ -278,7 +278,7 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
     }
   }
   const orphans = [...flagWrites]
-    .filter((f) => !flagReads.has(f) && !onceFlags.has(f) && !terminalFlags.has(f))
+    .filter((f) => !flagReads.has(f) && !comparedCounters.has(f) && !onceFlags.has(f) && !terminalFlags.has(f))
     .sort();
   if (orphans.length) {
     warn("flag-web", `written but never read in this db (fine if journal/telemetry/cross-pack): ${orphans.join(", ")}`);

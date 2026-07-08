@@ -6,6 +6,7 @@
 // ============================================================================
 
 import { caveDb } from "../content/cave.db";
+import { explorerDb } from "../content/explorer";
 import { db as smokeDb } from "../smoke/content";
 import { loopDb } from "../smoke/loopworld";
 import { lintContent } from "./lint";
@@ -13,6 +14,7 @@ import type { ContentDB } from "../engine/types";
 
 const TARGETS: [string, ContentDB][] = [
   ["cave", caveDb],
+  ["explorer", explorerDb],
   ["smoke", smokeDb],
   ["loopworld", loopDb],
 ];
