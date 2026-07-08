@@ -8,6 +8,7 @@
     "demo": "tsx src/index.ts",
     "playtest:cave": "tsx src/content/cave.playtest.ts",
     "loop": "tsx src/smoke/loop.playtest.ts",
+    "lint:content": "tsx src/tools/lint.run.ts",
     "coldread": "tsx src/coldread/run.ts",
     "coldread:sample": "tsx src/coldread/sample.ts",
     "typecheck": "tsc --noEmit"

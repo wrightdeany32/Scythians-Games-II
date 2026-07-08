@@ -25,6 +25,7 @@ import {
   drawFromMounted, mountedDecks, harvestCrossRun, newCrossRunStore, bandOf,
 } from "../engine/engine";
 import { dayMenu, runAction, startQueuedScene, advanceDay, runStatus } from "../engine/loop";
+import { lintContent } from "../tools/lint";
 import { dispositionCentroid, lensCentroid } from "../engine/centroid";
 import { SceneRunner } from "../engine/scene";
 import { seedToState } from "../engine/rng";
@@ -534,6 +535,40 @@ check("cross-run seeds: declared exit flags persist into the next vessel",
   storeSeeds.seeds?.denied_thing === true && gVessel2.flags.denied_thing === true);
 check("cross-run seeds: undeclared flags never enter the store",
   Object.keys(storeSeeds.seeds ?? {}).join(",") === "denied_thing");
+
+// -- the linter: a deliberately broken db yields exactly the expected issues
+line(`\n-- Phase 1: the content linter --`);
+const brokenDb: ContentDB = {
+  ...loopDb,
+  decks: [{ id: "deck:x" }],
+  doors: [{ eventId: "no_such_event", when: { kind: "flag", flag: "f" } }],
+  tuning: { lens: { vocabulary: ["lens_one"], nullFlavor: "lens_two" }, terminal: { flags: ["never_set"] } },
+  events: {
+    bad: {
+      id: "bad",
+      diamondCoord: { sanction: 2, vertical: 0 },          // out of range
+      lensFlavor: "not_in_vocab",                          // outside the declared list
+      title: "Bad",
+      body: "…",
+      choices: [
+        { label: "a", outcome: { queueEvent: "also_missing", log: "You let it in — *the intent note leaks*." } },
+        { label: "b", requires: { kind: "counter", flag: "ghost_counter", op: ">=", value: 2 }, outcome: {} },
+      ],
+    },
+  },
+  actions: [],
+};
+const found = lintContent(brokenDb, "broken");
+const has = (needle: string, level: "error" | "warning") =>
+  found.some((i) => i.level === level && i.message.includes(needle));
+check("linter: unresolved event refs are errors", has('unknown event "no_such_event"', "error") && has('unknown event "also_missing"', "error"));
+check("linter: out-of-range coords are errors", has("out of range", "error"));
+check("linter: vocabulary violations are errors", has('"not_in_vocab"', "error") && has('nullFlavor "lens_two"', "error"));
+check("linter: the intent-note leak is an error", has("*intent-note*", "error"));
+check("linter: dead terminals and ghost counters warn", has('"never_set"', "warning") && has('"ghost_counter"', "warning"));
+check("linter: the shipped dbs carry zero errors",
+  lintContent(loopDb, "l").every((i) => i.level !== "error") &&
+  lintContent(miniDb, "m").every((i) => i.level !== "error"));
 
 line(`\n${failed ? "SOME LOOP CRITERIA FAILED" : "ALL LOOP CRITERIA PASS"}\n`);
 if (failed) process.exit(1);
