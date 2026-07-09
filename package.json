@@ -11,6 +11,8 @@
     "lint:content": "tsx src/tools/lint.run.ts",
     "coldread": "tsx src/coldread/run.ts",
     "coldread:sample": "tsx src/coldread/sample.ts",
+    "coldread:loop": "tsx src/coldread/loop-relay.ts",
+    "coldread:loop-sample": "tsx src/coldread/loop-sample.ts",
     "typecheck": "tsc --noEmit",
     "bots": "tsx src/bots/run.ts"
   },
