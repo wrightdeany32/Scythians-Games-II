@@ -30,16 +30,15 @@
 // ============================================================================
 
 import type { ContentDB, GameState, LocationAction } from "./types";
-import { availableActions, endDay } from "./engine";
+import { availableActions, endDay, terminalTuning } from "./engine";
 import { SceneRunner } from "./scene";
 import type { SceneHooks } from "./scene";
 import { dateOf } from "./calendar";
 
 // ---- terminal tuning -----------------------------------------------------------
-export function terminalTuning(db: ContentDB): { onGripZero: boolean; flags: string[] } {
-  const t = db.tuning?.terminal;
-  return { onGripZero: t?.onGripZero ?? true, flags: t?.flags ?? [] };
-}
+// Lives in engine.ts since Phase 2 (endDay's terminal-precedence guard shares
+// it); re-exported here so loop consumers keep their import.
+export { terminalTuning };
 
 export interface RunStatus {
   over: boolean;

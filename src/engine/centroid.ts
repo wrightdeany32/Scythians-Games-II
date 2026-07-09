@@ -25,6 +25,13 @@
 // tuning.disposition.window. Loom's fate-dial (window lengthens with depth:
 // shallow = free will, deep = fated) is a post-tune refinement that rides
 // this knob — do not build it yet.
+//
+// DELIBERATELY ABSENT: an attune reader. CoordLogEntry.attune (the option-3
+// X-volition scalar) is recorded by the resolution path but derived by NOTHING
+// here — no attuneCentroid ships until an authored ending knocks at the narrow
+// door. Its only two legal readers are telemetry and that ending-selector
+// (Azimuth's fence); a hand reaching to add the derivation early is the same
+// reach as storing a disposition.
 // ============================================================================
 
 import type { ContentDB, DiamondCoord, GameState } from "./types";

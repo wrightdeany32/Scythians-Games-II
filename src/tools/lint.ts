@@ -8,6 +8,8 @@
 //   · trait/item/npc refs resolve
 //   · diamondCoord components in [-1, 1] (events, actions, choices, decks,
 //     questionnaire answers)
+//   · attune in [-1, 1] (events, actions, choices, questionnaire answers) —
+//     range only; the two-reader fence is the engine's, by type
 //   · lensFlavor ∈ the declared vocabulary (tuning.lens.vocabulary; skipped
 //     when content declares none), nullFlavor ∈ vocabulary
 //   · the intent-note leak: *…* in any `log` string (author-facing italics
@@ -18,6 +20,9 @@
 //   · unreachable events (no tags to draw by, referenced by nothing) and
 //     tags matching no registered deck — warnings, not errors
 //   · dead terminal flags (listed in tuning.terminal.flags, set by nothing)
+//   · the flag-web (Phase 2): boolean flag reads cross-referenced against
+//     writes — a gate on a flag nothing writes warns per-flag (a typo'd gate
+//     can never open); writes nothing reads warn as one aggregate line
 // Errors fail the run; warnings inform it. The engine stays agnostic — the
 // linter is where content's declared conventions get enforced.
 // ============================================================================
@@ -58,6 +63,17 @@ function checkCoord(issues: LintIssue[], where: string, c?: DiamondCoord): void 
   }
 }
 
+// attune (the option-3 X-volition scalar): −1 grounded … +1 attuned. Range is
+// the linter's to enforce; the READER fence (telemetry + the narrow-door
+// ending-selector only) is the engine's, by type — attune never enters
+// DiamondCoord, so no weight/dice path can reach it.
+function checkAttune(issues: LintIssue[], where: string, a?: number): void {
+  if (a == null) return;
+  if (Math.abs(a) > 1 || Number.isNaN(a)) {
+    issues.push({ level: "error", where, message: `attune out of range [-1, 1]: ${a}` });
+  }
+}
+
 // Conditions referencing flags/traits are content-shaped and unverifiable
 // statically (flags are set at play time) — but a counter condition on a flag
 // nothing ever adds to is worth a warning. Collected via the walkers below.
@@ -68,6 +84,20 @@ function conditionCounterFlags(c: Condition | undefined, out: Set<string>): void
     case "all": case "any": c.of.forEach((x) => conditionCounterFlags(x, out)); return;
     case "count": c.of.forEach((x) => conditionCounterFlags(x, out)); return;
     case "not": conditionCounterFlags(c.of, out); return;
+    default: return;
+  }
+}
+
+// The flag-web walker (Phase 2): boolean flag READS in a condition tree —
+// {kind:"flag"} and {kind:"noflag"} only. Counter reads stay with the ghost-
+// counter check above (one finding per accident, never two).
+function conditionFlagReads(c: Condition | undefined, out: Set<string>): void {
+  if (!c) return;
+  switch (c.kind) {
+    case "flag": case "noflag": out.add(c.flag); return;
+    case "all": case "any": c.of.forEach((x) => conditionFlagReads(x, out)); return;
+    case "count": c.of.forEach((x) => conditionFlagReads(x, out)); return;
+    case "not": conditionFlagReads(c.of, out); return;
     default: return;
   }
 }
@@ -153,20 +183,24 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
     const ev = db.events[id];
     checkCoord(issues, `event ${id}`, ev.diamondCoord);
     checkFlavor(`event ${id}`, ev.lensFlavor);
+    checkAttune(issues, `event ${id}`, ev.attune);
     ev.choices.forEach((c, i) => {
       checkCoord(issues, `event ${id} choice[${i}]`, c.diamondCoord);
       checkFlavor(`event ${id} choice[${i}]`, c.lensFlavor);
+      checkAttune(issues, `event ${id} choice[${i}]`, c.attune);
     });
   }
   for (const a of db.actions) {
     checkCoord(issues, `action ${a.id}`, a.diamondCoord);
     checkFlavor(`action ${a.id}`, a.lensFlavor);
+    checkAttune(issues, `action ${a.id}`, a.attune);
   }
   for (const d of db.decks ?? []) checkFlavor(`deck ${d.id}`, d.lensFlavor);
   for (const q of db.questionnaire?.questions ?? []) {
     q.answers.forEach((ans, i) => {
       checkCoord(issues, `questionnaire "${q.q.slice(0, 30)}" answer[${i}]`, ans.diamondCoord);
       checkFlavor(`questionnaire "${q.q.slice(0, 30)}" answer[${i}]`, ans.lensFlavor);
+      checkAttune(issues, `questionnaire "${q.q.slice(0, 30)}" answer[${i}]`, ans.attune);
     });
   }
 
@@ -204,6 +238,50 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
     if (!addedFlags.has(f) && !setFlags.has(f)) {
       warn("counters", `{kind:"counter"} compares flag "${f}" but no outcome ever sets or adds to it`);
     }
+  }
+
+  // -- the flag-web (Phase 2): boolean reads cross-referenced against writes --------
+  // Writes: outcome setFlags/addFlags (collected above), every event's `once`
+  // (engine-written at fire), questionnaire answer flags. Reads: every condition
+  // tree (events, choices, variants/extras, actions, doors, endings), deck
+  // mountFlags, and crossRun.harvestFlags (the harvest reads the run's flags).
+  // Terminal flags are excluded here — the dead-terminal check above owns them —
+  // and counter reads live with the ghost-counter check. Warnings, not errors:
+  // a read-never-written gate is almost always a typo (it can never open), while
+  // written-never-read is often legitimate (journal percepts, telemetry, a
+  // cross-pack hook) and reports as ONE aggregate line, not a flood.
+  const onceFlags = new Set<string>();
+  const flagWrites = new Set<string>(setFlags);
+  for (const id in db.events) {
+    const once = db.events[id].once;
+    if (once) { onceFlags.add(once); flagWrites.add(once); }
+  }
+  for (const q of db.questionnaire?.questions ?? []) {
+    for (const ans of q.answers) if (ans.flag) flagWrites.add(ans.flag);
+  }
+  const flagReads = new Set<string>();
+  for (const id in db.events) {
+    const ev = db.events[id];
+    conditionFlagReads(ev.condition, flagReads);
+    ev.choices.forEach((c) => conditionFlagReads(c.requires, flagReads));
+    for (const v of [...(ev.bodyVariants ?? []), ...(ev.bodyExtras ?? [])]) conditionFlagReads(v.when, flagReads);
+  }
+  for (const a of db.actions) conditionFlagReads(a.requires, flagReads);
+  for (const d of db.doors ?? []) conditionFlagReads(d.when, flagReads);
+  for (const e of db.endings ?? []) conditionFlagReads(e.when, flagReads);
+  for (const d of db.decks ?? []) if (d.mountFlag) flagReads.add(d.mountFlag);
+  for (const f of db.tuning?.crossRun?.harvestFlags ?? []) flagReads.add(f);
+  const terminalFlags = new Set(db.tuning?.terminal?.flags ?? []);
+  for (const f of [...flagReads].sort()) {
+    if (!flagWrites.has(f) && !terminalFlags.has(f)) {
+      warn("flag-web", `flag "${f}" is read (gates something) but never written by any outcome, once-flag, or questionnaire answer in this db`);
+    }
+  }
+  const orphans = [...flagWrites]
+    .filter((f) => !flagReads.has(f) && !comparedCounters.has(f) && !onceFlags.has(f) && !terminalFlags.has(f))
+    .sort();
+  if (orphans.length) {
+    warn("flag-web", `written but never read in this db (fine if journal/telemetry/cross-pack): ${orphans.join(", ")}`);
   }
 
   return issues.map((i) => ({ ...i, where: `[${label}] ${i.where}` }));

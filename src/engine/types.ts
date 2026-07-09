@@ -25,10 +25,13 @@ export type Relationship = "ally" | "rival" | "neutral";
 export type GripBand = "grounded" | "worn" | "frayed";   // 7–10 · 4–6 · 0–3
 
 // ---- the coordinate system (WO-1c; ledger §5) ----------------------------------
-// The diamond's two EMERGENT axes. X (grounded↔attuned) is the grip stat and is
-// deliberately NOT here: cards carry (Y, Z) only, so grip can never reach the
-// draw's Weight step — the grip death-spiral cannot be baked at the chokepoint
-// (Azimuth clarification 1; grip acts at presentation: bands, gates, dice-tilt).
+// The diamond's two EMERGENT axes. The X axis (grounded↔attuned) is deliberately
+// NOT here — and it carries TWO quantities, neither of which may ever enter this
+// type: grip (worn-down POSITION, a mechanical stat) and `attune` (chosen
+// VOLITION, the option-3 ruling — see CoordLogEntry). Cards carry (Y, Z) only,
+// so no X quantity can reach the draw's Weight step by type — the grip
+// death-spiral cannot be baked at the chokepoint (Azimuth clarification 1; grip
+// acts at presentation: bands, gates, dice-tilt).
 // Convention: both components run [-1, 1]; content authors the values.
 export interface DiamondCoord {
   sanction: number;   // Y — sanctioned (-1) ↔ fringe (+1)
@@ -49,6 +52,14 @@ export interface CoordLogEntry {
   index: number;
   diamondCoord?: DiamondCoord;
   lensFlavor?: string;   // one tag from the small closed vocabulary (content canon; Concordance + Loom own the list)
+  // The X-VOLITION signal (Vigil's option-3 ruling, record-now-read-later):
+  // −1 grounded … +1 attuned, authored on introspective leans. RECORDED here,
+  // never derived into anything the play loop can see: no posture reader ships
+  // until an authored ending knocks. Deliberately a separate scalar — NEVER a
+  // component of DiamondCoord, so Weight/proximity/the dice cannot read it by
+  // type. ITS ONLY TWO LEGAL READERS (Azimuth's fence, ledger-governed) are
+  // telemetry and the narrow-door ending-selector; a third requires a ruling.
+  attune?: number;
 }
 
 // ---- declarative conditions (gate events, choices, actions) ----
@@ -170,6 +181,7 @@ export interface LocationAction {
   // resolving a coordinated action appends to the same log as a card. No special case.
   diamondCoord?: DiamondCoord;
   lensFlavor?: string;
+  attune?: number;       // X-volition, −1…+1 (see CoordLogEntry) — recorded, never read by the draw
 }
 
 export interface Town {
@@ -190,6 +202,7 @@ export interface GameEvent {
   weight?: number;       // relative weight for the random draw (default 1; <1 = rarer)
   diamondCoord?: DiamondCoord; // (Y, Z) — where resolving this card pulls the player's derived position. Omit = neutral/ubiquitous.
   lensFlavor?: string;   // the card's dominant interpretive register (tag sparingly — register, not topic)
+  attune?: number;       // X-volition, −1…+1 (see CoordLogEntry) — recorded, never read by the draw
   // -- band-select (Batch-3 Contract 2): AUTHORED variants of the body, selected
   // by the resolved grip band at card-fire and frozen on the fired-card record.
   // Selection only — bands never generate text and never gate a choice. A band
@@ -218,9 +231,11 @@ export interface Choice {
   // -- branch-level coordinates (the content wave's wiring gate): the CHOSEN
   // branch's field feeds the coordinate log, per-field, falling back to the
   // card's (a branch may carry a flavor while inheriting the card's coord).
-  // Introspective beats and framed reads live here.
+  // Introspective beats and framed reads live here. `attune` follows the same
+  // branch-over-card, per-field rule (the option-3 X-volition scalar).
   diamondCoord?: DiamondCoord;
   lensFlavor?: string;
+  attune?: number;
   outcome: Outcome;
 }
 
@@ -240,6 +255,7 @@ export interface Questionnaire {
       // through the SceneRunner seed the log by the ordinary path.)
       diamondCoord?: DiamondCoord;
       lensFlavor?: string;
+      attune?: number;             // X-volition seed, same index-0 path as the other two fields
     }[];
   }[];
 }

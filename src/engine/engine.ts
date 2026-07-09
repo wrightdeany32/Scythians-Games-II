@@ -555,11 +555,16 @@ export function resolveChoice(g: GameState, db: ContentDB, ev: GameEvent, idx: n
 // ONE entry builder for every coordinate-carrying source (a card, an action, a
 // questionnaire answer), so the creation paths and the play path can never
 // drift in entry shape. Returns undefined for a neutral source.
-function coordEntry(index: number, src: { diamondCoord?: DiamondCoord; lensFlavor?: string }): CoordLogEntry | undefined {
-  if (!src.diamondCoord && !src.lensFlavor) return undefined;
+// `attune` (the option-3 X-volition scalar) rides the same builder: recorded
+// here, derived by NOTHING in the play loop — see CoordLogEntry's fence.
+type CoordSource = { diamondCoord?: DiamondCoord; lensFlavor?: string; attune?: number };
+
+function coordEntry(index: number, src: CoordSource): CoordLogEntry | undefined {
+  if (!src.diamondCoord && !src.lensFlavor && src.attune == null) return undefined;
   const entry: CoordLogEntry = { index };
   if (src.diamondCoord) entry.diamondCoord = { sanction: src.diamondCoord.sanction, vertical: src.diamondCoord.vertical };
   if (src.lensFlavor) entry.lensFlavor = src.lensFlavor;
+  if (src.attune != null) entry.attune = src.attune;
   return entry;
 }
 
@@ -568,18 +573,30 @@ function coordEntry(index: number, src: { diamondCoord?: DiamondCoord; lensFlavo
 // position itself is never stored here or anywhere: engine/centroid.ts derives
 // it on demand from these events. Branch granularity: the CHOSEN branch's
 // field wins, per-field, falling back to the card's (a branch may carry a
-// flavor while inheriting the card's coordinate).
-function recordResolution(
-  g: GameState,
-  src: { diamondCoord?: DiamondCoord; lensFlavor?: string },
-  branch?: { diamondCoord?: DiamondCoord; lensFlavor?: string },
-): void {
+// flavor while inheriting the card's coordinate; `attune` follows the same rule).
+function recordResolution(g: GameState, src: CoordSource, branch?: CoordSource): void {
   g.resolveCount = (g.resolveCount ?? 0) + 1;
   const entry = coordEntry(g.resolveCount, {
     diamondCoord: branch?.diamondCoord ?? src.diamondCoord,
     lensFlavor: branch?.lensFlavor ?? src.lensFlavor,
+    attune: branch?.attune ?? src.attune,
   });
   if (entry) (g.coordLog ??= []).push(entry);
+}
+
+// ---- the terminal check --------------------------------------------------------
+// The designed terminals' tuning, shared by loop.ts's runStatus and endDay's
+// precedence guard below (defined HERE so the guard needs no engine→loop import).
+export function terminalTuning(db: ContentDB): { onGripZero: boolean; flags: string[] } {
+  const t = db.tuning?.terminal;
+  return { onGripZero: t?.onGripZero ?? true, flags: t?.flags ?? [] };
+}
+
+// Does a designed terminal already hold? The boolean core of runStatus.
+export function terminalHolds(g: GameState, db: ContentDB): boolean {
+  const t = terminalTuning(db);
+  if (t.onGripZero && g.player.stats.grip <= 0) return true;
+  return t.flags.some((f) => !!g.flags[f]);
 }
 
 // ---- the day loop ------------------------------------------------------------
@@ -592,6 +609,13 @@ export function endDay(g: GameState, db: ContentDB): void {
   g.player.stats.energy = g.player.stats.energyMax;
   g.player.stats.exposure = Math.max(0, g.player.stats.exposure - exp.coolPerDay); // liability cools (coolPerDay 0 = sticky)
   g.log.unshift({ text: `— Day ${g.day}.`, tone: "n" });
+  // TERMINAL PRECEDENCE (ratified round decision: grip-zero-wins). When a
+  // designed terminal already holds at the day boundary, the morning queues
+  // NOTHING new — no exposure consequence, no scheduled sweep, no doors, no
+  // stages, and above all no calendar ending stacked on top of the terminal.
+  // The run is over the moment control returns to the day (loop.ts's terminal
+  // contract); the substrate above still runs so the boundary stays uniform.
+  if (terminalHolds(g, db)) return;
   // the exposure consequence — at most ONE pending copy (matching the door
   // guard below; N stacked identical discharge scenes was never a design)
   if (g.player.stats.exposure >= exp.threshold && db.events[exp.consequenceEvent] && !g.queue.includes(exp.consequenceEvent)) {
