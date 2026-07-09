@@ -28,6 +28,7 @@ import {
 import { dayMenu, runAction, startQueuedScene, advanceDay, runStatus } from "../engine/loop";
 import { lintContent } from "../tools/lint";
 import { dispositionCentroid, lensCentroid } from "../engine/centroid";
+import { journalLines } from "../engine/journal";
 import { SceneRunner } from "../engine/scene";
 import { seedToState } from "../engine/rng";
 import type { ContentDB, GameState } from "../engine/types";
@@ -855,6 +856,28 @@ driveScene(runAction(gP2, explorerDb, "ux_act_pursue_drastic").runner!);
 check("denise: the pursuit ends at the threshold — a designed terminal, harvested for the collision",
   gP2.flags.went_after_dale === true && runStatus(gP2, explorerDb).flag === "went_after_dale" &&
   harvestCrossRun(gP2, explorerDb, newCrossRunStore()).seeds?.dale_suspected === true);
+
+// -- the journal surface: derived on read, stored nowhere, authored order --------
+line(`\n-- Phase 2.2: the journal surface --`);
+const jDb: ContentDB = {
+  ...miniDb,
+  journal: [
+    { when: { kind: "flag", flag: "met_x" }, line: "You met X." },
+    { when: { kind: "flag", flag: "charged" }, line: "The thing was charged when you found it." },
+  ],
+};
+const gJ = newMini(38);
+check("journal: empty before anything is known", journalLines(gJ, jDb).length === 0);
+gJ.flags.charged = true;
+check("journal: a line exists only once earned", journalLines(gJ, jDb).join("|") === "The thing was charged when you found it.");
+gJ.flags.met_x = true;
+check("journal: authored order, not earn order",
+  journalLines(gJ, jDb).join("|") === "You met X.|The thing was charged when you found it.");
+check("journal: derived on read, stored nowhere (the save carries no journal key)",
+  !serialize(gJ).includes("journal"));
+check("linter: a journal intent-note leak is an error",
+  lintContent({ ...jDb, journal: [{ when: { kind: "flag", flag: "f" }, line: "You saw it — *the note leaks*." }] }, "j")
+    .some((i) => i.level === "error" && i.message.includes("journal line")));
 
 check("linter: the explorer db carries zero errors",
   lintContent(explorerDb, "explorer").every((i) => i.level !== "error"));

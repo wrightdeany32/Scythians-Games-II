@@ -149,6 +149,13 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
     for (const f in o.addFlags ?? {}) { setFlags.add(f); addedFlags.add(f); }
   }
 
+  // -- the journal mapping: same intent-note fence as logs (lines are player-facing)
+  (db.journal ?? []).forEach((j, i) => {
+    if (/\*[^*\n]+\*/.test(j.line)) {
+      err(`journal[${i}]`, `journal line carries an *intent-note* — author-facing italics must never reach the surface: "${j.line.slice(0, 60)}"`);
+    }
+  });
+
   // -- structural queue sources ---------------------------------------------------
   for (const id of db.openingQueue ?? []) refEvent("openingQueue", id, "openingQueue");
   for (const d of db.doors ?? []) refEvent("doors", d.eventId, "door");
@@ -270,6 +277,7 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
   for (const a of db.actions) conditionFlagReads(a.requires, flagReads);
   for (const d of db.doors ?? []) conditionFlagReads(d.when, flagReads);
   for (const e of db.endings ?? []) conditionFlagReads(e.when, flagReads);
+  for (const j of db.journal ?? []) conditionFlagReads(j.when, flagReads);   // journal lines read flags too
   for (const d of db.decks ?? []) if (d.mountFlag) flagReads.add(d.mountFlag);
   for (const f of db.tuning?.crossRun?.harvestFlags ?? []) flagReads.add(f);
   const terminalFlags = new Set(db.tuning?.terminal?.flags ?? []);
