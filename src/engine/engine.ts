@@ -249,8 +249,19 @@ export function applyOutcome(g: GameState, db: ContentDB, o: Outcome): { roll?: 
     }
   }
   if (o.clearClock && g.clocks) delete g.clocks[o.clearClock];   // abandon a clock without firing onFull
-  if (o.queueEvent) g.queue.push(o.queueEvent);
-  if (o.queueEvents) g.queue.push(...o.queueEvents);   // several in order; conditional inserts self-select via nextQueuedEvent's skip
+  // Scene-chain continuations go to the FRONT of the queue (Armature's Phase-2
+  // ruling on the morning-pileup seam): a chained card continues the CURRENT
+  // scene before any other queued beat, so a scene plays contiguously even
+  // when several beats stacked up at the day boundary. Internal order is
+  // preserved — queueEvent first, then queueEvents in authored order (the
+  // conditional-insert pattern still self-selects via nextQueuedEvent's skip).
+  // Byte-safe for linear single-chain scenes by construction (front == back on
+  // an otherwise-empty queue); the frozen cave transcript is the regression
+  // gate. Clock payoffs (onFull, above) and endDay's morning queueing stay
+  // back-of-queue — those are NEW beats, not continuations of this one.
+  if (o.queueEvent || o.queueEvents) {
+    g.queue.unshift(...(o.queueEvent ? [o.queueEvent] : []), ...(o.queueEvents ?? []));
+  }
   if (o.log) g.log.unshift({ text: o.log, tone: o.tone ?? "n" });
 
   if (o.roll) {

@@ -639,6 +639,20 @@ rX.pick(0);
 check("exposure snapshot: frozen at fire (5, not the post-resolution 8)",
   snap[0] === 5 && gX.player.stats.exposure === 8);
 
+// -- Phase 2 follow-up: front-insert scene-chain continuations -----------------------
+// Armature's morning-pileup ruling: a chained card continues the CURRENT scene
+// before any other queued beat, so stacked mornings play each scene whole.
+line(`\n-- Phase 2: front-insert (scene contiguity) --`);
+const gF = newMini(35);
+gF.queue.push("m_fork", "m_echo");   // a chained scene stacked beside another morning beat
+check("front-insert: a scene plays contiguously before the next queued beat",
+  driveScene(startQueuedScene(gF, miniDb)!, { m_fork: 0 }).join(">") === "m_fork>m_after>m_echo");
+const gF2 = newMini(36);
+gF2.flags.theory = 1;                // the insert's counter is met on this dig
+gF2.queue.push("m_fork", "m_echo");
+check("front-insert: the conditional insert still self-selects mid-chain",
+  driveScene(startQueuedScene(gF2, miniDb)!, { m_fork: 1 }).join(">") === "m_fork>m_insert>m_after>m_echo");
+
 // -- Phase 2: the Explorer pack, verified by driving ---------------------------------
 // A scripted two-week run through the wired content: opening → threads →
 // pressure gradient → the return terminal; then the never-returned calendar
@@ -683,7 +697,8 @@ check("explorer: the day-trip lands — pact kept, exposure raised, skeptic read
   gU.flags.nora_pact === true && gU.flags.nora_daytrip_done === true && gU.player.stats.exposure === 4 &&
   (gU.coordLog ?? []).some((e) => e.lensFlavor === "skeptic"));
 advanceDay(gU, explorerDb);
-// Day 5: the woods walk (scheduled) + pressure stage 1 (exposure 4 >= 3), interleaved by queue order.
+// Day 5: the woods walk (scheduled) + pressure stage 1 (exposure 4 >= 3) — the
+// walk now plays contiguously (front-insert); the stage follows it.
 check("explorer: stage 1 queued beside the scheduled walk", gU.queue.includes("ux_pressure_stage1"));
 driveScene(startQueuedScene(gU, explorerDb)!,
   { ux_marie_woods: 0, ux_pressure_stage1: 0, ux_marie_ellen: 2, ux_marie_grave: 0, ux_marie_close: 0 });
