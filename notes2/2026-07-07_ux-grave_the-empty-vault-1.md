@@ -10,7 +10,7 @@
 
 **Restraint is the rule.** No gratuitous detail, no lingering on the morbid. The horror is an *absence*, and absence is quiet. The prose stays spare and grave.
 
-**Upstream:** `grave_suspicion` (Marie voiced it), usually `knows_ellen`. Fires when the player chooses to go to the cemetery.
+**Upstream:** `grave_suspicion` (Marie voiced it; the player has Ellen's name from Marie's telling). Fires when the player chooses to go to the cemetery.
 
 ---
 
@@ -82,7 +82,7 @@ Exit flags: `grave_beat_done`, `grave_confirmed_empty` **or** `grave_left_closed
 
 ## Notes for the wire (Armature / Plumb)
 
-- **Loop-native, frozen-cave-safe.** Player-initiated outing → short queue-chain. Reads `grave_suspicion`, `knows_ellen`; writes `grave_*`, `read_grave_*`. Touches nothing in `cave-b3`.
+- **Loop-native, frozen-cave-safe.** Player-initiated outing → short queue-chain. Reads `grave_suspicion`; writes `grave_*`, `read_grave_*`. Touches nothing in `cave-b3`.
 - **The three reads carry `lensFlavor`** — `read_grave_human` → `skeptic`, `read_grave_taken` → `spiritual`, `read_grave_org` → `institutional` (three of the locked four). The left-closed reactions carry narration-only small `attune` (grounded/attuned; never in the draw).
 - **No position gates.** All gates are flags (`grave_suspicion`, and the open/closed fork's own flags).
 - **`grave_left_closed` leaves `grave_suspicion` standing** — the beat is re-enterable; a player who backed out can return and open it later, or never. No dead end either way; both paths reach `ux_grave_close`.
