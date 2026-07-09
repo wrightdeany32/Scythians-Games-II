@@ -356,7 +356,12 @@ export interface DeckDef {
 // hasn't fired), the event is queued and greets the player next morning as a
 // scene. Give door events a `once` unless re-firing every qualifying morning
 // is the intent.
-export interface Door { eventId: string; when: Condition }
+// `afterDays` (Phase 2.3, Loom's Nora-timing call): a door that PROMISES
+// instead of greeting — the first qualifying morning schedules the event
+// `afterDays` days out rather than queueing it, so a beat can breathe (the
+// call that comes two days after the cave, not the morning after). A pending
+// promise suppresses re-scheduling on later mornings.
+export interface Door { eventId: string; when: Condition; afterDays?: number }
 
 export interface ContentDB {
   questionnaire?: Questionnaire;         // OPTIONAL — creation can be played cards instead; newGame must not require it

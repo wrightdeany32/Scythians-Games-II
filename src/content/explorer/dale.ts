@@ -33,6 +33,24 @@ export const daleActions: LocationAction[] = [
       queueEvent: "ux_dale_visit",
     },
   },
+  // The bond capstone host: the open invitation from ux_dale_warning made a
+  // repeatable evening ("come back here if you need somewhere nobody's
+  // watching"). A breather-shaped restore (the unwatched porch), and the seat
+  // Loom's cross-run collision extra rides (the ux_dale_porch card below).
+  {
+    id: "ux_act_dale_porch",
+    name: "Drive out to Dale's porch",
+    sub: "About the only house in this county nobody's watching.",
+    cost: 1,
+    requires: { kind: "flag", flag: "dale_bond" },
+    outcome: {
+      log: "You drive out to the end of the dead-end road, and the porch light is on, the way he leaves it.",
+      tone: "g",
+      stats: { grip: 1 },
+      statsMax: { grip: 7 },
+      queueEvent: "ux_dale_porch",
+    },
+  },
 ];
 
 export const daleEvents: Record<string, GameEvent> = {
@@ -207,6 +225,37 @@ He sits back. "Whatever brought you out here — whatever you've seen or think y
           setFlags: { dale_bond: true },
           queueEvent: "ux_dale_close",
         },
+      },
+    ],
+  },
+
+  // -- the porch (the bond capstone; base body is an engine-seat PLACEHOLDER in
+  // the established pattern — Loom replaces on their pass. The bodyExtra is
+  // Loom's cross-run collision, VERBATIM: fires once, only in a run whose
+  // harvest carried went_after_dale from a prior vessel, held strictly to
+  // no-meta-reveal — nameless feeling, never confirmed.) --------------------------
+  ux_dale_porch: {
+    id: "ux_dale_porch",
+    title: "The Porch",
+    body:
+`He doesn't ask why you come. That's the whole of what the porch is — the one place in the county where nobody asks you anything you don't bring yourself. He puts a second cup out when he hears the truck, and the two of you sit under the yellow light with the woods going dark past the garden, and the talk is small on purpose: the truck's carburetor, the weather turning, a fox that's been at the compost. The weight comes off your back an hour at a time out here. You never say that out loud. He'd just nod anyway.`,
+    bodyExtras: [
+      {
+        when: { kind: "all", of: [{ kind: "flag", flag: "went_after_dale" }, { kind: "noflag", flag: "dale_porch_visited" }] },
+        text:
+`It comes near the end of the evening, when the guard's gone out of both of you and the coffee's cold. Dale looks at you — really looks, the way a man looks who's learned to read faces for what's coming — and whatever he finds in yours makes him say a thing he plainly has not said in a very long time.
+
+"You know, you're the first one." He turns his cup on the table. "In — God, in all of it. The first one who ever came out here and didn't want something off me, or want me gone. The first one who sat in my kitchen like I was a person and not a —" He doesn't say the word. "The first one who ever tried to look out for me. I'd about stopped believing there'd be one."
+
+And you should feel only the warmth of it, and you mostly do. But under the warmth there's a thing you have no name for and no cause for — a cold hollow that opens when he says *the first one who ever tried to protect me*, some part of you flinching from the word *protect* like it's an accusation, like somewhere you can't see or reach you have failed this exact man in some exact and unforgivable way. You don't know when. You don't know how. The feeling is gone almost before you can catch it, leaving only the aftertaste of having been, for half a second, unbearably ashamed of something you have never done.
+
+You tell him he's a good man. You mean it. He doesn't quite believe you, but he lets you say it, and it's a good evening — the best one either of you has had in a long while.`,
+      },
+    ],
+    choices: [
+      {
+        label: `Drive home under the yellow light.`,
+        outcome: { setFlags: { dale_porch_visited: true } },
       },
     ],
   },
