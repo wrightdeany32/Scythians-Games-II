@@ -109,7 +109,10 @@ export const explorerDb: ContentDB = {
       vocabulary: ["spiritual", "physics", "institutional", "skeptic"],
       nullFlavor: "skeptic",
     },
-    calendar: { lastDay: 14 },   // shakedown placeholder; real number measured with Armature
+    calendar: {
+      lastDay: 14,                    // shakedown placeholder; real number measured with Armature
+      deferFor: ["ux_doug_break"],    // defer-terminal (unanimous): the break never dies to the guillotine
+    },
     crossRun: { harvestFlags: ["denied_knife", "held_truth"] },
   },
   names: { first: ["Alex", "Sam", "Jo"], last: ["Vance", "Fields", "Marsh"] },

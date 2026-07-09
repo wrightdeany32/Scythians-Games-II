@@ -151,39 +151,36 @@ She looks at you.
     ],
   },
 
-  // -- the name, and the boy ---------------------------------------------------------------
+  // -- the name, and the boy (THE SPLIT, Loom 2026-07-09: Marie names Ellen and
+  // points to Dale in the telling itself — `pointed_to_dale` lands for EVERY
+  // player, never gated behind the pattern probe; the probe is the one
+  // branching choice, and the convergence is an additional reward, not a
+  // trade. `knows_ellen` is dropped: the name is prose, for everyone.) --------------
   ux_marie_ellen: {
     id: "ux_marie_ellen",
     title: "The Name, and the Boy",
     body:
 `"The boy said something took her." Marie says it flat, the way you say a thing you've turned over ten thousand times. "Said it came out of the trees and took her and there was nothing he could do. Nobody believed him. Half the town decided he did it himself — that he hurt her, and made up the rest. He grew up here. He's still here. People still cross the street."
 
-"His name's Dale. And I'll tell you something nobody else will: I've talked to that man. He's a decent man. I don't know what happened out here, and I don't know if I believe every word, but I've sat across from Dale and I don't believe he hurt anybody." She shakes her head. "I don't know what I believe. I just know it wasn't nothing."`,
+"His name's Dale. And I'll tell you something nobody else will: I've talked to that man. He's a decent man. I don't know what happened out here, and I don't know if I believe every word, but I've sat across from Dale and I don't believe he hurt anybody." She shakes her head. "Once, a long time ago, he told me I should go and not come back for my own sake — that being seen with him doesn't do anybody any favors. But if you're going to keep pulling at this, hear it from him, not from me. He'd tell you straighter than I can."
+
+"The girl's name was Ellen. Ellen Fields." It comes immediate, no reaching for it. "I've carried that name forty years. You don't forget the ones that just — stop."`,
     choices: [
-      {
-        label: `"What was the girl's name?"`,
-        outcome: {
-          log: "'Ellen,' she says, and it comes out immediate, no reaching for it. 'Ellen Fields. I've carried that name forty years. You don't forget the ones that just — stop.'",
-          tone: "n",
-          setFlags: { knows_ellen: true },
-          queueEvent: "ux_marie_grave",
-        },
-      },
-      {
-        label: `"Have you ever talked to him about what he saw?"`,
-        outcome: {
-          log: "'Once. A long time ago. He told me the same thing he told everyone, and he told it like a man telling the truth, and then he told me I should go and not come back for my own sake, that being seen with him doesn't do anybody any favors.' She almost smiles. 'Maybe you should talk to him yourself. If you're going to keep pulling at this. He'd tell you straighter than I can.'",
-          tone: "n",
-          setFlags: { pointed_to_dale: true },
-          queueEvent: "ux_marie_grave",
-        },
-      },
       {
         label: `"Has anyone else ever gone missing out here? Has anyone — changed?"`,
         outcome: {
           log: "She looks at you sharply, like you've said something closer to the bone than you know. 'Why would you ask me that,' she says — not angry, almost hopeful, the question of someone who has waited a long time for anyone to ask it. 'Have you seen something? Has someone —' and you realize you don't have an answer, and the two of you stand there with the question open between you, and neither of you closes it.",
           tone: "n",
-          setFlags: { asked_pattern: true, pattern_open: true },
+          setFlags: { pointed_to_dale: true, asked_pattern: true, pattern_open: true },
+          queueEvent: "ux_marie_grave",
+        },
+      },
+      {
+        label: `"I'll go and find him. Dale."`,
+        outcome: {
+          log: "She nods, slow, like she's set down a weight she's carried too long by herself. 'Be kind to him,' she says. 'Whatever he turns out to be. Nobody has been, in a long time.'",
+          tone: "n",
+          setFlags: { pointed_to_dale: true },
           queueEvent: "ux_marie_grave",
         },
       },

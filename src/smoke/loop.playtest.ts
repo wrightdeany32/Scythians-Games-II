@@ -653,6 +653,21 @@ gF2.queue.push("m_fork", "m_echo");
 check("front-insert: the conditional insert still self-selects mid-chain",
   driveScene(startQueuedScene(gF2, miniDb)!, { m_fork: 1 }).join(">") === "m_fork>m_insert>m_after>m_echo");
 
+// -- Phase 2.1: defer-terminal (the unanimous ruling: no authored climax dies
+// to the calendar guillotine — the selector holds while a declared climax is
+// in flight, and fires the morning after it resolves) -----------------------------
+line(`\n-- Phase 2.1: defer-terminal --`);
+const deferDb: ContentDB = { ...miniDb, tuning: { ...miniDb.tuning, calendar: { lastDay: 3, deferFor: ["m_after"] } } };
+const gD = newGame({ seed: 37, name: "D", age: 25, body: { height: 0.5, build: 0.5 }, townId: "region_one", tier: "outer" }, deferDb);
+(gD.scheduled ||= []).push({ onDay: 5, eventId: "m_after" });   // the climax, promised past the calendar's end
+while (gD.day <= 3) advanceDay(gD, deferDb);
+check("defer-terminal: the selector holds while a declared climax is in flight", gD.queue.length === 0 && gD.day === 4);
+advanceDay(gD, deferDb);
+check("defer-terminal: the climax morning queues the climax, not the ending", gD.queue.join(",") === "m_after");
+driveScene(startQueuedScene(gD, deferDb)!);
+advanceDay(gD, deferDb);
+check("defer-terminal: the calendar closes the morning after the climax resolves", gD.queue.join(",") === "end_default");
+
 // -- Phase 2: the Explorer pack, verified by driving ---------------------------------
 // A scripted two-week run through the wired content: opening → threads →
 // pressure gradient → the return terminal; then the never-returned calendar
@@ -666,8 +681,8 @@ const newExplorer = (seed: number): GameState =>
 const gU = newExplorer(41);
 // Day 1: the opening stub (creation-as-turn-zero), then Doug's workout.
 driveScene(startQueuedScene(gU, explorerDb)!);
-check("explorer: the opening sets the start flags and schedules Marie",
-  gU.flags.arrived_town === true && gU.flags.thread_doug === true &&
+check("explorer: the welcome sets the start flags, seeds the origin, schedules Marie",
+  gU.flags.arrived_town === true && gU.flags.thread_doug === true && gU.flags.origin_fresh_start === true &&
   (gU.scheduled ?? []).some((s) => s.eventId === "ux_marie_warning"));
 driveScene(runAction(gU, explorerDb, "ux_act_doug_workout").runner!, { ux_doug_workout_first: 0 });
 check("explorer: the workout beat fires once and schedules the message",
@@ -701,10 +716,12 @@ advanceDay(gU, explorerDb);
 // walk now plays contiguously (front-insert); the stage follows it.
 check("explorer: stage 1 queued beside the scheduled walk", gU.queue.includes("ux_pressure_stage1"));
 driveScene(startQueuedScene(gU, explorerDb)!,
-  { ux_marie_woods: 0, ux_pressure_stage1: 0, ux_marie_ellen: 2, ux_marie_grave: 0, ux_marie_close: 0 });
+  { ux_marie_woods: 0, ux_pressure_stage1: 0, ux_marie_ellen: 0, ux_marie_grave: 0, ux_marie_close: 0 });
 check("explorer: the walk opens the pattern and the suspicion; stage 1 fired once",
   gU.flags.pattern_open === true && gU.flags.grave_suspicion === true &&
   gU.flags.pressure_stage === 1 && gU.flags.pressure1_seen === true);
+check("explorer: the Marie split — Dale's pointer lands beside the pattern, never traded",
+  gU.flags.pointed_to_dale === true && !serialize(gU).includes("knows_ellen"));
 // Day 6: the convergence percept (both gates now hold) — then research + the vault.
 advanceDay(gU, explorerDb);
 check("explorer: the convergence door fires once both threads have spoken", gU.queue.includes("ux_convergence_pattern"));
@@ -720,6 +737,11 @@ check("explorer: the vault opens once and the action retires",
   gU.flags.grave_confirmed_empty === true && gU.flags.grave_beat_done === true &&
   !dayMenu(gU, explorerDb).actions.some((a) => a.id === "ux_act_grave_visit"));
 check("explorer: disturbances accumulate on the sticky meter", gU.player.stats.exposure === 6);   // shard 2 + rangers 2 + vault 2 (the shallow dig carries no charge)
+// Dale, same day — the previously-impossible combination: after the split, a
+// convergence run reaches Dale (and his relief valve) too.
+driveScene(runAction(gU, explorerDb, "ux_act_dale_visit").runner!, { ux_dale_warning: 1 });
+check("explorer: the split makes Dale and the convergence coexist in one run",
+  gU.flags.dale_bond === true && gU.flags.convergence_seen === true && gU.flags.pattern_open === true);
 advanceDay(gU, explorerDb);
 // Day 7: stage 2 + Doug's nudge (unanswered message), then the reply → dinner invite.
 driveScene(startQueuedScene(gU, explorerDb)!, { ux_doug_nudge: 0, ux_pressure_stage2: 0 });
@@ -785,6 +807,28 @@ check("explorer: the ending reflects THIS run (echoes present, absent ones dropp
   !endingProse.includes("Nora calls, eventually"));
 check("explorer: the closing attune fork recorded the kept question",
   (gV.coordLog ?? []).some((e) => e.attune === 0.25));
+
+// Defer-terminal in the shipped pack: the Doug break scheduled past lastDay 14
+// holds the calendar open, fires, and THEN the quiet ending closes the run.
+const gW = newExplorer(43);
+driveScene(startQueuedScene(gW, explorerDb)!);
+applyOutcome(gW, explorerDb, { setFlags: { doug_meeting_open: true }, scheduleEvent: { eventId: "ux_doug_break", inDays: 15 } });
+while (gW.day < 15) {
+  advanceDay(gW, explorerDb);
+  const r = startQueuedScene(gW, explorerDb);
+  if (r) driveScene(r, { ux_marie_warning: 0 });
+}
+advanceDay(gW, explorerDb);   // day 16 would be next — but first verify day 15 deferred
+check("explorer: defer-terminal holds the calendar for the scheduled break",
+  gW.day === 16 && gW.queue.join(",") === "ux_doug_break");
+driveScene(startQueuedScene(gW, explorerDb)!,
+  { ux_doug_break: 0, ux_doug_break_meet: 0, ux_doug_break_open_route: 0, ux_doug_break_linger: 0 });
+advanceDay(gW, explorerDb);
+driveScene(startQueuedScene(gW, explorerDb)!, { ux_ending_never_returned: 0, ux_ending_never_close: 0 });
+check("explorer: the climax lands past the calendar, then the quiet ending closes the run",
+  gW.flags.doug_lingering === true && gW.flags.run_end_never_returned === true &&
+  runStatus(gW, explorerDb).flag === "run_end_never_returned");
+
 check("linter: the explorer db carries zero errors",
   lintContent(explorerDb, "explorer").every((i) => i.level !== "error"));
 

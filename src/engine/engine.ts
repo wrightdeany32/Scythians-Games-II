@@ -660,8 +660,16 @@ export function endDay(g: GameState, db: ContentDB): void {
   // the calendar end + the ending-selector (THE NARROW DOOR — see types.ts):
   // past the last day, the FIRST ending whose condition holds greets the
   // morning as a scene; its exit flag is the terminal. Flags-only in v1.
+  // DEFER-TERMINAL (the unanimous ruling): the selector holds while any
+  // content-declared climax (tuning.calendar.deferFor) is still in flight —
+  // scheduled for a future day, or queued and not yet played. The morning
+  // after the climax resolves, the calendar closes as usual.
   const lastDay = db.tuning?.calendar?.lastDay;
-  if (lastDay != null && g.day > lastDay) {
+  const deferFor = db.tuning?.calendar?.deferFor ?? [];
+  const climaxPending =
+    deferFor.length > 0 &&
+    ((g.scheduled ?? []).some((s) => deferFor.includes(s.eventId)) || g.queue.some((id) => deferFor.includes(id)));
+  if (lastDay != null && g.day > lastDay && !climaxPending) {
     for (const e of db.endings ?? []) {
       const ev = db.events[e.eventId];
       if (!ev) continue;
