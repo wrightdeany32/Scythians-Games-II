@@ -829,6 +829,33 @@ check("explorer: the climax lands past the calendar, then the quiet ending close
   gW.flags.doug_lingering === true && gW.flags.run_end_never_returned === true &&
   runStatus(gW, explorerDb).flag === "run_end_never_returned");
 
+// Denise (first build): the mirror's two paths — the crack, and the pursuit's
+// threshold terminal with its cross-run harvest.
+const gDe = newExplorer(44);
+driveScene(startQueuedScene(gDe, explorerDb)!);
+applyOutcome(gDe, explorerDb, { setFlags: { marie_episode_done: true } });
+advanceDay(gDe, explorerDb);
+check("denise: the pointer door fires off the Ellen thread", gDe.queue.includes("ux_denise_pointer"));
+driveScene(startQueuedScene(gDe, explorerDb)!);
+driveScene(runAction(gDe, explorerDb, "ux_act_denise_visit").runner!, { ux_denise_visit: 1, ux_denise_crack: 1 });
+check("denise: catching the gap cracks the certainty — and resolves nothing about Dale",
+  gDe.flags.denise_broke === true && gDe.flags.denise_met === true && !gDe.flags.dale_suspected);
+const gP2 = newExplorer(45);
+driveScene(startQueuedScene(gP2, explorerDb)!);
+applyOutcome(gP2, explorerDb, { setFlags: { marie_episode_done: true } });
+advanceDay(gP2, explorerDb);
+driveScene(startQueuedScene(gP2, explorerDb)!);
+driveScene(runAction(gP2, explorerDb, "ux_act_denise_visit").runner!, { ux_denise_visit: 0 });
+check("denise: taking the certainty arms the pursuit", gP2.flags.dale_suspected === true && gP2.flags.denise_met === true);
+driveScene(runAction(gP2, explorerDb, "ux_act_pursue_dig").runner!);
+advanceDay(gP2, explorerDb);
+driveScene(startQueuedScene(gP2, explorerDb)!, { ux_marie_warning: 0 });
+driveScene(runAction(gP2, explorerDb, "ux_act_pursue_authorities").runner!);
+driveScene(runAction(gP2, explorerDb, "ux_act_pursue_drastic").runner!);
+check("denise: the pursuit ends at the threshold — a designed terminal, harvested for the collision",
+  gP2.flags.went_after_dale === true && runStatus(gP2, explorerDb).flag === "went_after_dale" &&
+  harvestCrossRun(gP2, explorerDb, newCrossRunStore()).seeds?.dale_suspected === true);
+
 check("linter: the explorer db carries zero errors",
   lintContent(explorerDb, "explorer").every((i) => i.level !== "error"));
 
