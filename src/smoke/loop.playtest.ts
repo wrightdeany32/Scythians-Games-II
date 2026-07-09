@@ -657,7 +657,7 @@ check("front-insert: the conditional insert still self-selects mid-chain",
 // to the calendar guillotine — the selector holds while a declared climax is
 // in flight, and fires the morning after it resolves) -----------------------------
 line(`\n-- Phase 2.1: defer-terminal --`);
-const deferDb: ContentDB = { ...miniDb, tuning: { ...miniDb.tuning, calendar: { lastDay: 3, deferFor: ["m_after"] } } };
+const deferDb: ContentDB = { ...miniDb, tuning: { ...miniDb.tuning, calendar: { lastDay: 3, deferForScheduled: ["m_after"] } } };
 const gD = newGame({ seed: 37, name: "D", age: 25, body: { height: 0.5, build: 0.5 }, townId: "region_one", tier: "outer" }, deferDb);
 (gD.scheduled ||= []).push({ onDay: 5, eventId: "m_after" });   // the climax, promised past the calendar's end
 while (gD.day <= 3) advanceDay(gD, deferDb);

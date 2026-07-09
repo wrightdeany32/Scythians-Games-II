@@ -321,7 +321,7 @@ export interface EngineTuning {
   };
   calendar?: {
     lastDay?: number;          // the run's calendar end: past this day, the ending-selector fires (db.endings)
-    deferFor?: string[];       // DEFER-TERMINAL (unanimous round ruling: no authored thread-climax dies to
+    deferForScheduled?: string[];       // DEFER-TERMINAL (unanimous round ruling: no authored thread-climax dies to
                                // the calendar guillotine): while any listed event id is still PENDING (in
                                // g.scheduled or g.queue), the ending-selector holds; it fires the first
                                // morning none is in flight. Content declares its climaxes (the Doug break,

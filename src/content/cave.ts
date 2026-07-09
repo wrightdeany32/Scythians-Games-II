@@ -21,7 +21,11 @@ export const GEAR_LOSS_MONEY = -10; // money hit for a shed/replaced pack; money
 
 export const caveItems: Record<string, Item> = {
   cave_gear:    { id: "cave_gear",    source: "item", label: "Caving pack",  slot: "pack" },
-  marked_shard: { id: "marked_shard", source: "item", label: "Marked shard", slot: "evidence" },
+  // cave-b4 (the shard-as-symbol reframe, Dean's ruling): the artifact is the
+  // COPY the player made, not a pocketed stone. The id stays `marked_shard`
+  // (save-compat; `took_shard` likewise keeps its name and now reads "the
+  // player recorded the symbol") — only the label and the prose changed.
+  marked_shard: { id: "marked_shard", source: "item", label: "Copied page", slot: "evidence" },
 };
 
 // The daily-loop hook that commits the day and drops you into the chain.
@@ -208,18 +212,21 @@ It won't fit with you. You can feel that already. You can wear the pack or wear 
         },
       },
       // Take proof — a thread for Nora, and maybe something that shouldn't come out.
-      // Grants the shard + took_shard, THEN the same throat check. Both branches exit.
+      // cave-b4 (the shard-as-symbol reframe): the player RECORDS the mark —
+      // stay-and-copy vs. run — instead of chipping stone loose. `took_shard`
+      // and `marked_shard` keep their names (save-compat); they now read "the
+      // player made the copy" / "the copied page". THEN the same throat check.
       {
-        label: "Take one thing off the wall first.",
+        label: "Stay a minute. Copy the marks before you go.",
         outcome: {
-          log: "You chip a piece of the marked stone free and pocket it.",
+          log: "You crouch at the wall with the light in your teeth and copy the strangest run of it line for line — a row of marks like numerals knocked sideways, an ellipse around them that doesn't quite close — while Reese holds his lamp on it and complains about the cold. Proof, if you ever need to prove this to anyone. Yourself included.",
           tone: "b",
           grantItems: ["marked_shard"],
           setFlags: { took_shard: true },
           roll: {
             tag: "squeeze", statMod: "tradecraft", target: SQUEEZE_TARGET,
-            win: { log: "You wear the pack out through the throat, the shard riding in your chest pocket.", tone: "n", setFlags: { cave_done: true, cave_deep_seen: true } },
-            lose: { log: "You get out — pack torn away on the rock — but the shard stays on you.", tone: "b", stats: { grip: -1 }, removeItems: ["cave_gear"], setFlags: { cave_done: true, cave_deep_seen: true } },
+            win: { log: "You wear the pack out through the throat, the page folded flat in your chest pocket.", tone: "n", setFlags: { cave_done: true, cave_deep_seen: true } },
+            lose: { log: "You get out — pack torn away on the rock — but the page stays on you.", tone: "b", stats: { grip: -1 }, removeItems: ["cave_gear"], setFlags: { cave_done: true, cave_deep_seen: true } },
           },
         },
       },

@@ -2,7 +2,7 @@
 // content/explorer/whitesreturn.ts — the Return to White's Hall (Loom's story
 // pass, wired): the scene the whole cave arc points at, and the run's cut-off.
 // A queue-chained scene entered from the daily loop — NEW content; nothing
-// here touches the frozen cave-b3.
+// here touches the frozen cave baseline.
 //
 // The charge gate: everything keys off `took_shard` — since the 2026-07-09
 // reframe, "the player RECORDED the symbol" (the copy, not a pocketed stone);
@@ -14,8 +14,8 @@
 // fires at grip <= 3 (the ratified hard gate), and the deep descent's FLAVOR
 // is band-select (bandText, three registers, adjacent leak per Contract 2).
 // No diamondCoord gate anywhere; introspective leans carry attune only.
-// (The frozen cave still says "chip and pocket" until Armature's cave-b4
-// unfreeze retexts it — the noted interim seam, not this module's to fix.)
+// (cave-b4's stay-and-copy retext lands the cave-side half of the reframe in
+// the same PR, per Armature's lands-together sequencing rule.)
 //
 // Every branch queues a terminal. The terminal is the authored flag
 // `run_end_whites_return` — not a lost-grip death. Conviction-voice holds at

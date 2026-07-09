@@ -20,7 +20,7 @@ import {
   LOCKED_OPTION_REFUSAL, DEBRIEF_QUESTIONS,
 } from "./scripts";
 
-const BUILD_TAG = "cave-b3"; // frozen for Batch A
+const BUILD_TAG = "cave-b4"; // b4: the shard-as-symbol reframe (gate moved b3→b4)
 
 // A line reader that queues input lines as they arrive (TTY or pipe) and serves
 // them to ask() on demand. After EOF, ask() resolves to "" rather than hanging.

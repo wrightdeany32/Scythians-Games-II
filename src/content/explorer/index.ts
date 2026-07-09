@@ -111,7 +111,7 @@ export const explorerDb: ContentDB = {
     },
     calendar: {
       lastDay: 14,                    // shakedown placeholder; real number measured with Armature
-      deferFor: ["ux_doug_break"],    // defer-terminal (unanimous): the break never dies to the guillotine
+      deferForScheduled: ["ux_doug_break"],    // defer-terminal (unanimous): the break never dies to the guillotine
     },
     crossRun: { harvestFlags: ["denied_knife", "held_truth"] },
   },

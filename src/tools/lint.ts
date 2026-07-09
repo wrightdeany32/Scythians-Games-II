@@ -154,7 +154,7 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
   for (const d of db.doors ?? []) refEvent("doors", d.eventId, "door");
   for (const e of db.endings ?? []) refEvent("endings", e.eventId, "ending");
   for (const s of db.tuning?.exposure?.stages ?? []) refEvent("exposure stages", s.eventId, "stage");
-  for (const id of db.tuning?.calendar?.deferFor ?? []) refEvent("calendar.deferFor", id, "deferFor");
+  for (const id of db.tuning?.calendar?.deferForScheduled ?? []) refEvent("calendar.deferForScheduled", id, "deferForScheduled");
   const exp = db.tuning?.exposure;
   if (exp?.consequenceEvent) refEvent("exposure tuning", exp.consequenceEvent, "consequenceEvent");
   else if (db.events["ev_exposure_discharge"]) referenced.add("ev_exposure_discharge");   // the engine default, if content shipped one

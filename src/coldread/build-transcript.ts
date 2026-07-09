@@ -2,7 +2,7 @@
 // coldread/build-transcript.ts — assemble a canonical cold-read transcript from
 // a completed relay session. Reads a JSON spec (the seed, the reader's picks with
 // their verbatim think-aloud, the debrief Q&A, the surface confirmation), drives
-// the frozen cave-b3 Session with those picks+notes, appends the debrief, and
+// the frozen cave Session (current build tag) with those picks+notes, appends the debrief, and
 // writes coldreads/coldread_cave_<build>_<seed>_<reader>.md.
 //
 //   npx tsx src/coldread/build-transcript.ts <spec.json>
@@ -19,7 +19,7 @@ import { caveDb, CAVE_CONTENT_ID } from "../content/cave.db";
 import { Session } from "./session";
 import { renderTranscript, transcriptFilename } from "./transcript";
 
-const BUILD_TAG = "cave-b3";
+const BUILD_TAG = "cave-b4";
 
 interface Spec {
   seed: number;
