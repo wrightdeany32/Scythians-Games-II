@@ -637,13 +637,19 @@ export function endDay(g: GameState, db: ContentDB): void {
     for (const s of g.scheduled) if (s.onDay <= g.day) g.queue.push(s.eventId);
     g.scheduled = g.scheduled.filter((s) => s.onDay > g.day);
   }
-  // met-doors: beats that fire when the NEW morning's state says so
+  // met-doors: beats that fire when the NEW morning's state says so. A door
+  // with `afterDays` PROMISES instead of greeting (scheduled that many days
+  // out); a pending promise suppresses re-scheduling on later mornings.
   for (const door of db.doors ?? []) {
     const ev = db.events[door.eventId];
     if (!ev) continue;
     if (ev.once && g.flags[ev.once]) continue;           // already fired
     if (g.queue.includes(door.eventId)) continue;         // already waiting
-    if (evalCondition(door.when, g)) g.queue.push(door.eventId);
+    if ((g.scheduled ?? []).some((s) => s.eventId === door.eventId)) continue;   // already promised
+    if (evalCondition(door.when, g)) {
+      if (door.afterDays) (g.scheduled ||= []).push({ onDay: g.day + door.afterDays, eventId: door.eventId });
+      else g.queue.push(door.eventId);
+    }
   }
   // staged exposure (the pressure gradient): the LOWEST unfired stage whose
   // threshold is met queues — one stage per day boundary at most, so a big

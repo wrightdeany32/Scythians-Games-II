@@ -5,15 +5,15 @@
 
 | persona | seed | days | terminal | quiet:thread | stages (day) | trace recs |
 |---|---|---|---|---|---|---|
-| chaser | 101 | 15 | run_end_never_returned | 0:30 | 5/13/— | 51 |
-| chaser | 202 | 15 | run_end_never_returned | 1:28 | 7/15/— | 48 |
-| chaser | 303 | 5 | run_end_whites_return | 0:7 | —/—/— | 25 |
+| chaser | 101 | 15 | run_end_never_returned | 0:28 | 5/12/— | 47 |
+| chaser | 202 | 15 | run_end_never_returned | 1:31 | 6/9/11 | 56 |
+| chaser | 303 | 5 | run_end_whites_return | 0:6 | —/—/— | 28 |
 | quiet | 101 | 15 | run_end_never_returned | 28:0 | —/—/— | 4 |
 | quiet | 202 | 15 | run_end_never_returned | 28:0 | —/—/— | 4 |
 | quiet | 303 | 15 | run_end_never_returned | 28:0 | —/—/— | 4 |
-| balanced | 101 | 11 | run_end_whites_return | 11:10 | —/—/— | 49 |
+| balanced | 101 | 4 | run_end_whites_return | 2:3 | —/—/— | 20 |
 | balanced | 202 | 5 | run_end_whites_return | 3:4 | —/—/— | 22 |
-| balanced | 303 | 17 | run_end_never_returned | 30:7 | —/—/— | 31 |
+| balanced | 303 | 17 | run_end_never_returned | 28:8 | 5/—/— | 32 |
 
 ## 2 · Thread exhaustion — first day each milestone lands (— = never)
 
@@ -21,37 +21,37 @@
 |---|---|---|---|---|---|---|---|---|---|
 | cave_done | 1 | 2 | 1 | — | — | — | 1 | 2 | 1 |
 | took_shard | — | — | — | — | — | — | — | — | — |
-| marie_episode_done | — | — | — | — | — | — | 5 | — | — |
-| grave_suspicion | — | — | — | — | — | — | 5 | — | — |
-| grave_beat_done | — | — | — | — | — | — | 6 | — | — |
-| thread_nora | 2 | 3 | 2 | — | — | — | 2 | 3 | 2 |
-| nora_daytrip_done | 3 | 6 | — | — | — | — | 9 | — | 3 |
-| doug_dinner_done | 5 | 5 | — | — | — | — | — | — | 8 |
-| doug_meeting_done | 10 | 10 | — | — | — | — | — | — | 13 |
-| doug_break_done | 13 | 13 | — | — | — | — | — | — | 16 |
-| dale_met | — | — | — | — | — | — | 5 | — | — |
-| dale_bond | — | — | — | — | — | — | 5 | — | — |
-| pointed_to_denise | — | — | — | — | — | — | 6 | — | — |
-| denise_met | — | — | — | — | — | — | 8 | — | — |
-| convergence_seen | — | — | — | — | — | — | 10 | — | — |
-| pressure1_seen | 5 | 7 | — | — | — | — | — | — | — |
-| pressure2_seen | 13 | 15 | — | — | — | — | — | — | — |
-| pressure3_seen | — | — | — | — | — | — | — | — | — |
-| run_end_whites_return | — | — | 4 | — | — | — | 10 | 4 | — |
+| marie_episode_done | — | — | — | — | — | — | — | — | — |
+| grave_suspicion | — | — | — | — | — | — | — | — | — |
+| grave_beat_done | — | — | — | — | — | — | — | — | — |
+| thread_nora | 3 | 4 | 3 | — | — | — | 3 | 4 | 3 |
+| nora_daytrip_done | 3 | 5 | 3 | — | — | — | — | — | 3 |
+| doug_dinner_done | 5 | 4 | — | — | — | — | — | — | 8 |
+| doug_meeting_done | 10 | 9 | — | — | — | — | — | — | 13 |
+| doug_break_done | 13 | 12 | — | — | — | — | — | — | 16 |
+| dale_met | — | — | — | — | — | — | — | — | — |
+| dale_bond | — | — | — | — | — | — | — | — | — |
+| pointed_to_denise | — | — | — | — | — | — | — | — | — |
+| denise_met | — | — | — | — | — | — | — | — | — |
+| convergence_seen | — | — | — | — | — | — | — | — | — |
+| pressure1_seen | 5 | 6 | — | — | — | — | — | — | 5 |
+| pressure2_seen | 12 | 9 | — | — | — | — | — | — | — |
+| pressure3_seen | — | 11 | — | — | — | — | — | — | — |
+| run_end_whites_return | — | — | 4 | — | — | — | 3 | 4 | — |
 | run_end_never_returned | 15 | 15 | — | 15 | 15 | 15 | — | — | 17 |
 | went_after_dale | — | — | — | — | — | — | — | — | — |
 
 ## 3 · Exposure trajectories (per day)
 
-- **chaser/101**: 0 0 2 3 3 3 3 3 4 4 5 6 6 7
-- **chaser/202**: 0 0 0 1 2 4 5 5 5 5 5 5 5 6
-- **chaser/303**: 0 0 0 0
+- **chaser/101**: 0 0 2 3 3 3 3 3 4 4 5 5 5 5
+- **chaser/202**: 0 0 0 1 3 3 4 5 5 6 6 6 6 7
+- **chaser/303**: 0 0 2 2
 - **quiet/101**: 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 - **quiet/202**: 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 - **quiet/303**: 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-- **balanced/101**: 0 0 0 0 0 0 0 0 2 2
+- **balanced/101**: 0 0 0
 - **balanced/202**: 0 0 0 0
-- **balanced/303**: 0 0 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+- **balanced/303**: 0 0 2 3 3 3 3 3 3 3 3 3 3 3 3 3
 
 ## 4 · The factor A/Bs (seed-matched, loopworld, N=400×3 seeds)
 

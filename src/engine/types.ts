@@ -356,7 +356,12 @@ export interface DeckDef {
 // hasn't fired), the event is queued and greets the player next morning as a
 // scene. Give door events a `once` unless re-firing every qualifying morning
 // is the intent.
-export interface Door { eventId: string; when: Condition }
+// `afterDays` (Phase 2.3, Loom's Nora-timing call): a door that PROMISES
+// instead of greeting — the first qualifying morning schedules the event
+// `afterDays` days out rather than queueing it, so a beat can breathe (the
+// call that comes two days after the cave, not the morning after). A pending
+// promise suppresses re-scheduling on later mornings.
+export interface Door { eventId: string; when: Condition; afterDays?: number }
 
 export interface ContentDB {
   questionnaire?: Questionnaire;         // OPTIONAL — creation can be played cards instead; newGame must not require it
@@ -380,6 +385,13 @@ export interface ContentDB {
   endings?: { eventId: string; when?: Condition }[];
   openingLog?: string;                   // first line in the new-game log; engine falls back if absent
   openingQueue?: string[];               // event ids seeded into g.queue at new-game (scripted cold-open, in order)
+  // The JOURNAL mapping (the Run-Read prerequisite, shape blessed by Loom):
+  // an ordered, content-authored list of flag-gated lines — WHAT THE PLAYER
+  // KNOWS, percepts only, never a line for what they concluded. The surface is
+  // DERIVED ON READ (engine/journal.ts) and stored nowhere; renderers receive
+  // lines only. The no-catalog wall, enforced by shape: no counts, no
+  // completion, no "there's more" — a line either renders or does not exist.
+  journal?: { when: Condition; line: string }[];
   tuning?: EngineTuning;                 // optional engine-tuning seam; defaults reproduce current behavior
   names: { first: string[]; last: string[] };  // NPC name pools (teamA/teamB trimmed with the basketball vestiges — nothing consumed them)
 }

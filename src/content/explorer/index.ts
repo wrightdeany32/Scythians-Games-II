@@ -10,9 +10,9 @@
 //
 // Tuning decisions carried here (all flagged in the build report):
 //   · exposure: STICKY (coolPerDay 0) — disturbance accumulates; the watching
-//     never lifts. Stages at 3 / 6 / 9 of max 12. No single-threshold
-//     consequence (the stages ARE the consequence; the default event id
-//     resolves to nothing by design).
+//     never lifts. Stages at 3 / 5 / 6 of max 12 (the deep-run-climax ladder,
+//     Loom's intent + the bots' data). No single-threshold consequence (the
+//     stages ARE the consequence; the default event id resolves to nothing).
 //   · lens: the locked four-flavor vocabulary, skeptic as the null pole.
 //   · terminals: grip zero + the two authored run-enders.
 //   · crossRun: denied_knife / held_truth persist (existence, never meaning).
@@ -98,15 +98,21 @@ export const explorerDb: ContentDB = {
     exposure: {
       max: 12,
       coolPerDay: 0,   // sticky: disturbance accumulates; the weather never lifts
+      // The 3/5/6 ladder (Loom's intent + the bots' data): the three main
+      // disturbing acts — the copy (+2), the rangers (+2), the vault (+2) —
+      // carry the committed-deep player to exactly 6, so the apex (and the
+      // dale_bond grace that lives there) lands for that population without
+      // a research dig casting the deciding vote. Trajectories confirmed the
+      // three-act player tops 6 (7 only via an extra deep dig).
       stages: [
         { at: 3, eventId: "ux_pressure_stage1" },
-        { at: 6, eventId: "ux_pressure_stage2" },
-        { at: 9, eventId: "ux_pressure_stage3" },
+        { at: 5, eventId: "ux_pressure_stage2" },
+        { at: 6, eventId: "ux_pressure_stage3" },
       ],
     },
     terminal: {
       onGripZero: true,
-      flags: ["run_end_whites_return", "run_end_never_returned", "went_after_dale"],   // the pursuit's threshold cut-off is a designed terminal
+      flags: ["run_end_whites_return", "run_end_never_returned", "run_end_pursuit"],   // the pursuit's authored terminal (went_after_dale is its HARVEST flag, not the terminal)
     },
     lens: {
       vocabulary: ["spiritual", "physics", "institutional", "skeptic"],
@@ -114,7 +120,7 @@ export const explorerDb: ContentDB = {
     },
     calendar: {
       lastDay: 14,                    // shakedown placeholder; real number measured with Armature
-      deferForScheduled: ["ux_doug_break"],    // defer-terminal (unanimous): the break never dies to the guillotine
+      deferForScheduled: ["ux_doug_break", "ux_pursue_authorities", "ux_pursue_drastic"],   // defer-terminal: no climax dies to the guillotine (the break; a mid-flight pursuit)
     },
     crossRun: { harvestFlags: ["denied_knife", "held_truth", "dale_suspected", "went_after_dale"] },   // the cross-run jewel's carriers (Denise)
   },

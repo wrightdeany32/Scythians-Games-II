@@ -23,10 +23,9 @@ import type { Door, GameEvent } from "../../engine/types";
 export const openingQueue = ["ux_explorer_opening"];
 
 export const openingDoors: Door[] = [
-  // The call lands after the first cave trip. (Loom's prose says "two days
-  // after"; a met-door fires the next morning — the one-day squeeze is noted
-  // in the edit log for Loom's word.)
-  { eventId: "ux_nora_intro", when: { kind: "flag", flag: "cave_done" } },
+  // The call lands two days after the cave trip (Loom's §3 call: the day of
+  // ordinary breath between is the point) — the afterDays promise carries it.
+  { eventId: "ux_nora_intro", when: { kind: "flag", flag: "cave_done" }, afterDays: 1 },
   { eventId: "ux_shard_settles", when: { kind: "flag", flag: "took_shard" } },
 ];
 

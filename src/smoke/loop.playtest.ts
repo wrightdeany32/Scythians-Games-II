@@ -28,6 +28,7 @@ import {
 import { dayMenu, runAction, startQueuedScene, advanceDay, runStatus } from "../engine/loop";
 import { lintContent } from "../tools/lint";
 import { dispositionCentroid, lensCentroid } from "../engine/centroid";
+import { journalLines } from "../engine/journal";
 import { SceneRunner } from "../engine/scene";
 import { seedToState } from "../engine/rng";
 import type { ContentDB, GameState } from "../engine/types";
@@ -701,58 +702,65 @@ check("explorer: Marie engaged — the woods are planned",
 // The first cave trip stands in as flags (the cave playtest owns that scene).
 applyOutcome(gU, explorerDb, { setFlags: { cave_done: true, took_shard: true, cave_etchings_seen: true, etchings_link_nora: true, cave_heard_voice: true } });
 advanceDay(gU, explorerDb);
-// Day 4: the doors fire — Nora's intro and the shard's first night.
-driveScene(startQueuedScene(gU, explorerDb)!, { ux_nora_intro: 0, ux_shard_settles: 0 });
-check("explorer: doors establish Nora and charge the shard",
-  gU.flags.thread_nora === true && gU.flags.nora_center_known === true && gU.player.stats.exposure === 2);
-// The day-trip (a committed day): skeptic read, the rangers, the gentle path.
-driveScene(runAction(gU, explorerDb, "ux_act_nora_daytrip").runner!,
-  { ux_nora_daytrip: 0, ux_nora_arrive: 0, ux_nora_explore: 0, ux_nora_rangers: 0, ux_nora_escape: 0, ux_nora_breakdown: 1, ux_nora_close: 0 });
-check("explorer: the day-trip lands — pact kept, exposure raised, skeptic read logged",
-  gU.flags.nora_pact === true && gU.flags.nora_daytrip_done === true && gU.player.stats.exposure === 4 &&
-  (gU.coordLog ?? []).some((e) => e.lensFlavor === "skeptic"));
-advanceDay(gU, explorerDb);
-// Day 5: the woods walk (scheduled) + pressure stage 1 (exposure 4 >= 3) — the
-// walk now plays contiguously (front-insert); the stage follows it.
-check("explorer: stage 1 queued beside the scheduled walk", gU.queue.includes("ux_pressure_stage1"));
-driveScene(startQueuedScene(gU, explorerDb)!,
-  { ux_marie_woods: 0, ux_pressure_stage1: 0, ux_marie_ellen: 0, ux_marie_grave: 0, ux_marie_close: 0 });
-check("explorer: the walk opens the pattern and the suspicion; stage 1 fired once",
-  gU.flags.pattern_open === true && gU.flags.grave_suspicion === true &&
-  gU.flags.pressure_stage === 1 && gU.flags.pressure1_seen === true);
-check("explorer: the Marie split — Dale's pointer lands beside the pattern, never traded",
-  gU.flags.pointed_to_dale === true && !serialize(gU).includes("knows_ellen"));
-// Day 6: the convergence percept (both gates now hold) — then research + the vault.
-advanceDay(gU, explorerDb);
-check("explorer: the convergence door fires once both threads have spoken", gU.queue.includes("ux_convergence_pattern"));
-const coordLenBeforeConv = (gU.coordLog ?? []).length;
-driveScene(startQueuedScene(gU, explorerDb)!);
-check("explorer: the convergence is coordinate- and lens-silent",
-  gU.flags.convergence_seen === true && (gU.coordLog ?? []).length === coordLenBeforeConv);
+// Day 4: the copy's first night fires; Nora's call is PROMISED, not queued —
+// the afterDays door keeps Loom's two-day beat (an ordinary day between).
+driveScene(startQueuedScene(gU, explorerDb)!, { ux_shard_settles: 0 });
+check("explorer: the copy banks its charge; the call keeps the two-day beat (promised, not queued)",
+  gU.player.stats.exposure === 2 && !gU.flags.nora_intro_seen &&
+  (gU.scheduled ?? []).some((s) => s.eventId === "ux_nora_intro"));
 driveScene(runAction(gU, explorerDb, "ux_act_research_symbol").runner!, { ux_research_symbol: 1 });
 check("explorer: the shallow dig advances the theory without the grip cost",
   gU.flags.theory_spiritual === 1 && gU.player.stats.grip === 10);
+advanceDay(gU, explorerDb);
+// Day 5: the woods walk (scheduled day 3) and Nora's call land together; the
+// walk plays contiguously (front-insert), then the call.
+driveScene(startQueuedScene(gU, explorerDb)!,
+  { ux_marie_woods: 0, ux_marie_ellen: 0, ux_marie_grave: 0, ux_marie_close: 0, ux_nora_intro: 0 });
+check("explorer: the walk opens the pattern and the suspicion; the call lands on its own morning",
+  gU.flags.pattern_open === true && gU.flags.grave_suspicion === true &&
+  gU.flags.thread_nora === true && gU.flags.nora_center_known === true);
+check("explorer: the Marie split — Dale's pointer lands beside the pattern, never traded",
+  gU.flags.pointed_to_dale === true && !serialize(gU).includes("knows_ellen"));
+// The vault and Dale, same day (energy: walk 1 + grave 1 + Dale 1).
 driveScene(runAction(gU, explorerDb, "ux_act_grave_visit").runner!, { ux_grave_visit: 0, ux_grave_look: 0, ux_grave_close: 0 });
 check("explorer: the vault opens once and the action retires",
   gU.flags.grave_confirmed_empty === true && gU.flags.grave_beat_done === true &&
   !dayMenu(gU, explorerDb).actions.some((a) => a.id === "ux_act_grave_visit"));
-check("explorer: disturbances accumulate on the sticky meter", gU.player.stats.exposure === 6);   // shard 2 + rangers 2 + vault 2 (the shallow dig carries no charge)
-// Dale, same day — the previously-impossible combination: after the split, a
-// convergence run reaches Dale (and his relief valve) too.
 driveScene(runAction(gU, explorerDb, "ux_act_dale_visit").runner!, { ux_dale_warning: 1 });
-check("explorer: the split makes Dale and the convergence coexist in one run",
-  gU.flags.dale_bond === true && gU.flags.convergence_seen === true && gU.flags.pattern_open === true);
+check("explorer: the split lets one run hold Dale's bond and the pattern", gU.flags.dale_bond === true);
 advanceDay(gU, explorerDb);
-// Day 7: stage 2 + Doug's nudge (unanswered message), then the reply → dinner invite.
-driveScene(startQueuedScene(gU, explorerDb)!, { ux_doug_nudge: 0, ux_pressure_stage2: 0 });
+// Day 6: stage 1 (exposure 4 ≥ 3: the copy + the vault), then the day-trip.
+check("explorer: stage 1 greets the morning", gU.queue.includes("ux_pressure_stage1"));
+driveScene(startQueuedScene(gU, explorerDb)!, { ux_pressure_stage1: 0 });
+check("explorer: stage 1 fired once", gU.flags.pressure_stage === 1 && gU.flags.pressure1_seen === true);
+driveScene(runAction(gU, explorerDb, "ux_act_nora_daytrip").runner!,
+  { ux_nora_daytrip: 0, ux_nora_arrive: 0, ux_nora_explore: 0, ux_nora_rangers: 0, ux_nora_escape: 0, ux_nora_breakdown: 1, ux_nora_close: 0 });
+check("explorer: the day-trip lands — pact kept, the sticky meter at the three-act total",
+  gU.flags.nora_pact === true && gU.flags.nora_daytrip_done === true && gU.player.stats.exposure === 6 &&
+  (gU.coordLog ?? []).some((e) => e.lensFlavor === "skeptic"));
+advanceDay(gU, explorerDb);
+// Day 7: the nudge (scheduled), the convergence (door), stage 2 (6 ≥ 5) — one
+// morning, each scene playing whole. The convergence stays coordinate-silent:
+// the log grows by exactly the stage's attune entry.
+check("explorer: the convergence door fires once both threads have spoken", gU.queue.includes("ux_convergence_pattern"));
+const coordLenBeforeConv = (gU.coordLog ?? []).length;
+driveScene(startQueuedScene(gU, explorerDb)!, { ux_doug_nudge: 0, ux_convergence_pattern: 0, ux_pressure_stage2: 0 });
 check("explorer: stage 2 fired; the nudge fired for the silent player", gU.flags.pressure_stage === 2 && gU.flags.doug_nudge_seen === true);
+check("explorer: the convergence is coordinate- and lens-silent (only the stage's attune landed)",
+  gU.flags.convergence_seen === true && (gU.coordLog ?? []).length === coordLenBeforeConv + 1 &&
+  (gU.coordLog ?? []).slice(-1)[0]?.attune === -0.25);
 driveScene(runAction(gU, explorerDb, "ux_act_doug_reply").runner!, { ux_doug_dinner_invite: 0 });
 check("explorer: the reply reaches back and books the dinner",
   gU.flags.doug_reached_back === true && (gU.scheduled ?? []).some((s) => s.eventId === "ux_doug_dinner_arrive"));
 advanceDay(gU, explorerDb);
-// Day 8: the dinner — take the knife (the heavier enable footstep).
+// Day 8: THE APEX — stage 3 at the three-act total (the 3/5/6 ladder's whole
+// point: the committed-deep player reaches the Weather, and the dale_bond
+// easing gets to exist) — then the dinner, the knife.
+check("explorer: stage 3 greets the committed-deep morning (the revived apex)", gU.queue.includes("ux_pressure_stage3"));
 driveScene(startQueuedScene(gU, explorerDb)!,
-  { ux_doug_dinner_arrive: 0, ux_doug_dinner_cake: 0, ux_doug_dinner_cut: 3, ux_doug_dinner_close: 0 });
+  { ux_pressure_stage3: 0, ux_doug_dinner_arrive: 0, ux_doug_dinner_cake: 0, ux_doug_dinner_cut: 3, ux_doug_dinner_close: 0 });
+check("explorer: the Weather fired for the three-act player, easing in reach",
+  gU.flags.pressure_stage === 3 && gU.flags.pressure3_seen === true && gU.flags.dale_bond === true);
 check("explorer: the knife is complicity — flag set, enable-lean logged",
   gU.flags.dinner_took_knife === true &&
   (gU.coordLog ?? []).some((e) => e.diamondCoord?.vertical === 0.3));
@@ -846,15 +854,68 @@ applyOutcome(gP2, explorerDb, { setFlags: { marie_episode_done: true } });
 advanceDay(gP2, explorerDb);
 driveScene(startQueuedScene(gP2, explorerDb)!);
 driveScene(runAction(gP2, explorerDb, "ux_act_denise_visit").runner!, { ux_denise_visit: 0 });
-check("denise: taking the certainty arms the pursuit", gP2.flags.dale_suspected === true && gP2.flags.denise_met === true);
-driveScene(runAction(gP2, explorerDb, "ux_act_pursue_dig").runner!);
-advanceDay(gP2, explorerDb);
-driveScene(startQueuedScene(gP2, explorerDb)!, { ux_marie_warning: 0 });
-driveScene(runAction(gP2, explorerDb, "ux_act_pursue_authorities").runner!);
-driveScene(runAction(gP2, explorerDb, "ux_act_pursue_drastic").runner!);
-check("denise: the pursuit ends at the threshold — a designed terminal, harvested for the collision",
-  gP2.flags.went_after_dale === true && runStatus(gP2, explorerDb).flag === "went_after_dale" &&
-  harvestCrossRun(gP2, explorerDb, newCrossRunStore()).seeds?.dale_suspected === true);
+check("denise: taking the certainty arms the pursuit (the close carries the assembling case)",
+  gP2.flags.dale_suspected === true && gP2.flags.denise_met === true);
+// The pursuit is ONE chosen escalation: the lead action, then commit → commit
+// → the threshold. Every step picked, never railroaded.
+const pursuitCards = driveScene(runAction(gP2, explorerDb, "ux_act_pursue_dig").runner!,
+  { ux_pursue_dig: 0, ux_pursue_authorities: 1, ux_pursue_drastic: 0 });
+check("denise: the chosen escalation runs dig → refusal → threshold",
+  pursuitCards.join(">") === "ux_pursue_dig>ux_pursue_authorities>ux_pursue_drastic");
+check("denise: the run ends at the open car door — the authored terminal, harvested for the collision",
+  gP2.flags.run_end_pursuit === true && gP2.flags.went_after_dale === true &&
+  runStatus(gP2, explorerDb).flag === "run_end_pursuit" &&
+  harvestCrossRun(gP2, explorerDb, newCrossRunStore()).seeds?.went_after_dale === true);
+// The stop-exit is a real off-ramp: a second run drops the pursuit at the dig
+// and the lead retires for good.
+const gP3 = newExplorer(46);
+driveScene(startQueuedScene(gP3, explorerDb)!);
+applyOutcome(gP3, explorerDb, { setFlags: { marie_episode_done: true } });
+advanceDay(gP3, explorerDb);
+driveScene(startQueuedScene(gP3, explorerDb)!);
+driveScene(runAction(gP3, explorerDb, "ux_act_denise_visit").runner!, { ux_denise_visit: 0 });
+driveScene(runAction(gP3, explorerDb, "ux_act_pursue_dig").runner!, { ux_pursue_dig: 1 });
+check("denise: the dig's off-ramp wakes the player up and retires the lead",
+  gP3.flags.pursuit_dropped === true && !runStatus(gP3, explorerDb).over &&
+  !dayMenu(gP3, explorerDb).actions.some((a) => a.id === "ux_act_pursue_dig"));
+// The cross-run collision: a vessel whose harvest carries went_after_dale sits
+// on Dale's porch — nameless shame, once, never confirmed.
+const gCol = newGame(
+  { seed: 47, name: "You", age: 27, body: { height: 0.5, build: 0.5 }, townId: "town_edge", tier: "outer",
+    crossRun: { version: 1, seeds: { went_after_dale: true, dale_suspected: true } } },
+  explorerDb);
+driveScene(startQueuedScene(gCol, explorerDb)!);
+applyOutcome(gCol, explorerDb, { setFlags: { pointed_to_dale: true, dale_met: true, dale_bond: true } });
+const porch1 = runAction(gCol, explorerDb, "ux_act_dale_porch").runner!;
+check("denise: the collision surfaces on the porch — nameless, never confirmed",
+  porch1.current.prose.includes("unbearably ashamed of something you have never done"));
+driveScene(porch1);
+const porch2 = runAction(gCol, explorerDb, "ux_act_dale_porch").runner!;
+check("denise: the collision fires once; the porch stays a porch after",
+  !porch2.current.prose.includes("unbearably ashamed") && porch2.current.prose.includes("second cup"));
+driveScene(porch2);
+
+// -- the journal surface: derived on read, stored nowhere, authored order --------
+line(`\n-- Phase 2.2: the journal surface --`);
+const jDb: ContentDB = {
+  ...miniDb,
+  journal: [
+    { when: { kind: "flag", flag: "met_x" }, line: "You met X." },
+    { when: { kind: "flag", flag: "charged" }, line: "The thing was charged when you found it." },
+  ],
+};
+const gJ = newMini(38);
+check("journal: empty before anything is known", journalLines(gJ, jDb).length === 0);
+gJ.flags.charged = true;
+check("journal: a line exists only once earned", journalLines(gJ, jDb).join("|") === "The thing was charged when you found it.");
+gJ.flags.met_x = true;
+check("journal: authored order, not earn order",
+  journalLines(gJ, jDb).join("|") === "You met X.|The thing was charged when you found it.");
+check("journal: derived on read, stored nowhere (the save carries no journal key)",
+  !serialize(gJ).includes("journal"));
+check("linter: a journal intent-note leak is an error",
+  lintContent({ ...jDb, journal: [{ when: { kind: "flag", flag: "f" }, line: "You saw it — *the note leaks*." }] }, "j")
+    .some((i) => i.level === "error" && i.message.includes("journal line")));
 
 check("linter: the explorer db carries zero errors",
   lintContent(explorerDb, "explorer").every((i) => i.level !== "error"));
