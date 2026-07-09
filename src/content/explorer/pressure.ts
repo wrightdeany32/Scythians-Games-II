@@ -32,9 +32,9 @@ You've seen it before — you're almost sure. Grey, nothing, the kind of car tha
       {
         when: { kind: "flag", flag: "took_shard" },
         text:
-`That night the piece of stone is warm.
+`That night you keep going back to the copy.
 
-You notice it packing your bag — the shard, warm to the touch, warmer than the room, and you tell yourself it sat by the window and caught the afternoon. Your sleep's been bad since the cave. That's the cave. Everything's the cave. You put the shard in the drawer and you don't quite manage to leave it there; in the morning it's in your bag again and you don't remember moving it.`,
+You take the page out of the drawer to look at it, and put it back, and take it out again, and you catch yourself reaching for it a fourth time before you make yourself stop. It's just a drawing. You told yourself that in the cave and you tell yourself that now. But your sleep's been bad since you went down there — that's the cave, everything's the cave — and in the morning the page isn't in the drawer where you left it. It's on the kitchen table, squared up neat to the edge like you'd been studying it, and you don't remember getting it out.`,
       },
     ],
     choices: [
@@ -74,9 +74,9 @@ You've started taking different routes. You haven't told anyone you've started t
       {
         when: { kind: "flag", flag: "took_shard" },
         text:
-`The shard hums.
+`You've started drawing it without meaning to.
 
-Not a sound — a feeling, in the back teeth, when you hold it, a pressure like a struck tuning fork you can feel and not hear. And you've been dreaming the cave. Not a story, just the *place* — the specific black of it, the cold coming up, the wall with the marks — and you wake with your jaw aching from the hum that isn't a sound, and the shard is in your hand, and you don't remember taking it out.`,
+The corner of the notepad by the phone. The fog on the bathroom mirror. The marks come out of your hand before you've decided to make them — the knocked-sideways numerals, the ellipse that won't close — and you only notice once they're already there. And you've been dreaming the cave: not a story, just the *place*, the specific black of it, the cold coming up, the wall with the marks — and you wake with the shapes still sliding behind your eyes. You find the page in your hand more than once, unfolded, though you're fairly sure you left it in the drawer.`,
       },
     ],
     choices: [
@@ -119,9 +119,9 @@ You could almost wish it would *do* something. That's how you know how bad it's 
       {
         when: { kind: "flag", flag: "took_shard" },
         text:
-`The shard is a coal.
+`It's in you now, the way a song you hate is in you.
 
-Warm as a living thing, all the time now, and the dreams are every night, and somewhere in the last while you stopped telling yourself it's the cave. You don't have a story for it anymore. You just know two things, and hold them both, and they don't fit together: you cannot make yourself leave it behind, and every sane part of you knows you should. You carry it anyway. You've started to think of it as *yours* in a way you can't defend.`,
+You've started seeing the shape in things that aren't it — the cracks in the ceiling, the snarl of the power lines, the way five birds space themselves on a wire — and you've stopped being able to tell whether you're finding the marks or making them. The page is soft at the folds now from how many times you've opened it, and the thing is, you don't need it anymore; you could draw it with your eyes shut, and some nights you wake to find you have been, in the dark, your finger moving on the sheet. You just know two things, and hold them both, and they don't fit: there is no one on earth you could explain this to, and it is *yours* in a way you cannot give back and cannot put down.`,
       },
     ],
     choices: [

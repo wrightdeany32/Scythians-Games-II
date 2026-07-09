@@ -13,7 +13,11 @@ import { renderTranscript, transcriptFilename } from "./transcript";
 import { DEBRIEF_QUESTIONS, FRAMING_SCRIPT, LOCKED_NON_ANSWER, SINGLE_NUDGE } from "./scripts";
 import type { PresentationRecord, StreamRecord } from "./recorder";
 
-const BUILD_TAG = "cave-b3"; // b3: Loom's echo audit applied (leaked intent-notes fixed); frozen for Batch A
+const BUILD_TAG = "cave-b4"; // b4: the shard-as-symbol reframe (stay-and-copy, not chip-and-pocket) — the
+                             // regression gate moves b3→b4 per Armature's ruling; the b3 transcript stays
+                             // in coldreads/ as the frozen Batch-A artifact. Armature's post-A catch list
+                             // (the un-murdered stitch, no-trace shared-path, throat continuity) lands on
+                             // this same tag and regenerates the same baseline.
 const SEED = 70499;
 
 // A fixed route by card id (single-option cards default to 0). This deep route

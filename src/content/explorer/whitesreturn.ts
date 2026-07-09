@@ -2,14 +2,20 @@
 // content/explorer/whitesreturn.ts — the Return to White's Hall (Loom's story
 // pass, wired): the scene the whole cave arc points at, and the run's cut-off.
 // A queue-chained scene entered from the daily loop — NEW content; nothing
-// here touches the frozen cave-b3.
+// here touches the frozen cave baseline.
 //
-// The charge gate: everything keys off `took_shard` (bodyVariants carry the
-// milder not-shard register). Grip gates two things and only two — the
-// illegible-mark insert fires at grip <= 3 (the ratified hard gate), and the
-// deep descent's FLAVOR is band-select (bandText, three registers, adjacent
-// leak per Contract 2). No diamondCoord gate anywhere; introspective leans
-// carry attune only.
+// The charge gate: everything keys off `took_shard` — since the 2026-07-09
+// reframe, "the player RECORDED the symbol" (the copy, not a pocketed stone);
+// the charged erased-beat is the COPY-MISMATCH (the fourth ripple), and the
+// bodyVariants carry the milder not-copied register. Choreography (Azimuth,
+// Loom): the player's own evidence fails at the erased beat FIRST, then the
+// illegible mark resolves — "my proof is wrong" before "I can read what I
+// couldn't." Grip gates two things and only two — the illegible-mark insert
+// fires at grip <= 3 (the ratified hard gate), and the deep descent's FLAVOR
+// is band-select (bandText, three registers, adjacent leak per Contract 2).
+// No diamondCoord gate anywhere; introspective leans carry attune only.
+// (cave-b4's stay-and-copy retext lands the cave-side half of the reframe in
+// the same PR, per Armature's lands-together sequencing rule.)
 //
 // Every branch queues a terminal. The terminal is the authored flag
 // `run_end_whites_return` — not a lost-grip death. Conviction-voice holds at
@@ -115,24 +121,26 @@ You just can't shake the feeling that you're being shown the way, rather than fi
     ],
   },
 
-  // -- your own traces, gone ----------------------------------------------------------------
+  // -- your own record won't hold (the fourth ripple: the copy-mismatch replaces
+  // the healed scar that record-don't-pocket made impossible; Reese's ratified
+  // silence lands here, better motivated — he watched you make the copy) -----------
   ux_return_erased: {
     id: "ux_return_erased",
-    title: "Your Own Traces, Gone",
+    title: "Your Own Record Won't Hold",
     // Base body = the shard-charged version (primary); the variant carries the
-    // milder displaced register for the run that left the shard.
+    // milder displaced register for the run that left the copy unmade.
     body:
 `You come to the chamber. The wide one, where the marks are.
 
-You go to the wall where you took your piece of it — you remember the spot, low and left, the raw pale scar where you chipped the stone free. You put your lamp on it.
+You go to the wall where you copied it — you remember the spot, low and left, the sideways numerals and the ellipse that wouldn't close. You take the page out of your pack, the soft-folded page you've looked at a hundred nights, the marks you could draw with your eyes shut by now. You hold it up against the wall to check it against the thing itself.
 
-The scar is gone. The rock is whole. Not repaired, not filled — *whole*, the same skin of old stone as everything around it, as if nothing was ever taken from here at all.
+It doesn't match.
 
-You have the piece in your pack. You can feel its weight against your spine. You took it from *here*, from this exact place, and this exact place has closed over the taking like water closing over a dropped stone.
+Not by much. But the ellipse on the wall *closes*, and the one on your page doesn't. There's a mark on the wall your page doesn't have — one stroke, off to the side, small and deliberate. And the sideways numerals lean the other way. You copied this. You crouched here in the cold with the light in your teeth and you copied it *line for line* — you would put your life on line for line — and you are holding your copy up against the wall and they are not the same thing, and there is no way on this earth to know which of them changed: the wall, or the page, or your hand that night, or every night since that you took it out and looked at it and told yourself you had it by heart.
 
-"Reese." You hear your own voice do something you don't like. "I chipped this. Right here. There was a mark."
+"Reese." You hear your own voice do something you don't like. "This is wrong. Look at it. I *copied* this — you were right there."
 
-And Reese — who has an answer for everything, who has spent this whole trip and the last one being the one who explains — Reese looks at the smooth stone, and looks at you, and opens his mouth.
+And Reese was right there. He crouched next to you with his lamp while you drew it, close enough to complain about the cold the whole time. He can't tell you that you misremembered the spot. He watched you get it right. He looks at the wall, and at the page shaking in your hand, and at the gap between them that has no name, and he opens his mouth.
 
 Nothing comes out.`,
     bodyVariants: [

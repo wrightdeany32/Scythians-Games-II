@@ -31,7 +31,7 @@ export const dougActions: LocationAction[] = [
     cost: 2,
     requires: { kind: "flag", flag: "thread_doug" },
     outcome: {
-      log: "Doug picks you up at six, the way he has since you were nineteen, when he decided — without asking — that you weren't going to be a kid who sat inside. You run the fire road out past the reservoir. He sets the pace a little too hard, the way he always has, and you hate it and you keep up and that's the whole ritual.",
+      log: "Doug picks you up at six because Doug has always picked you up at six, since you were nineteen and he was the family friend who'd decided, without asking, that you weren't going to be a kid who sat inside. You run the fire road out past the reservoir. He sets the pace a little too hard, the way he always has, and you hate it and you keep up and that's the whole ritual.",
       tone: "g",
       stats: { tradecraft: 1 },
       statsMax: { tradecraft: 6 },   // the believer's-floor cap (Armature's number)

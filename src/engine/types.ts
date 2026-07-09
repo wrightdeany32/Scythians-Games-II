@@ -321,6 +321,12 @@ export interface EngineTuning {
   };
   calendar?: {
     lastDay?: number;          // the run's calendar end: past this day, the ending-selector fires (db.endings)
+    deferForScheduled?: string[];       // DEFER-TERMINAL (unanimous round ruling: no authored thread-climax dies to
+                               // the calendar guillotine): while any listed event id is still PENDING (in
+                               // g.scheduled or g.queue), the ending-selector holds; it fires the first
+                               // morning none is in flight. Content declares its climaxes (the Doug break,
+                               // later pursuit beats) — a deliberately narrow list, so an ordinary nudge
+                               // can never stall the run's end.
   };
   crossRun?: {
     harvestFlags?: string[];   // run flags harvestCrossRun copies into the store's seeds — CONTENT declares what

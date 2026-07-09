@@ -11,7 +11,8 @@
     "lint:content": "tsx src/tools/lint.run.ts",
     "coldread": "tsx src/coldread/run.ts",
     "coldread:sample": "tsx src/coldread/sample.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "bots": "tsx src/bots/run.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

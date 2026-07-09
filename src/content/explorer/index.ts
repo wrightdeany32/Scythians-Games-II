@@ -32,6 +32,7 @@ import { breatherActions } from "./breathers";
 import { returnActions, returnEvents } from "./whitesreturn";
 import { endingEvents } from "./ending";
 import { convergenceDoors, convergenceEvents } from "./convergence";
+import { deniseDoors, deniseActions, deniseEvents } from "./denise";
 
 export const EXPLORER_CONTENT_ID = "explorer";
 
@@ -59,6 +60,7 @@ export const explorerDb: ContentDB = {
     ...returnEvents,
     ...endingEvents,
     ...convergenceEvents,
+    ...deniseEvents,
   },
   actions: [
     caveEntryAction,      // the first trip (retires on cave_done)
@@ -69,6 +71,7 @@ export const explorerDb: ContentDB = {
     ...researchActions,
     ...breatherActions,
     ...returnActions,
+    ...deniseActions,
   ],
   towns: {
     town_edge: {
@@ -84,7 +87,7 @@ export const explorerDb: ContentDB = {
   traits: {},
   items: caveItems,
   npcs,
-  doors: [...openingDoors, ...convergenceDoors],
+  doors: [...openingDoors, ...convergenceDoors, ...deniseDoors],
   endings: [
     // The narrow door, flags-only: past the calendar, the run that never went
     // back gets its authored terminal. (Belt-and-suspenders `when`: terminal
@@ -103,14 +106,17 @@ export const explorerDb: ContentDB = {
     },
     terminal: {
       onGripZero: true,
-      flags: ["run_end_whites_return", "run_end_never_returned"],
+      flags: ["run_end_whites_return", "run_end_never_returned", "went_after_dale"],   // the pursuit's threshold cut-off is a designed terminal
     },
     lens: {
       vocabulary: ["spiritual", "physics", "institutional", "skeptic"],
       nullFlavor: "skeptic",
     },
-    calendar: { lastDay: 14 },   // shakedown placeholder; real number measured with Armature
-    crossRun: { harvestFlags: ["denied_knife", "held_truth"] },
+    calendar: {
+      lastDay: 14,                    // shakedown placeholder; real number measured with Armature
+      deferForScheduled: ["ux_doug_break"],    // defer-terminal (unanimous): the break never dies to the guillotine
+    },
+    crossRun: { harvestFlags: ["denied_knife", "held_truth", "dale_suspected", "went_after_dale"] },   // the cross-run jewel's carriers (Denise)
   },
   names: { first: ["Alex", "Sam", "Jo"], last: ["Vance", "Fields", "Marsh"] },
 };

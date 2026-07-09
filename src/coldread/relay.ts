@@ -15,7 +15,7 @@ import { caveDb, CAVE_CONTENT_ID } from "../content/cave.db";
 import { Session } from "./session";
 import { FRAMING_SCRIPT } from "./scripts";
 
-const BUILD_TAG = "cave-b3";
+const BUILD_TAG = "cave-b4";
 
 const args = process.argv.slice(2);
 const seed = Number(args[0]);
