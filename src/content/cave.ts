@@ -74,7 +74,7 @@ Reese has gone quiet — not spooked, just working, reading the route. Ahead, th
     choices: [
       { label: "Keep going. This is what you came for.", outcome: { log: "You press on.", tone: "n", queueEvent: "ux_cave_heard" } },
       // A real out, offered before there's any reason to take it — the sensible day. Exits clean (no queue).
-      { label: "Call it — this is getting dangerous.", outcome: { log: "You call it. Reese gives you grief the whole way out, but he comes. You're back in daylight by mid-afternoon — filthy, thirsty, and entirely un-murdered. A good day, and nothing in it.", tone: "g", stats: { grip: 1 }, setFlags: { cave_done: true, cave_turned_back: true } } },
+      { label: "Call it — this is getting dangerous.", outcome: { log: "You call it. Reese gives you grief the whole way out, but he comes. You're back in daylight by mid-afternoon — filthy, thirsty, and in one piece. A good day, and nothing in it.", tone: "g", stats: { grip: 1 }, setFlags: { cave_done: true, cave_turned_back: true } } },
     ],
   },
 
@@ -154,14 +154,33 @@ Nobody has been here. You can't find one sign that anybody has ever been here.`,
   ux_cave_deep: {
     id: "ux_cave_deep",
     title: "No Reference Points",
+    // cave-b4 post-A catch (the no-trace continuity gap two cold readers found):
+    // the default body's "that same wrong cleanness" back-references the clean-floor
+    // realization that ONLY the high passage (ux_cave_otherway) establishes. Throat
+    // players (no cave_notrace) never got that beat, so for them the variant lands
+    // the realization FRESH here — first time, no "same" — reusing the high-passage
+    // language for continuity. High-passage players keep the default (the callback
+    // reads right for them). The exit choice then sets cave_notrace so both paths
+    // carry the realization forward (idempotent; nothing gates on it — telemetry/seed).
     body:
 `However you came through it, you're somewhere now that isn't on any map in either of your heads.
 
 The chamber is bigger than it has any right to be this deep — the lamps don't find the far wall. Underfoot, that same wrong cleanness. And the smell, stronger, sitting in the back of your throat. Reese turns a slow circle and for once doesn't narrate. You watch him decide, very deliberately, to be fine. "Cool. This is sick, actually. Nobody's tagged this."
 
 Then his lamp catches the wall, and stops.`,
+    bodyVariants: [
+      {
+        when: { kind: "noflag", flag: "cave_notrace" },
+        text:
+`However you came through it, you're somewhere now that isn't on any map in either of your heads.
+
+The chamber is bigger than it has any right to be this deep — the lamps don't find the far wall. And it's only now, with room to stand, that your eye goes to the floor: no boot-scuff, no arrows, no candle-smoke on the ceiling, no cans, no carved initials — none of the century of human garbage that every reachable cave on Earth is upholstered in. A wrong, swept cleanness. And the smell, stronger, sitting in the back of your throat. Reese turns a slow circle and for once doesn't narrate. You watch him decide, very deliberately, to be fine. "Cool. This is sick, actually. Nobody's tagged this."
+
+Then his lamp catches the wall, and stops.`,
+      },
+    ],
     choices: [
-      { label: "Follow the lamp.", outcome: { log: "You follow the beam to the wall.", tone: "n", queueEvent: "ux_cave_etchings" } },
+      { label: "Follow the lamp.", outcome: { log: "You follow the beam to the wall.", tone: "n", setFlags: { cave_notrace: true }, queueEvent: "ux_cave_etchings" } },
     ],
   },
 
@@ -193,13 +212,29 @@ Someone made these. Carefully. In a place with no way in that a person has ever 
   ux_cave_return: {
     id: "ux_cave_return",
     title: "Back Through",
+    // cave-b4 post-A catch (the path-awareness gap two cold readers found): the
+    // default body's "the throat again" is only true for players who came in via
+    // the throat (cave_squeeze_done). High-passage players (no cave_squeeze_done)
+    // never went through it, so the variant reframes the return tightness as the
+    // high line's own pinch — same pack-won't-fit mechanic, no false callback. The
+    // two outcome logs below say "the pinch" (path-neutral; the entry card is titled
+    // "The Pinch") instead of "the throat" for the same reason.
     body:
 `"We're going," Reese says, and it isn't a suggestion, and you don't argue. The way back is the way you came — the throat again — and going up through a squeeze is worse than down, everyone knows that, and your pack is the widest thing on you now.
 
 It won't fit with you. You can feel that already. You can wear the pack or wear yourself out fighting it, but not both.`,
+    bodyVariants: [
+      {
+        when: { kind: "noflag", flag: "cave_squeeze_done" },
+        text:
+`"We're going," Reese says, and it isn't a suggestion, and you don't argue. The way back is the way you came — back up the high line — and it pinches down worse going up than it let on coming down, and your pack is the widest thing on you now.
+
+It won't fit with you. You can feel that already. You can wear the pack or wear yourself out fighting it, but not both.`,
+      },
+    ],
     choices: [
       // Shed the pack — the sane trade. Exits (no queue).
-      { label: "Shed the pack — push it ahead, take the loss.", outcome: { log: "You shove the pack ahead of you through the throat and come out with nothing on your back. It costs you a good kit and the last of your pride — cheap, tonight.", tone: "n", removeItems: ["cave_gear"], stats: { money: GEAR_LOSS_MONEY }, setFlags: { cave_done: true, cave_deep_seen: true } } },
+      { label: "Shed the pack — push it ahead, take the loss.", outcome: { log: "You shove the pack ahead of you through the pinch and come out with nothing on your back. It costs you a good kit and the last of your pride — cheap, tonight.", tone: "n", removeItems: ["cave_gear"], stats: { money: GEAR_LOSS_MONEY }, setFlags: { cave_done: true, cave_deep_seen: true } } },
       // Keep the pack — a tradecraft check. Both branches exit.
       {
         label: "Keep the pack. Fight through with it.",
@@ -225,7 +260,7 @@ It won't fit with you. You can feel that already. You can wear the pack or wear 
           setFlags: { took_shard: true },
           roll: {
             tag: "squeeze", statMod: "tradecraft", target: SQUEEZE_TARGET,
-            win: { log: "You wear the pack out through the throat, the page folded flat in your chest pocket.", tone: "n", setFlags: { cave_done: true, cave_deep_seen: true } },
+            win: { log: "You wear the pack out through the pinch, the page folded flat in your chest pocket.", tone: "n", setFlags: { cave_done: true, cave_deep_seen: true } },
             lose: { log: "You get out — pack torn away on the rock — but the page stays on you.", tone: "b", stats: { grip: -1 }, removeItems: ["cave_gear"], setFlags: { cave_done: true, cave_deep_seen: true } },
           },
         },
