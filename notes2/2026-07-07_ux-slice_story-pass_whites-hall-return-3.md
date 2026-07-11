@@ -6,7 +6,7 @@
 
 **The three disciplines, held absolutely here.** (1) **Percept, never cause** — every uncanny thing is described as *perceived*; the narration never adjudicates what made it. (2) **Gates are flags/stats/tiers, never position** — grip is a stat, so grip-gating is fine; disposition is never read. (3) **Neutral-valence labels** — the choice says what you *do*; the stakes live in the narration.
 
-**The charge gate.** Everything keys off `took_shard`. Took the shard on the first trip → the personal, full-intensity version (the scar you made, gone; the knife). Left it → a milder, displaced version (still a closer — everyone gets one — but the anomaly reaches for you with less of a grip). Both paths are written below; the shard-charged is primary, the milder variant marked at each gated beat.
+**The charge gate.** Everything keys off `took_shard`. Took the shard on the first trip → the personal, full-intensity version (the copy you made, no longer matching; the knife). Left it → a milder, displaced version (still a closer — everyone gets one — but the anomaly reaches for you with less of a grip). Both paths are written below; the shard-charged is primary, the milder variant marked at each gated beat.
 
 ---
 
@@ -49,29 +49,29 @@ You just can't shake the feeling that you're being shown the way, rather than fi
 
 ---
 
-## `ux_return_erased` — your own traces, gone
+## `ux_return_erased` — your own record won't hold
 
 You come to the chamber. The wide one, where the marks are.
 
-**[if `took_shard`]** You go to the wall where you took your piece of it — you remember the spot, low and left, the raw pale scar where you chipped the stone free. You put your lamp on it.
+**[if `took_shard`]** You go to the wall where you copied it — you remember the spot, low and left, the sideways numerals and the ellipse that wouldn't close. You take the page out of your pack, the soft-folded page you've looked at a hundred nights, the marks you could draw with your eyes shut by now. You hold it up against the wall to check it against the thing itself.
 
-The scar is gone. The rock is whole. Not repaired, not filled — *whole*, the same skin of old stone as everything around it, as if nothing was ever taken from here at all.
+It doesn't match.
 
-You have the piece in your pack. You can feel its weight against your spine. You took it from *here*, from this exact place, and this exact place has closed over the taking like water closing over a dropped stone.
+Not by much. But the ellipse on the wall *closes*, and the one on your page doesn't. There's a mark on the wall your page doesn't have — one stroke, off to the side, small and deliberate. And the sideways numerals lean the other way. You copied this. You crouched here in the cold with the light in your teeth and you copied it *line for line* — you would put your life on line for line — and you are holding your copy up against the wall and they are not the same thing, and there is no way on this earth to know which of them changed: the wall, or the page, or your hand that night, or every night since that you took it out and looked at it and told yourself you had it by heart.
 
-"Reese." You hear your own voice do something you don't like. "I chipped this. Right here. There was a mark."
+"Reese." You hear your own voice do something you don't like. "This is wrong. Look at it. I *copied* this — you were right there."
 
-And Reese — who has an answer for everything, who has spent this whole trip and the last one being the one who explains — Reese looks at the smooth stone, and looks at you, and opens his mouth.
+And Reese was right there. He crouched next to you with his lamp while you drew it, close enough to complain about the cold the whole time. He can't tell you that you misremembered the spot. He watched you get it right. He looks at the wall, and at the page shaking in your hand, and at the gap between them that has no name, and he opens his mouth.
 
 Nothing comes out.
 
-> DESIGN: This is the reassurance-failure beat, at maximum contrast — the one moment the player most needs the sane reading ("you misremember the spot") and Reese, because the shard is a physical fact in the pack that his skepticism can't touch, has nothing. It fires **once**, only here, only with `took_shard`. His silence is the wrongness — absence of the thing he always provides. Percept-only: the stone is *whole*; the game never says how.
+> DESIGN: The reframed reassurance-failure beat — the **fourth ripple** of the shard-as-symbol reframe, replacing the old healed-scar that record-don't-pocket made impossible. It's *crueler* than the healed stone by where it aims: the healed scar attacked the world's record of the player; the mismatch attacks **the player's own evidence — the one proof they made** — and it weaponizes the possession arc directly (the thing you can draw with your eyes shut is *wrong*, and you can't say since when). Reese's silence is load-bearing exactly as before and better motivated: he crouched beside you while you copied it (*light in your teeth*), so his skepticism has nothing to offer — he can't say *you misremember*, because he watched you get it right. Fires **once**, only here, only with `took_shard`. Percept-only: the copy and the wall disagree; the game never says which changed, or how. The four candidates — wall, page, hand, memory — are named and **none confirmed**, the anti-noun turned on the player's own epistemics. This beat is the first of the chamber's two wrongnesses for a frayed shard-taker; the illegible mark on the far wall (`ux_return_illegible`) is the second — the player's own evidence fails *here*, then the unreadable thing resolves *there*, an escalation from "my proof is wrong" to "I can read what I couldn't." (Choreography per Azimuth: both live at this wall now; this is the order.)
 
 **[if not `took_shard`]** You go to look for your bootprints from the last time, in the silt near the wall. There aren't any. Not scuffed, not swept — *absent*, the silt lying smooth and undisturbed, as though no one has ever crossed this floor. You know you crossed it. You were here.
 
 Reese says the water must move through, must settle the floor flat between visits. It's the kind of thing that's probably true. He says it a little too quickly, and doesn't say anything after it.
 
-> DESIGN: The milder variant — the erased trace is your *presence* (prints), not the scar you *made*. Uncanny, but less personal, and Reese still manages a rationalization (he can explain smoothed silt; he can't explain a healed cut on stone). This is the charge gate doing its work at the scene's hinge.
+> DESIGN: The milder variant — the erased trace is your *presence* (prints), not the scar you *made*. Uncanny, but less personal, and Reese still manages a rationalization (he can explain smoothed silt; he can't explain a copy that no longer matches the wall he watched you make it from). This is the charge gate doing its work at the scene's hinge.
 
 - **"We should go."** → queue `ux_return_fork`. *(narration: "You say it, and neither of you moves toward the way out.")*
 - **"There's more of it deeper. I want to see."** → sets `return_pushing`; queue `ux_return_fork`.
