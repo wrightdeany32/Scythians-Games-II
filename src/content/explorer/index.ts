@@ -47,6 +47,33 @@ const npcs: Record<string, Npc> = {
 export const explorerDb: ContentDB = {
   openingLog: "The town sits where the map starts lying — the last place with a name before the woods take over.",
   openingQueue,
+  // The start-deck (spec v3.3 §7; engine: src/engine/creation.ts). BACKFILL-SAFE:
+  // the legacy `openingQueue` above still drives every harness that doesn't pass
+  // a `startId`, so nothing here changes existing runs — this is the OPT-IN deck
+  // the Run Read will use once the consoles wire creation. Today it holds the
+  // flagship's one scenario; when Loom / the corner writers author the
+  // doctor-visit et al., they become deck cards and the deal picks among them.
+  creationCommon: [
+    // PLACEHOLDER intro — Loom authors the real creation questions. This exists
+    // to realize Dean's shape (a fixed intro/menu, THEN the start card is drawn)
+    // and to give the common phase one screen. No effects, no profile key.
+    {
+      q: "Somewhere, a person is about to have an ordinary day that won't stay ordinary. It's you. It was always going to be you.",
+      answers: [{ label: "Begin." }],
+    },
+  ],
+  starts: [
+    {
+      id: "start_explorer_reunion",
+      townId: "town_edge",
+      tier: "outer",
+      openingQueue: ["ux_explorer_opening"],   // the reunion — the same cold-open the legacy path uses
+      coord: { sanction: 0.6, vertical: 0 },   // register metadata (the Explorer corner); read by NOTHING at runtime
+      // No qualifiers → always eligible → the deck's fallback. No seedFlags: the
+      // opening card sets origin_fresh_start / origin_last_door from the player's
+      // OWN choice, not the deal.
+    },
+  ],
   events: {
     ...caveEvents,        // the frozen slice, byte-untouched — plays inside this run
     ...openingEvents,
