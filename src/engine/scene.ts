@@ -16,7 +16,9 @@
 //    empties; "exit the scene" is a choice that queues nothing.
 //  - the player-facing screen carries prose + numbered options only — no stats,
 //    no dice, no card ids; rolls surface only as their prose outcomes.
-//  - greyed (showWhenLocked) options render but refuse resolution.
+//  - locked options: showWhenLocked ⇒ greyed-but-visible (refuses resolution);
+//    otherwise NOT PRESENT on the screen (bookkeeping twins never show).
+//    `index` is the engine index — consoles print positionally and translate.
 //  - determinism: same seed + same picks ⇒ byte-identical screens.
 // ============================================================================
 
@@ -124,7 +126,10 @@ export class SceneRunner {
   // can record reader intent only for picks that will actually resolve.
   checkPick(idx: number): PickResult {
     if (this.done || !this.currentEvent) return { ok: false, reason: "scene over" };
-    const opt = this.current.options[idx];
+    // idx is the ENGINE index; the options list is filtered (hidden-locked
+    // choices absent), so look the option up by its index field — a hidden
+    // choice is unpickable by construction (not on the screen ⇒ no such option).
+    const opt = this.current.options.find((o) => o.index === idx);
     if (!opt) return { ok: false, reason: "no such option" };
     if (!opt.available) return { ok: false, reason: "unavailable" };
     return { ok: true };
@@ -202,9 +207,17 @@ export class SceneRunner {
     }
     const prose = (this.pendingNarration ? this.pendingNarration + "\n\n" : "") + body;
     this.pendingNarration = "";
-    const options = ev.choices.map((c, i) => ({
-      index: i, label: c.label, available: choiceAvailable(this.g, c), showWhenLocked: !!c.showWhenLocked,
-    }));
+    // THE SCREEN IS THE ALLOWLIST (Courier's dry-run catch): a locked choice
+    // without showWhenLocked is bookkeeping (a requires-gated twin, a retired
+    // line) and must NOT PRESENT — greyed-visible is an authored opt-in
+    // (showWhenLocked: true), never the default. `index` stays the ENGINE
+    // index (resolveChoice's coordinate), so filtering never renumbers picks;
+    // consoles print positionally and translate.
+    const options = ev.choices
+      .map((c, i) => ({
+        index: i, label: c.label, available: choiceAvailable(this.g, c), showWhenLocked: !!c.showWhenLocked,
+      }))
+      .filter((o) => o.available || o.showWhenLocked);
     this.current = { step: this.stepCounter, card: ev.id, prose, options };
     this.hooks.onScreen?.(this.current);
   }

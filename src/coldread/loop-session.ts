@@ -181,7 +181,7 @@ export class LoopSession {
     const check = runner.checkPick(idx);
     if (!check.ok) return check;
     if (this.mode === "read") {
-      this.recorder.pushReader({ step: this.screen.step, card: this.screen.card, note, pick: idx, pickLabel: this.screen.options[idx].label });
+      this.recorder.pushReader({ step: this.screen.step, card: this.screen.card, note, pick: idx, pickLabel: this.screen.options.find((o) => o.index === idx)!.label });
     }
     runner.pick(idx);
     if (runner.done) this.finishCreation();
@@ -220,7 +220,7 @@ export class LoopSession {
     const check = runner.checkPick(idx);
     if (!check.ok) return check;   // greyed / out of range — no state touched, no reader record
     if (this.mode === "read") {
-      this.recorder.pushReader({ step: this.screen.step, card: this.screen.card, note, pick: idx, pickLabel: this.screen.options[idx].label });
+      this.recorder.pushReader({ step: this.screen.step, card: this.screen.card, note, pick: idx, pickLabel: this.screen.options.find((o) => o.index === idx)!.label });
     }
     const res = runner.pick(idx);
     if (runner.done) this.afterScene();

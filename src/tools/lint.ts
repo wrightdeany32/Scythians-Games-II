@@ -233,6 +233,26 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
       checkFlavor(`event ${id} choice[${i}]`, c.lensFlavor);
       checkAttune(issues, `event ${id} choice[${i}]`, c.attune);
     });
+    // Duplicate-label twins (Courier's dry-run catch): same-label choices are
+    // the legal requires-gated-variant pattern ONLY while at most one can ever
+    // be VISIBLE — the screen hides a locked twin, but (a) two unconditional
+    // copies are both live at once, and (b) a showWhenLocked twin renders
+    // greyed BESIDE its live sibling, which reads as a meaningful locked door.
+    const byLabel = new Map<string, typeof ev.choices>();
+    for (const c of ev.choices) {
+      const list = byLabel.get(c.label) ?? [];
+      list.push(c);
+      byLabel.set(c.label, list);
+    }
+    for (const [label, twins] of byLabel) {
+      if (twins.length < 2) continue;
+      if (twins.filter((c) => !c.requires).length > 1) {
+        err(`event ${id}`, `duplicate-label choices "${label.slice(0, 40)}" with no requires — both render live at once`);
+      }
+      if (twins.some((c) => c.showWhenLocked)) {
+        warn(`event ${id}`, `duplicate-label twin "${label.slice(0, 40)}" has showWhenLocked — when locked it renders greyed beside its live sibling (the dry-run bug, opted back in)`);
+      }
+    }
   }
   for (const a of db.actions) {
     checkCoord(issues, `action ${a.id}`, a.diamondCoord);

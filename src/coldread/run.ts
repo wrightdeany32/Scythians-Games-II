@@ -85,13 +85,14 @@ async function main() {
   while (!session.done) {
     const scr = session.current;
     say(`\n${scr.prose}\n`);
-    for (const o of scr.options) say(`  ${o.index + 1}. ${o.label}${o.available ? "" : "  (unavailable)"}`);
+    scr.options.forEach((o, pos) => say(`  ${pos + 1}. ${o.label}${o.available ? "" : "  (unavailable)"}`));
 
     const note = (await io.ask("\n  reader> ")).trim();
     let picked = false;
     while (!picked) {
       const raw = (await io.ask("  choice #> ")).trim();
-      const res = session.pick(Number(raw) - 1, note);
+      const opt = scr.options[Number(raw) - 1];
+      const res = opt ? session.pick(opt.index, note) : { ok: false as const, reason: "no such option" };
       if (res.ok) picked = true;
       else if (res.reason === "unavailable") say(`  ${LOCKED_OPTION_REFUSAL}`);
       else say(`  (enter a valid choice number)`);
