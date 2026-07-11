@@ -19,6 +19,8 @@ export const LOCKED_OPTION_MARKER = `(unavailable)`;
 export const LOCKED_OPTION_REFUSAL = `That option isn't available.`;
 
 // The debrief instrument (§3) — fixed order, verbatim, asked one at a time after the session ends.
+// This is the SCENE-READ list (v0.2, unchanged): Q6 is "what would you do next"
+// because a scene read ends mid-life. Run Reads use RUN_DEBRIEF_QUESTIONS below.
 export const DEBRIEF_QUESTIONS: string[] = [
   `In a few sentences — what story do you think you just played?`,
   `What kind of story would you call it? And when did you first start thinking of it that way?`,
@@ -28,3 +30,25 @@ export const DEBRIEF_QUESTIONS: string[] = [
   `If you could keep playing, what would you do next, and why?`,
   `Last one — did anything about the experience itself, the way choices appeared or behaved, strike you as unusual?`,
 ];
+
+// The RUN-SCALE debrief (Protocol pack v0.3 §3, active per Azimuth's 07-11
+// ruling): Q1–Q5 carry; Q6 becomes the REPLAY question (the replay-pull metric
+// the cross-run design bets on); Q7 stays last. The PER-THREAD WALK-BACK sits
+// between Q3 and Q4 and is deliberately NOT a constant — the operator names
+// each thread in the READER'S OWN WORDS ("the aunt," "the man on the porch"):
+//   "Tell me about ___ — what was going on there, and how did it end up?"
+// Silent-mode runs insert the per-choice walk-back there too, keyed to the
+// trace's decision points.
+export const RUN_DEBRIEF_QUESTIONS: string[] = [
+  DEBRIEF_QUESTIONS[0],
+  DEBRIEF_QUESTIONS[1],
+  DEBRIEF_QUESTIONS[2],
+  DEBRIEF_QUESTIONS[3],
+  DEBRIEF_QUESTIONS[4],
+  `If you played again from the start, what would you do differently, and why?`,
+  DEBRIEF_QUESTIONS[6],
+];
+
+// Two-vessel chained reads ONLY, dead last after everything above — the
+// lightest possible probe for collision-noticing; anything heavier plants it.
+export const VESSEL_QUESTION = `Anything about this story feel connected to anything outside it?`;

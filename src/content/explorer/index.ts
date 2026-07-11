@@ -123,6 +123,17 @@ export const explorerDb: ContentDB = {
       deferForScheduled: ["ux_doug_break", "ux_pursue_authorities", "ux_pursue_drastic"],   // defer-terminal: no climax dies to the guillotine (the break; a mid-flight pursuit)
     },
     crossRun: { harvestFlags: ["denied_knife", "held_truth", "dale_suspected", "went_after_dale"] },   // the cross-run jewel's carriers (Denise)
+    // THE RETUNE (2026-07-11 — Azimuth's window ruling closes the loop the bots
+    // opened): the four Weight/fire switches ship ON at measured, ruled doses.
+    // The pack has no random-draw decks yet, so nothing in the wired game
+    // shifts today (harness outputs byte-identical, verified) — the first
+    // deck-borne content inherits tuned behavior instead of OFF defaults.
+    // Loopworld stays OFF (the A/B rig's baseline substrate); the cave stays
+    // frozen on its byte-identity gate.
+    diamondProximity: { enabled: true, strength: 0.3 },   // ruled window 15–30% relative, target ~22–25%; dose-response sweep: 0.30 → +22%
+    lensBias: { enabled: true, strength: 0.3 },           // contract window 10–20%; measured +18%, twice (A/B + sweep self-check)
+    antiRepeat: { enabled: true },                        // defaults (factor 0.5, memory 5); measured 26% → 21.7% immediate-repeat
+    bandNoise: { enabled: true },                         // default p 0.2; measured 19.3% adjacent-only leak, off-is-off verified
   },
   names: { first: ["Alex", "Sam", "Jo"], last: ["Vance", "Fields", "Marsh"] },
 };
