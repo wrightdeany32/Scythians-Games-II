@@ -63,3 +63,9 @@
 | bandNoise | 0.0% | 19.3% | adjacent-leak rate at a worn meter (p default 0.2) |
 
 *Every switch ships OFF; the OFF column is the shipped behavior. The ON deltas are each factor's isolated drift, per the ratified guardrail.*
+
+## 5 · Standing assertions & run-shape metrics (bots v2)
+
+- **Zero-displacement (ASSERTED)**: a run with no coordinated resolutions sits at both origins — **HOLDS**. Quiet-persona runs stayed out of coordinated content on every seed (confirmed).
+- **Terminal distribution** (9 runs): run_end_never_returned ×6 · run_end_whites_return ×3.
+- **Day-scale invisibility, as a number**: at the measured lensBias shares, the expected extra matching-flavor draws per day = k × 0.046 — at 1/2/3 draws a day: 0.05 / 0.09 / 0.14 extra draws. Perceptible across a run, statistically invisible within any single day — the contract's second half, measured.

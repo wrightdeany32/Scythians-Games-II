@@ -132,6 +132,49 @@ mkdirSync("coldreads", { recursive: true });
 writeFileSync(`coldreads/${fname}`, md);
 check("8 · sample transcript rendered to coldreads/", md.includes("# Cold read") && md.includes("Debrief"), `coldreads/${fname}`);
 
+// ---- Crits 9–10: the two-vessel collision, read end-to-end through the tool ---
+// Vessel A drives the Denise pursuit to its threshold terminal; the harvest
+// feeds vessel B, which earns Dale's bond and sits on the porch — where the
+// collision surfaces on a READER-FACING screen: nameless shame, never a word
+// of the prior run. Label-routed (never indices), so the route reads like a
+// reader's intent and survives menu reordering.
+function driveRouted(session: LoopSession, scenePrefs: string[], dayPrefs: string[], stopAtCard?: string): LoopScreen | undefined {
+  let guard = 0;
+  while (!session.done && guard++ < 500) {
+    const s = session.current;
+    if (stopAtCard && s.card === stopAtCard) return s;
+    let idx: number;
+    if (s.kind === "scene") {
+      const pref = s.options.find((o) => o.available && scenePrefs.some((p) => o.label.startsWith(p)));
+      idx = pref ? pref.index : firstAvailable(s);
+    } else {
+      const pref = s.options.find((o) => o.available && dayPrefs.some((p) => o.label.startsWith(p)));
+      idx = pref ? pref.index : s.options.length - 1;   // else: call it a day
+    }
+    if (!session.pick(idx, "").ok) break;
+  }
+  return undefined;
+}
+
+const vesselA = new LoopSession(explorerDb, baseOpts("read"));
+driveRouted(vesselA,
+  [`"What kind of bad things?"`, `"Then it's on me."`],
+  ["Go see Denise", "Look into Dale yourself"]);
+check("9 · vessel A: the pursuit reaches its threshold terminal through the reader tool",
+  vesselA.done && vesselA.current.terminal === "run_end_pursuit",
+  `terminal=${vesselA.current.terminal} · day=${vesselA.current.day}`);
+
+const harvest = vesselA.harvestInto(newCrossRunStore());
+const vesselB = new LoopSession(explorerDb, { ...baseOpts("read"), crossRun: harvest });
+const porch = driveRouted(vesselB,
+  [`"What kind of bad things?"`, `"…you're the first person`],
+  ["Go find Dale", "Drive out to Dale's porch"],
+  "ux_dale_porch");
+check("10 · vessel B: the collision surfaces on the porch, reader-facing and nameless",
+  !!porch && porch.prose.includes("unbearably ashamed of something you have never done") &&
+  !porch.prose.includes("another") && vesselB.flag("went_after_dale") === true,
+  porch ? `porch reached day ${porch.day}` : "porch never reached");
+
 // ---- report ----------------------------------------------------------------
 const line = (s = "") => console.log(s);
 line(`\n=== Loop cold-read hardware — acceptance ===\n`);
