@@ -50,7 +50,7 @@ function drive(session: LoopSession, withNotes: boolean): number[] {
   let guard = 0;
   while (!session.done && guard++ < 500) {
     const s = session.current;
-    const idx = s.kind === "scene" ? firstAvailable(s) : chooseDay(s);
+    const idx = s.kind === "day" ? chooseDay(s) : firstAvailable(s);   // scene AND creation screens: first available
     picks.push(idx);
     const r = session.pick(idx, withNotes ? `[reader think-aloud for ${s.card}]` : "");
     if (!r.ok) break;   // the policy shouldn't hit a refusal; bail rather than spin
@@ -177,6 +177,29 @@ check("10 · vessel B: the collision surfaces on the porch, reader-facing and na
   !porch.prose.includes("another life") && !porch.prose.includes("another run") &&
   vesselB.flag("went_after_dale") === true,
   porch ? `porch reached day ${porch.day}` : "porch never reached");
+
+// ---- Crit 11: the start-deck creation phase, through the console -------------
+// Opt-in only (Azimuth's cutover ruling: legacy stays the read program's
+// baseline until Loom's questions land) — this proves the machinery: creation
+// screens surface first, the deal is invisible, the monotonic step line runs
+// unbroken from the first question to the terminal, and the dealt run drives
+// to a designed end exactly like a legacy run.
+const deckRun = new LoopSession(explorerDb, { ...baseOpts("read"), startDeck: true });
+const sawCreation = deckRun.current.kind === "creation" && deckRun.current.day === 0;
+drive(deckRun, false);
+const deckPres = presentations(deckRun.recorder.stream().records);
+const creationScreens = deckPres.filter((p) => p.card.startsWith("__creation_"));
+const dealLeak = deckPres.find((p) =>
+  p.prose.includes("start_") || p.options.some((o) => o.label.includes("start_")));
+const monotonic = deckPres.every((p, i) => i === 0 || p.step > deckPres[i - 1].step);
+check("11 · start-deck: creation surfaces first, deal invisible, one step line, and the dealt run IS the legacy run",
+  sawCreation && creationScreens.length > 0 && !dealLeak && monotonic &&
+  deckRun.done && TERMINALS.has(deckRun.current.terminal ?? "") &&
+  // The creation-scoped deal stream, visible at console level: same seed +
+  // same policy ⇒ the dealt run and the legacy run land the same terminal on
+  // the same day (the reunion is the deck's one start; gameplay RNG untouched).
+  deckRun.current.terminal === run1.current.terminal && deckRun.current.day === run1.current.day,
+  `creation screens=${creationScreens.length} · terminal=${deckRun.current.terminal} · day=${deckRun.current.day} (matches legacy)`);
 
 // ---- report ----------------------------------------------------------------
 const line = (s = "") => console.log(s);
