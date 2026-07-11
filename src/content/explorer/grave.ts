@@ -16,6 +16,7 @@ import type { GameEvent, LocationAction } from "../../engine/types";
 export const graveActions: LocationAction[] = [
   {
     id: "ux_act_grave_visit",
+    tiredText: "Not today. Your legs are done, and you know it.",
     name: "Go out to the old cemetery",
     sub: "Past the church, against the treeline. The grave Marie won't visit.",
     cost: 1,
@@ -39,7 +40,7 @@ export const graveEvents: Record<string, GameEvent> = {
     body:
 `The old cemetery is where Marie said — past the church, right up against the treeline, the woods leaning over the back wall like they're waiting for it. The new part is lawns and flat markers. The old part, back near the trees, is different: above-ground, the way they did it here once, small stone vaults and family crypts gone soft-edged with a century of weather.
 
-You find the Fields vault against the back wall. Small. A family's worth of stone, and the newest name on it, cut sharper than the rest because it was cut later — a child's name, and a child's dates, fifty years apart from nothing because the fifty years never came.
+You find the Fields vault against the back wall. Small. A family's worth of stone, and the newest name on it, cut sharper than the rest because it was cut later — a child's name, and a child's dates, forty years apart from nothing because the forty years never came.
 
 Marie has never stood here. In forty years she couldn't make herself. You're standing here because she couldn't, and because some part of you has to know the thing she's been too afraid to know.
 

@@ -20,6 +20,7 @@ import type { GameEvent, LocationAction } from "../../engine/types";
 export const daleActions: LocationAction[] = [
   {
     id: "ux_act_dale_visit",
+    tiredText: "Not today. You haven't got the face for people right now.",
     name: "Go find Dale",
     sub: "The last house on a dead-end road. Marie said to talk to him yourself.",
     cost: 1,
@@ -39,6 +40,7 @@ export const daleActions: LocationAction[] = [
   // Loom's cross-run collision extra rides (the ux_dale_porch card below).
   {
     id: "ux_act_dale_porch",
+    tiredText: "Not today. You haven't got the face for people right now.",
     name: "Drive out to Dale's porch",
     sub: "About the only house in this county nobody's watching.",
     cost: 1,

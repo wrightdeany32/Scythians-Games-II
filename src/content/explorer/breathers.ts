@@ -38,6 +38,7 @@ export const breatherActions: LocationAction[] = [
   },
   {
     id: "ux_life_dinner",
+    tiredText: "Not today. You haven't got the face for people right now.",
     name: "Cook something",
     sub: "Nothing ambitious. The thing you know how to make without thinking.",
     cost: 1,
@@ -50,6 +51,7 @@ export const breatherActions: LocationAction[] = [
   },
   {
     id: "ux_life_call",
+    tiredText: "Not today. You haven't got the face for people right now.",
     name: "Call someone from before",
     sub: "A friend, a sibling, a parent — someone whose world has never touched the woods.",
     cost: 1,
@@ -73,6 +75,7 @@ export const breatherActions: LocationAction[] = [
   },
   {
     id: "ux_life_morning",
+    tiredText: "Not today. Your legs are done, and you know it.",
     name: "Take the morning slow",
     sub: "You woke before the alarm, and the light's good, and there's coffee.",
     cost: 1,
@@ -111,6 +114,7 @@ export const breatherActions: LocationAction[] = [
   },
   {
     id: "ux_life_walk",
+    tiredText: "Not today. Your legs are done, and you know it.",
     name: "Go for a walk",
     sub: "No destination, nobody's pace but your own. Not the woods.",
     cost: 1,

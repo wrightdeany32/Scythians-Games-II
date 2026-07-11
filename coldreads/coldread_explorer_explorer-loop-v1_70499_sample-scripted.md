@@ -208,17 +208,17 @@ You shove the pack ahead of you through the pinch and come out with nothing on y
 Week 1 · Mon
 
 Options:
-1. Run with Doug — The six a.m. ritual — the fire road out past the reservoir.  *(unavailable)*
-2. Research the mark — You sketch it from memory. Somebody, somewhere, has seen this before.  *(unavailable)*
-3. Look up what caves do to people — The other thing. The rock, the air, the body. What's actually known.  *(unavailable)*
-4. Work a shift — You have a job, because everyone has a job.  *(unavailable)*
-5. Cook something — Nothing ambitious. The thing you know how to make without thinking.  *(unavailable)*
-6. Call someone from before — A friend, a sibling, a parent — someone whose world has never touched the woods.  *(unavailable)*
-7. Run the errands — Groceries. The hardware store. The post office. The ordinary list.  *(unavailable)*
-8. Take the morning slow — You woke before the alarm, and the light's good, and there's coffee.  *(unavailable)*
-9. An evening in — Nothing on. Nothing owed. An early night.  *(unavailable)*
-10. Go for a walk — No destination, nobody's pace but your own. Not the woods.  *(unavailable)*
-11. Go back to White's Hall — Neither of you has said out loud that you can't stop thinking about it.  *(unavailable)*
+1. Run with Doug — The six a.m. ritual — the fire road out past the reservoir.  — *Not today. Your legs are done, and you know it.*
+2. Research the mark — You sketch it from memory. Somebody, somewhere, has seen this before.  — *Not today. The words would just swim; you'd be staring at nothing.*
+3. Look up what caves do to people — The other thing. The rock, the air, the body. What's actually known.  — *Not today. The words would just swim; you'd be staring at nothing.*
+4. Work a shift — You have a job, because everyone has a job.  — *Not today — there's nothing left in you for it.*
+5. Cook something — Nothing ambitious. The thing you know how to make without thinking.  — *Not today. You haven't got the face for people right now.*
+6. Call someone from before — A friend, a sibling, a parent — someone whose world has never touched the woods.  — *Not today. You haven't got the face for people right now.*
+7. Run the errands — Groceries. The hardware store. The post office. The ordinary list.  — *Not today — there's nothing left in you for it.*
+8. Take the morning slow — You woke before the alarm, and the light's good, and there's coffee.  — *Not today. Your legs are done, and you know it.*
+9. An evening in — Nothing on. Nothing owed. An early night.  — *Not today — there's nothing left in you for it.*
+10. Go for a walk — No destination, nobody's pace but your own. Not the woods.  — *Not today. Your legs are done, and you know it.*
+11. Go back to White's Hall — Neither of you has said out loud that you can't stop thinking about it.  — *Not today. Your legs are done, and you know it.*
 12. Call it a day.
 
 **Reader:** [reader think-aloud for __day__]

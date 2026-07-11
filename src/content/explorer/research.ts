@@ -24,6 +24,7 @@ import type { GameEvent, LocationAction } from "../../engine/types";
 export const researchActions: LocationAction[] = [
   {
     id: "ux_act_research_symbol",
+    tiredText: "Not today. The words would just swim; you'd be staring at nothing.",
     name: "Research the mark",
     sub: "You sketch it from memory. Somebody, somewhere, has seen this before.",
     cost: 1,
@@ -37,6 +38,7 @@ export const researchActions: LocationAction[] = [
   },
   {
     id: "ux_act_research_ground",
+    tiredText: "Not today. The words would just swim; you'd be staring at nothing.",
     name: "Look up what caves do to people",
     sub: "The other thing. The rock, the air, the body. What's actually known.",
     cost: 1,
@@ -50,6 +52,7 @@ export const researchActions: LocationAction[] = [
   },
   {
     id: "ux_act_research_property",
+    tiredText: "Not today. The words would just swim; you'd be staring at nothing.",
     name: "Pull the property records",
     sub: "The paper a place leaves behind when it dies.",
     cost: 1,

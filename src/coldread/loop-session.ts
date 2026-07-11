@@ -62,7 +62,7 @@ export interface LoopScreen {
   step: number;
   card: string;                // scene card id, or "__day__", or "__run_over__"
   prose: string;
-  options: { index: number; label: string; available: boolean }[];
+  options: { index: number; label: string; available: boolean; lockedReason?: string }[];
   day: number;
   dateLabel?: string;
   over: boolean;
@@ -70,6 +70,10 @@ export interface LoopScreen {
 }
 
 const END_LABEL = "Call it a day.";
+// The generic fatigue line (Loom's), the fallback when an action carries no
+// tiredText of its own - same precedent as DEFAULT_OPENING_LOG: an engine
+// fallback for unauthored content, overridden per action in the pack.
+const TIRED_DEFAULT = "Not today — there's nothing left in you for it.";
 
 export class LoopSession {
   readonly recorder: Recorder;
@@ -290,7 +294,13 @@ export class LoopSession {
 
   private presentDay(): void {
     const menu = dayMenu(this.g, this.db);
-    const options = menu.actions.map((a, i) => ({ index: i, label: dayLabel(a), available: a.cost <= menu.energy }));
+    // Day-menu greying is only ever energy, so a greyed option carries its
+    // diegetic fatigue line (tired-vs-gone: absence means gone; greyed says
+    // why, in the fiction, never as a number).
+    const options: LoopScreen["options"] = menu.actions.map((a, i) => ({
+      index: i, label: dayLabel(a), available: a.cost <= menu.energy,
+      ...(a.cost <= menu.energy ? {} : { lockedReason: a.tiredText ?? TIRED_DEFAULT }),
+    }));
     options.push({ index: menu.actions.length, label: END_LABEL, available: true });
     let prose = menu.dateLabel;   // diegetic date only — never energy/stats
     if (this.showJournal) {
@@ -302,7 +312,7 @@ export class LoopSession {
     if (this.mode === "read") {
       this.recorder.pushPresentation({
         step: this.stepSeq, card: "__day__", prose,
-        options: options.map((o) => ({ index: o.index, label: o.label, available: o.available, showWhenLocked: !o.available })),
+        options: options.map((o) => ({ index: o.index, label: o.label, available: o.available, showWhenLocked: !o.available, ...(o.lockedReason ? { lockedReason: o.lockedReason } : {}) })),
       });
     }
   }

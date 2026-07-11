@@ -51,7 +51,7 @@ if (picks.length === 0) { out.push(FRAMING_SCRIPT, "", "---", ""); }   // first 
 out.push(s.current.prose);
 if (s.current.options.length) {
   out.push("");
-  s.current.options.forEach((o, pos) => out.push(`${pos + 1}. ${o.label}${o.available ? "" : "  (unavailable)"}`));
+  s.current.options.forEach((o, pos) => out.push(`${pos + 1}. ${o.label}${o.available ? "" : o.lockedReason ? `  — ${o.lockedReason}` : "  (unavailable)"}`));
 }
 process.stdout.write(out.join("\n") + "\n");
 
