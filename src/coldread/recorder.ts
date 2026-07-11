@@ -20,6 +20,11 @@ export interface StreamStamp {
   buildTag: string;
   seed: number;
   schemaVersion: number;
+  // A chained (two-vessel) read is SELF-DESCRIBING for replay: the cross-run
+  // seeds injected at newGame are part of "same seed + same picks", so vessel
+  // B's stream stamps what it was born carrying (v0.3 rider; additive within
+  // schema v1 — absent means a first vessel).
+  crossRunSeeds?: Record<string, boolean | number | string>;
 }
 
 // Engine-side truth for one resolved step.

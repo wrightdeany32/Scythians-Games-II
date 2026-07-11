@@ -81,7 +81,14 @@ export class LoopSession {
     this.db = db;
     this.mode = opts.mode ?? "read";
     this.showJournal = opts.showJournal ?? false;
-    this.recorder = new Recorder({ contentId: opts.contentId, buildTag: opts.buildTag, seed: opts.seed });
+    this.recorder = new Recorder({
+      contentId: opts.contentId, buildTag: opts.buildTag, seed: opts.seed,
+      // Vessel B stamps what it was born carrying (v0.3: a chained read is
+      // self-describing for replay). Absent/empty store ⇒ no field — first-
+      // vessel stamps stay byte-identical to before.
+      ...(opts.crossRun?.seeds && Object.keys(opts.crossRun.seeds).length
+        ? { crossRunSeeds: { ...opts.crossRun.seeds } } : {}),
+    });
     this.g = newGame(
       {
         seed: opts.seed, name: opts.playerName ?? "You", age: 25,
