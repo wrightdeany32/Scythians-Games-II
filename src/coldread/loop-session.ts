@@ -69,7 +69,12 @@ export class LoopSession {
   private showJournal: boolean;
   private hooks: SceneHooks;
   private scene?: SceneRunner;    // the live scene, when one is playing
-  private stepSeq = 0;            // monotonic step for the synthesized day/end screens
+  // One monotonic step counter for the WHOLE run's stream (Azimuth's rider:
+  // stream-level tooling sorts by step, so per-scene restarts would collide).
+  // stepSeq is the run-level high-water mark; stepBase anchors each scene's
+  // local 1..N counter onto it, so scene, day, and end screens share one line.
+  private stepSeq = 0;
+  private stepBase = 0;
   private screen!: LoopScreen;
 
   constructor(db: ContentDB, opts: LoopSessionOpts) {
@@ -87,11 +92,12 @@ export class LoopSession {
     );
     this.hooks = {
       onScreen: (s) => {
-        if (this.mode === "read") this.recorder.pushPresentation({ step: s.step, card: s.card, prose: s.prose, options: s.options });
+        this.stepSeq = this.stepBase + s.step;
+        if (this.mode === "read") this.recorder.pushPresentation({ step: this.stepBase + s.step, card: s.card, prose: s.prose, options: s.options });
       },
       onResolve: (r) => {
         this.recorder.pushTrace({
-          step: r.step, day: r.day, card: r.card, choiceIndex: r.choiceIndex, choiceLabel: r.choiceLabel,
+          step: this.stepBase + r.step, day: r.day, card: r.card, choiceIndex: r.choiceIndex, choiceLabel: r.choiceLabel,
           statDeltas: r.statDeltas, flagsChanged: r.flagsChanged, roll: r.roll,
           band: r.band ?? { trueBand: null, resolvedBand: null }, exposure: r.exposure,
         });
@@ -157,6 +163,7 @@ export class LoopSession {
     const action = menu.actions[idx];
     if (this.g.player.stats.energy < action.cost) return { ok: false, reason: "too tired" };   // greyed — no state touched
     if (this.mode === "read") this.recorder.pushReader({ step: this.screen.step, card: "__day__", note, pick: idx, pickLabel: dayLabel(action) });
+    this.stepBase = this.stepSeq;
     const res = runAction(this.g, this.db, action.id, this.hooks);
     if (!res.ok) return { ok: false, reason: res.reason };
     this.scene = res.runner!;
@@ -170,6 +177,7 @@ export class LoopSession {
   // scene and hands control to the reader — draining continues in afterScene().
   private enterMorning(): void {
     if (runStatus(this.g, this.db).over) return this.presentEnd();
+    this.stepBase = this.stepSeq;
     const r = startQueuedScene(this.g, this.db, this.hooks);
     if (r) { this.scene = r; this.syncScene(); }
     else this.presentDay();
@@ -183,6 +191,7 @@ export class LoopSession {
     this.scene = undefined;
     if (runStatus(this.g, this.db).over) return this.presentEnd();
     if (this.g.queue.length) {
+      this.stepBase = this.stepSeq;
       const r = startQueuedScene(this.g, this.db, this.hooks);
       if (r) { this.scene = r; return this.syncScene(); }
     }
@@ -192,7 +201,7 @@ export class LoopSession {
   private syncScene(): void {
     const s = this.scene!.current;
     this.screen = {
-      kind: "scene", step: s.step, card: s.card, prose: s.prose,
+      kind: "scene", step: this.stepBase + s.step, card: s.card, prose: s.prose,
       options: s.options.map((o) => ({ index: o.index, label: o.label, available: o.available })),
       day: this.g.day, over: false,
     };

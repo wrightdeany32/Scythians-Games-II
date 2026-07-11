@@ -27,6 +27,11 @@ const picks = args.slice(1).map(Number);   // 1-based reader choices
 const s = new LoopSession(explorerDb, {
   contentId: EXPLORER_CONTENT_ID, seed, buildTag: BUILD_TAG,
   tier: "outer", townId: "town_edge", mode: "read",
+  // Protocol v0.3 §2: the journal is ON for Run Reads — the consultable
+  // "what you know" surface is the fairness prerequisite (without it, Q4
+  // measures memory decay, not reading). Scene reads (relay.ts) have no day
+  // screen, so this is the one console the ruling touches.
+  showJournal: true,
 });
 
 for (let i = 0; i < picks.length; i++) {
