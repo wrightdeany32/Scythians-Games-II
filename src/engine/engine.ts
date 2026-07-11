@@ -692,7 +692,8 @@ export interface NewGameOpts {
   name: string;
   age: number;
   body: BodyArchetype;
-  answers?: number[];      // chosen answer index per questionnaire question (omit if creation is played cards)
+  answers?: number[];      // chosen answer index per questionnaire/creation question (omit if creation is played cards)
+  startId?: string;        // the dealt (or pinned) start from db.starts — the start-deck path; omit for legacy
   townId: string;
   tier: Tier;
   openingQueue?: string[]; // overrides db.openingQueue for this game (scripted cold-open, in order)
@@ -721,15 +722,36 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
   // hooks seed the diamond origin; the creation-lens choice seeds the lens
   // origin). No questionnaire → no entries → neutral origins. Creation played
   // as CARDS seeds the log by the ordinary resolveChoice path instead.
-  const seedOrigin = (ans: { diamondCoord?: DiamondCoord; lensFlavor?: string }): void => {
+  const seedOrigin = (ans: { diamondCoord?: DiamondCoord; lensFlavor?: string; attune?: number }): void => {
     const entry = coordEntry(0, ans);   // the one entry builder — creation and play can't drift in shape
     if (entry) coordLog.push(entry);
   };
 
-  // Questionnaire is OPTIONAL now (creation can be played cards). Apply it only if present.
-  const q = db.questionnaire;
   const answers = opts.answers ?? [];
-  if (q && q.questions.length) {
+  // The start-deck path: a dealt (or pinned) start seats the run. Its
+  // creationCommon + specialized questions apply on the SAME shape as the
+  // questionnaire; the start then supplies town/tier, origin seedFlags, and the
+  // cold-open (resolved into the returned state below). Backfill-safe: no
+  // startId → the legacy questionnaire path, byte-identical.
+  const start = opts.startId ? (db.starts ?? []).find((s) => s.id === opts.startId) : undefined;
+  if (opts.startId && !start) throw new Error(`start not found: ${opts.startId}`);
+  const q = db.questionnaire;
+
+  if (start) {
+    const questions = [...(db.creationCommon ?? []), ...(start.questions ?? [])];
+    questions.forEach((question, i) => {
+      const ans = question.answers[answers[i] ?? 0];
+      if (!ans) return;
+      if (ans.base) Object.assign(stats, ans.base);
+      if (ans.archetype) archetype = ans.archetype;
+      if (ans.patch) for (const k in ans.patch) (stats as any)[k] += (ans.patch as any)[k];
+      if (ans.flag) flags[ans.flag] = true;
+      seedOrigin(ans);
+      // `profile` is pre-game scratch consumed by the DEAL upstream (engine/creation.ts) — never game state.
+    });
+    if (start.seedFlags) Object.assign(flags, start.seedFlags);
+  } else if (q && q.questions.length) {
+    // Legacy questionnaire (unchanged): q0 sets base/archetype, q1+ patch.
     const a0 = q.questions[0].answers[answers[0] ?? 0];
     if (a0) {
       if (a0.base) Object.assign(stats, a0.base);
@@ -752,8 +774,8 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
     seed: opts.seed,
     rngState: seedToState(opts.seed),
     day: 1,
-    tier: opts.tier,
-    townId: opts.townId,
+    tier: start?.tier ?? opts.tier,       // the dealt start seats the run; else the caller's opts
+    townId: start?.townId ?? opts.townId,
     player: {
       name: opts.name, age: opts.age, archetype, body: opts.body,
       portrait: { face: "f1", skin: "s1", hair: "h1" },
@@ -772,7 +794,7 @@ export function newGame(opts: NewGameOpts, db: ContentDB): GameState {
     // content dropped does not resurrect from an old store.
     factions: seedFactions(db, opts.crossRun),
     flags,
-    queue: [...(opts.openingQueue ?? db.openingQueue ?? [])], // seed the scripted cold-open, in order
+    queue: [...(start ? start.openingQueue : (opts.openingQueue ?? db.openingQueue ?? []))], // the start's cold-open, else legacy
     log: [{ text: db.openingLog ?? DEFAULT_OPENING_LOG, tone: "n" }],
   };
 }

@@ -166,6 +166,42 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
   if (exp?.consequenceEvent) refEvent("exposure tuning", exp.consequenceEvent, "consequenceEvent");
   else if (db.events["ev_exposure_discharge"]) referenced.add("ev_exposure_discharge");   // the engine default, if content shipped one
 
+  // -- the creation deck (the start-deck) -----------------------------------------
+  const creationCommon = db.creationCommon ?? [];
+  const starts = db.starts ?? [];
+  const allCreationQs = [...creationCommon, ...starts.flatMap((s) => s.questions ?? [])];
+  allCreationQs.forEach((question, qi) => {
+    question.answers.forEach((a, ai) => {
+      checkCoord(issues, `creation q${qi} a${ai}`, a.diamondCoord);
+      checkAttune(issues, `creation q${qi} a${ai}`, a.attune);
+      if (a.flag) setFlags.add(a.flag);   // creation answers set flags too — keep the flag-web honest
+    });
+  });
+  if (starts.length) {
+    // Fallback totality (deal safety): at least one start must be unqualified,
+    // so no profile can deal into an empty set.
+    if (!starts.some((s) => !s.qualifiers)) {
+      err("starts", "no fallback start — every start carries qualifiers, so a profile could deal into an empty set; give at least one start no qualifiers");
+    }
+    const startIds = new Set<string>();
+    for (const s of starts) {
+      if (startIds.has(s.id)) err(`start ${s.id}`, "duplicate start id");
+      startIds.add(s.id);
+      if (s.weight != null && s.weight <= 0) err(`start ${s.id}`, `weight must be > 0 (got ${s.weight})`);
+      if (!s.openingQueue.length) warn(`start ${s.id}`, "empty openingQueue — the run begins with no cold-open");
+      for (const id of s.openingQueue) refEvent(`start ${s.id}`, id, "start openingQueue");
+      for (const k in s.seedFlags ?? {}) setFlags.add(k);
+      checkCoord(issues, `start ${s.id} coord`, s.coord);
+    }
+    // Profile flag-web: qualifiers READ profile keys; common answers WRITE them.
+    const profileWritten = new Set<string>();
+    for (const q of creationCommon) for (const a of q.answers) for (const k in a.profile ?? {}) profileWritten.add(k);
+    const profileRead = new Set<string>();
+    for (const s of starts) { conditionFlagReads(s.qualifiers, profileRead); conditionCounterFlags(s.qualifiers, profileRead); }
+    for (const k of profileRead) if (!profileWritten.has(k)) warn("starts", `qualifier reads profile key "${k}" that no common answer writes — a gate that can never pass`);
+    for (const k of profileWritten) if (!profileRead.has(k)) warn("creationCommon", `profile key "${k}" written but no start's qualifiers read it (fine if held for a future start)`);
+  }
+
   // -- once-flag advice: "fires once" reads the once flag --------------------------
   const wantsOnce: [string, string | undefined][] = [
     ...(db.doors ?? []).map((d): [string, string | undefined] => ["door", d.eventId]),

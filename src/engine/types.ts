@@ -260,6 +260,45 @@ export interface Questionnaire {
   }[];
 }
 
+// ---- the creation deck (the start-deck; spec v3.3 §7, built to Armature's review) ----
+// A creation ANSWER — today's questionnaire-answer shape, plus `profile`: the
+// pre-game scratch keys the DEAL reads. base/archetype set on the answer that
+// establishes the character; patch tweaks; coordinate/flavor/attune seed the
+// index-0 origins on the SAME builder as the questionnaire (creation and play
+// can't drift in shape), so orientation-at-creation is the index-0 attune —
+// no second field, no second fence (the §6 ruling).
+export interface CreationAnswer {
+  label: string;
+  archetype?: string;
+  base?: Partial<Stats>;
+  patch?: Partial<Stats>;
+  flag?: string;
+  diamondCoord?: DiamondCoord;
+  lensFlavor?: string;
+  attune?: number;
+  profile?: Record<string, boolean | number | string>;   // deal-profile keys — pre-game scratch, NEVER game state
+}
+export interface CreationQuestion { q: string; answers: CreationAnswer[]; }
+
+// A START — a card in the creation deck. The deal picks ONE (weighted, filtered
+// by the profile the common questions built), and it seats the run: its
+// town/tier, its origin seedFlags, its cold-open, and its own specialized
+// questions (phase two). `coord` is register metadata (Concordance's coverage
+// view + the linter's corner/edge accounting) — read by NOTHING at runtime,
+// never written to state. Dean's framing: the first events are the intro/menu
+// (creationCommon), then this card is drawn and it decides the scenario.
+export interface StartDef {
+  id: string;
+  townId: string;                 // seats the run (single source of truth for a dealt run)
+  tier: Tier;
+  openingQueue: string[];         // the scenario's cold-open beats
+  qualifiers?: Condition;         // deal eligibility, evaluated against the profile
+  weight?: number;                // deal weight among eligible starts (default 1)
+  questions?: CreationQuestion[]; // the start's specialized questions (phase two)
+  seedFlags?: Record<string, boolean | number | string>;  // origin_* etc., seeded at newGame
+  coord?: DiamondCoord;           // register metadata only — never read at runtime
+}
+
 // ---- engine tuning (optional; the engine falls back to these exact defaults) ----
 // A SEAM, not a retune: numbers the engine used to hardcode, lifted into content
 // so a reskin can drop in new values, a new liability-meter feel, and a new
@@ -385,6 +424,12 @@ export interface ContentDB {
   endings?: { eventId: string; when?: Condition }[];
   openingLog?: string;                   // first line in the new-game log; engine falls back if absent
   openingQueue?: string[];               // event ids seeded into g.queue at new-game (scripted cold-open, in order)
+  // The creation deck (the start-deck). `creationCommon` = the deck's shared
+  // phase-one questions (the intro/menu); `starts` = the cards the deal picks
+  // from. Both OPTIONAL and backfill-safe: a pack with no `starts` uses the
+  // legacy questionnaire/openingQueue path verbatim (newGame ignores startId).
+  creationCommon?: CreationQuestion[];
+  starts?: StartDef[];
   // The JOURNAL mapping (the Run-Read prerequisite, shape blessed by Loom):
   // an ordered, content-authored list of flag-gated lines — WHAT THE PLAYER
   // KNOWS, percepts only, never a line for what they concluded. The surface is
