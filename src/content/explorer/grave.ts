@@ -24,7 +24,7 @@ export const graveActions: LocationAction[] = [
       of: [{ kind: "flag", flag: "grave_suspicion" }, { kind: "noflag", flag: "grave_confirmed_empty" }],
     },
     outcome: {
-      log: "You drive out past the church as the light goes long, to the place Marie has spent fifty years not driving to.",
+      log: "You drive out past the church as the light goes long, to the place Marie has spent forty years not driving to.",
       tone: "n",
       queueEvent: "ux_grave_visit",
     },
@@ -41,7 +41,7 @@ export const graveEvents: Record<string, GameEvent> = {
 
 You find the Fields vault against the back wall. Small. A family's worth of stone, and the newest name on it, cut sharper than the rest because it was cut later — a child's name, and a child's dates, fifty years apart from nothing because the fifty years never came.
 
-Marie has never stood here. In fifty years she couldn't make herself. You're standing here because she couldn't, and because some part of you has to know the thing she's been too afraid to know.
+Marie has never stood here. In forty years she couldn't make herself. You're standing here because she couldn't, and because some part of you has to know the thing she's been too afraid to know.
 
 The vault has a face plate. It isn't locked. Nothing out here is locked; who would come?`,
     choices: [
@@ -69,7 +69,7 @@ Inside, it's dark, and small, and dry, and there is a shelf of stone the length 
 
 And there's nothing on it.
 
-Not disturbed. Not scattered. Not robbed, with the mess a robbing leaves. *Empty* — clean, still, undisturbed, a stone shelf cut for a small coffin that holds a stone shelf and dust and the dark, and has, you understand with a slow cold certainty, held exactly that for fifty years. There was never anything here to disturb. The name is on the front and the dates are on the front and behind the front there is a made bed that was never slept in.
+Not disturbed. Not scattered. Not robbed, with the mess a robbing leaves. *Empty* — clean, still, undisturbed, a stone shelf cut for a small coffin that holds a stone shelf and dust and the dark, and has, you understand with a slow cold certainty, held exactly that for forty years. There was never anything here to disturb. The name is on the front and the dates are on the front and behind the front there is a made bed that was never slept in.
 
 You stand there a long time with the plate in your hands and the dark in front of you and the woods at your back, and you do not have a single thought that resolves into anything. You just look at the empty place where a child is supposed to be, and let it be as empty as it is.`,
     choices: [
@@ -87,7 +87,7 @@ You stand there a long time with the plate in your hands and the dark in front o
         label: `"She was never buried. There was never anything to bury."`,
         lensFlavor: "spiritual",
         outcome: {
-          log: "The thought arrives whole and you can't push it back out: that this was always a made bed, that they held a service over an empty box because a town needs a place to put its grief, and that Ellen Fields went into those woods fifty years ago and simply never came out — not to a grave, not to anywhere. You close the plate. Your hands aren't quite steady. You don't know what you believe. You know what you felt, standing there, and you'll never be able to prove it, and you'll never be able to unfeel it.",
+          log: "The thought arrives whole and you can't push it back out: that this was always a made bed, that they held a service over an empty box because a town needs a place to put its grief, and that Ellen Fields went into those woods forty years ago and simply never came out — not to a grave, not to anywhere. You close the plate. Your hands aren't quite steady. You don't know what you believe. You know what you felt, standing there, and you'll never be able to prove it, and you'll never be able to unfeel it.",
           tone: "b",
           setFlags: { read_grave_taken: true, grave_confirmed_empty: true },
           queueEvent: "ux_grave_close",
@@ -115,7 +115,7 @@ You stand there a long time with the plate in your hands and the dark in front o
 
 Maybe Marie has the right of it. Maybe there are things you leave closed — not because you're afraid of what's inside, or not only, but because some doors, once opened, don't close again in you. You stand with your hand on the stone for a moment, the way you'd stand with a hand on a shoulder, and then you take it back, and you leave the old cemetery with the woods watching you go.
 
-You'll never know now. You chose not to. And the not-knowing rides home with you, lighter than the knowing would have been and heavier than nothing, and you understand a little better why an old woman spent fifty years not driving out here.`,
+You'll never know now. You chose not to. And the not-knowing rides home with you, lighter than the knowing would have been and heavier than nothing, and you understand a little better why an old woman spent forty years not driving out here.`,
     choices: [
       {
         label: `"It's better not to know."`,
@@ -142,7 +142,7 @@ You'll never know now. You chose not to. And the not-knowing rides home with you
       {
         when: { kind: "flag", flag: "grave_confirmed_empty" },
         text:
-`Whatever you decided it means — and you decided nothing, not really, because there's nothing here to decide it *with* — the shape of it goes home with you: a made bed no one slept in, a name cut sharp on a stone, and a whole town that laid a child to rest without ever once asking where the child went. Marie was right to be afraid. She was afraid of exactly the right thing, for exactly fifty years, and the only thing worse than her fear is how quiet the answer is.`,
+`Whatever you decided it means — and you decided nothing, not really, because there's nothing here to decide it *with* — the shape of it goes home with you: a made bed no one slept in, a name cut sharp on a stone, and a whole town that laid a child to rest without ever once asking where the child went. Marie was right to be afraid. She was afraid of exactly the right thing, for exactly forty years, and the only thing worse than her fear is how quiet the answer is.`,
       },
     ],
     choices: [

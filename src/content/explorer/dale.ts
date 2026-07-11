@@ -113,11 +113,11 @@ Something moves in his face at *Marie*. The brace comes down, an inch. "Marie," 
 
 And then, because you asked, or because it's been so long since anyone let him, he tells it. The old story, worn smooth as a river stone by a thousand tellings to people who'd already decided he was lying.
 
-"We were kids. Out in those woods at night, like kids did. Ellen and me were — we were sweet on each other, is all. Nothing to it. We went off from the others for a few minutes, the way you do." His hands are still around his cup. "And something came out of the dark and took her. I've never had better words than that in fifty years and I've tried them all. It was fast, and it was quiet, and it was *wrong*, and she was there and then she wasn't, and I was screaming and there was nothing — there was nothing I could do, I was fourteen and there was *nothing I could do.*"
+"We were kids. Out in those woods at night, like kids did. Ellen and me were — we were sweet on each other, is all. Nothing to it. We went off from the others for a few minutes, the way you do." His hands are still around his cup. "And something came out of the dark and took her. I've never had better words than that in forty years and I've tried them all. It was fast, and it was quiet, and it was *wrong*, and she was there and then she wasn't, and I was screaming and there was nothing — there was nothing I could do, I was fourteen and there was *nothing I could do.*"
 
 He looks at you, and there's no performance in it, just an old grief worn into the bone.
 
-"And I ran back and I told them, and they looked at me the way you'd look at a boy who did something to a girl and made up a story. And they've looked at me that way every day since. Fifty years. My own life, spent being the thing that took her, in everybody's eyes but mine and — " a breath " — and Marie's, apparently. God bless Marie."`,
+"And I ran back and I told them, and they looked at me the way you'd look at a boy who did something to a girl and made up a story. And they've looked at me that way every day since. Forty years. My own life, spent being the thing that took her, in everybody's eyes but mine and — " a breath " — and Marie's, apparently. God bless Marie."`,
     choices: [
       {
         label: `"I believe you, Dale."`,
@@ -129,7 +129,7 @@ He looks at you, and there's no performance in it, just an old grief worn into t
         },
       },
       {
-        label: `"…how do you live with people thinking that, for fifty years?"`,
+        label: `"…how do you live with people thinking that, for forty years?"`,
         outcome: {
           log: "'You don't live with it,' he says. 'You live under it. There's a difference, and I hope you never learn it.' He turns his cup. 'You get small. You keep to your house. You stop going where people are, so they don't have to decide what to do with their faces when they see you. And you get old alone at the end of a dead-end road. That's how.'",
           tone: "n",
@@ -138,7 +138,7 @@ He looks at you, and there's no performance in it, just an old grief worn into t
         },
       },
       {
-        label: `Or he's a very good liar who's had fifty years to practice.`,
+        label: `Or he's a very good liar who's had forty years to practice.`,
         requires: { kind: "flag", flag: "dale_wary" },
         attune: -0.25,
         outcome: {
@@ -160,7 +160,7 @@ He looks at you, and there's no performance in it, just an old grief worn into t
 
 And Dale — the man the town made into its ghost story — gives you the most grounded answer you've heard from anyone.
 
-"I'll tell you what it wasn't," he says. "It wasn't a ghost. It wasn't a monster. I know what people say about these woods, the old stories, the — I've heard all of it, and I'll tell you, fifty years of thinking about almost nothing else: there's no devil out there." He leans forward. "There's *people* out there. That's the truth nobody wants, because a monster you can't do anything about, a monster's just weather. But people — people took that girl, people who know these woods and know how to not be seen and know how to make a whole town look at a fourteen-year-old boy instead of at them. *People.* And people are worse than any ghost, because people *choose* it."
+"I'll tell you what it wasn't," he says. "It wasn't a ghost. It wasn't a monster. I know what people say about these woods, the old stories, the — I've heard all of it, and I'll tell you, forty years of thinking about almost nothing else: there's no devil out there." He leans forward. "There's *people* out there. That's the truth nobody wants, because a monster you can't do anything about, a monster's just weather. But people — people took that girl, people who know these woods and know how to not be seen and know how to make a whole town look at a fourteen-year-old boy instead of at them. *People.* And people are worse than any ghost, because people *choose* it."
 
 He sits back. "Whatever brought you out here — whatever you've seen or think you've seen — don't let anybody sell you a monster. A monster's a story that lets the guilty walk. It's people. It's always been people."`,
     choices: [
@@ -188,7 +188,7 @@ He sits back. "Whatever brought you out here — whatever you've seen or think y
         label: `"People. Organized people. You're describing something with a structure, Dale — that's bigger than a few locals."`,
         lensFlavor: "institutional",
         outcome: {
-          log: "He goes quiet, and wary, in a new way. 'I didn't say that,' he says. 'I said people. You start saying organized, you start saying structure, and you're talking about something that has managed to run this town for fifty years without one person able to name it, and that is exactly the kind of talk that gets a person — ' he stops. 'That gets a person made into me. Or worse.' He doesn't finish. He's said more than he meant to.",
+          log: "He goes quiet, and wary, in a new way. 'I didn't say that,' he says. 'I said people. You start saying organized, you start saying structure, and you're talking about something that has managed to run this town for forty years without one person able to name it, and that is exactly the kind of talk that gets a person — ' he stops. 'That gets a person made into me. Or worse.' He doesn't finish. He's said more than he meant to.",
           tone: "n",
           setFlags: { read_org: true, dale_org_flinch: true },
           queueEvent: "ux_dale_warning",
@@ -220,7 +220,7 @@ He sits back. "Whatever brought you out here — whatever you've seen or think y
       {
         label: `"…you're the first person out here who's tried to protect me instead of use me."`,
         outcome: {
-          log: "Something breaks open in his face — the specific wound of a kind man who has had fifty years to be kind and no one to be kind to. 'Somebody should've protected that girl,' he says, rough. 'I couldn't. I was fourteen. So I'll settle for telling one fool kid to go home. You're the first one who ever let me.' He clears his throat, embarrassed by it. 'Go on. And you come back here if you need somewhere nobody's watching — I'm about the only house in this county that isn't.'",
+          log: "Something breaks open in his face — the specific wound of a kind man who has had forty years to be kind and no one to be kind to. 'Somebody should've protected that girl,' he says, rough. 'I couldn't. I was fourteen. So I'll settle for telling one fool kid to go home. You're the first one who ever let me.' He clears his throat, embarrassed by it. 'Go on. And you come back here if you need somewhere nobody's watching — I'm about the only house in this county that isn't.'",
           tone: "g",
           setFlags: { dale_bond: true },
           queueEvent: "ux_dale_close",
@@ -265,7 +265,7 @@ You tell him he's a good man. You mean it. He doesn't quite believe you, but he 
     id: "ux_dale_close",
     title: "The Still Point",
     body:
-`You leave Dale's house at the end of its dead-end road, and the town is out there past the trees with its fifty-year-old decision about him, and you carry out of that kitchen a thing the town threw away: the sanest read of the whole business, from the person least equipped by reputation to give it. *People, not ghosts. People are worse. Go home.*
+`You leave Dale's house at the end of its dead-end road, and the town is out there past the trees with its forty-year-old decision about him, and you carry out of that kitchen a thing the town threw away: the sanest read of the whole business, from the person least equipped by reputation to give it. *People, not ghosts. People are worse. Go home.*
 
 He doesn't come apart like the others. He doesn't get taken back or lost in the dark. He's the still point — the one who saw the worst of it and survived it into a small, careful, lonely peace, and who spent his one conversation with you trying to give you the exit he never had. You'll think about Dale. Whatever you end up believing happened in those woods, the shape of him — kind, grounded, disbelieved, right or wrong but never cruel — will sit under all of it as the thing the monster-story costs: a real man, made into a ghost so the truth could stay buried.`,
     choices: [

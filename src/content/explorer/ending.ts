@@ -49,7 +49,7 @@ The things you started, you leave where they lie.`,
       },
       {
         when: { kind: "any", of: [{ kind: "flag", flag: "dale_warned_unheeded" }, { kind: "flag", flag: "dale_bond" }] },
-        text: `And somewhere at the end of a dead-end road there's a porch light you never took him up on, and an old man who spent fifty years disbelieved and one evening being *heard* — and who will never know that this time, for once, somebody did the thing he begged them to do, and just went home. You gave Dale the only thing he ever asked anyone for, and he will never find out you gave it.`,
+        text: `And somewhere at the end of a dead-end road there's a porch light you never took him up on, and an old man who spent forty years disbelieved and one evening being *heard* — and who will never know that this time, for once, somebody did the thing he begged them to do, and just went home. You gave Dale the only thing he ever asked anyone for, and he will never find out you gave it.`,
       },
       {
         when: { kind: "flag", flag: "thread_nora_active" },
