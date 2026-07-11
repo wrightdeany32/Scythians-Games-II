@@ -16,7 +16,8 @@
     "coldread:loop": "tsx src/coldread/loop-relay.ts",
     "coldread:loop-sample": "tsx src/coldread/loop-sample.ts",
     "typecheck": "tsc --noEmit",
-    "bots": "tsx src/bots/run.ts"
+    "bots": "tsx src/bots/run.ts",
+    "bots:sweep": "tsx src/bots/sweep.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",

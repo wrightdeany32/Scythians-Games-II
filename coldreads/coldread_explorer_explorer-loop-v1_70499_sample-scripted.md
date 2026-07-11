@@ -28,7 +28,7 @@ Options:
 
 That's the version you'd say out loud — new chapter, clean slate, the whole line — and it's even mostly true. You mean to stay this time.
 
-## Step 1 — `__day__`
+## Step 3 — `__day__`
 
 Week 1 · Mon
 
@@ -47,7 +47,7 @@ Options:
 **Reader:** [reader think-aloud for __day__]
 **Picked:** 1. Go caving with Reese — He's been texting about the White's Hall Cave System, off the old fire road.
 
-## Step 1 — `ux_cave_enter`
+## Step 4 — `ux_cave_enter`
 
 He's been texting about the White's Hall Cave System, off the old fire road.
 
@@ -68,7 +68,7 @@ Options:
 
 > trace: day 1 · stats — · flags cave_lead=self
 
-## Step 2 — `ux_cave_descend`
+## Step 5 — `ux_cave_descend`
 
 You take point.
 
@@ -87,7 +87,7 @@ Options:
 
 > trace: day 1 · stats — · flags —
 
-## Step 3 — `ux_cave_heard`
+## Step 6 — `ux_cave_heard`
 
 You press on.
 
@@ -106,7 +106,7 @@ Options:
 
 > trace: day 1 · stats — · flags —
 
-## Step 4 — `ux_cave_squeeze`
+## Step 7 — `ux_cave_squeeze`
 
 You give it a name — a bat, this deep, sure — and Reese takes it, and you both agree to be men who heard a bat.
 
@@ -127,7 +127,7 @@ Options:
 
 > trace: day 1 · stats — · flags —
 
-## Step 5 — `ux_cave_squeeze_through`
+## Step 8 — `ux_cave_squeeze_through`
 
 You don't love it; you don't say so.
 
@@ -141,13 +141,13 @@ Options:
 
 > trace: day 1 · stats grip -1 · flags cave_squeeze_done=true, cave_scare=true · roll squeeze d20 4+0=4 vs 10 → LOSE
 
-## Step 6 — `ux_cave_deep`
+## Step 9 — `ux_cave_deep`
 
 For one long moment you are genuinely stuck, the panic a white animal behind your eyes — then Reese has your wrists and hauls, and the rock lets go with a scrape you'll feel for a week.
 
 However you came through it, you're somewhere now that isn't on any map in either of your heads.
 
-The chamber is bigger than it has any right to be this deep — the lamps don't find the far wall. Underfoot, that same wrong cleanness. And the smell, stronger, sitting in the back of your throat. Reese turns a slow circle and for once doesn't narrate. You watch him decide, very deliberately, to be fine. "Cool. This is sick, actually. Nobody's tagged this."
+The chamber is bigger than it has any right to be this deep — the lamps don't find the far wall. And it's only now, with room to stand, that your eye goes to the floor: no boot-scuff, no arrows, no candle-smoke on the ceiling, no cans, no carved initials — none of the century of human garbage that every reachable cave on Earth is upholstered in. A wrong, swept cleanness. And the smell, stronger, sitting in the back of your throat. Reese turns a slow circle and for once doesn't narrate. You watch him decide, very deliberately, to be fine. "Cool. This is sick, actually. Nobody's tagged this."
 
 Then his lamp catches the wall, and stops.
 
@@ -157,9 +157,9 @@ Options:
 **Reader:** [reader think-aloud for ux_cave_deep]
 **Picked:** 1. Follow the lamp.
 
-> trace: day 1 · stats — · flags —
+> trace: day 1 · stats — · flags cave_notrace=true
 
-## Step 7 — `ux_cave_etchings`
+## Step 10 — `ux_cave_etchings`
 
 You follow the beam to the wall.
 
@@ -181,7 +181,7 @@ Options:
 
 > trace: day 1 · stats grip +1 · flags cave_etchings_seen=true
 
-## Step 8 — `ux_cave_return`
+## Step 11 — `ux_cave_return`
 
 You take the version you can live with — teenagers, idiots with rope. You almost sell it to yourself.
 
@@ -201,9 +201,9 @@ Options:
 
 ## — end of scene —
 
-You shove the pack ahead of you through the throat and come out with nothing on your back. It costs you a good kit and the last of your pride — cheap, tonight.
+You shove the pack ahead of you through the pinch and come out with nothing on your back. It costs you a good kit and the last of your pride — cheap, tonight.
 
-## Step 2 — `__day__`
+## Step 13 — `__day__`
 
 Week 1 · Mon
 
@@ -224,7 +224,7 @@ Options:
 **Reader:** [reader think-aloud for __day__]
 **Picked:** 12. Call it a day.
 
-## Step 3 — `__day__`
+## Step 14 — `__day__`
 
 Week 1 · Tue
 
@@ -245,7 +245,7 @@ Options:
 **Reader:** [reader think-aloud for __day__]
 **Picked:** 11. Go back to White's Hall — Neither of you has said out loud that you can't stop thinking about it.
 
-## Step 1 — `ux_return_enter`
+## Step 15 — `ux_return_enter`
 
 Neither of you has said out loud that you can't stop thinking about it.
 
@@ -269,7 +269,7 @@ Options:
 
 > trace: day 2 · stats — · flags return_committed=true
 
-## Step 2 — `ux_return_descend`
+## Step 16 — `ux_return_descend`
 
 The squeeze you fought through the first time takes you first try. You tell yourself you've done it once, your body remembers the shape of it. That's probably true.
 
@@ -286,7 +286,7 @@ Options:
 
 > trace: day 2 · stats — · flags —
 
-## Step 3 — `ux_return_erased`
+## Step 17 — `ux_return_erased`
 
 You come to the chamber. The wide one, where the marks are.
 
@@ -303,7 +303,7 @@ Options:
 
 > trace: day 2 · stats — · flags —
 
-## Step 4 — `ux_return_fork`
+## Step 18 — `ux_return_fork`
 
 You say it, and neither of you moves toward the way out.
 
@@ -320,7 +320,7 @@ Options:
 
 > trace: day 2 · stats — · flags return_went_deep=true
 
-## Step 5 — `ux_return_deep`
+## Step 19 — `ux_return_deep`
 
 You go down, and the throat fights you the way rock fights meat, and you come out the bottom scraped and breathing hard and *certain*, in the animal part of you, that you should not be here. You come anyway. Reese comes because you came.
 
@@ -336,7 +336,7 @@ Options:
 
 > trace: day 2 · stats — · flags —
 
-## Step 6 — `ux_return_knife_deep`
+## Step 20 — `ux_return_knife_deep`
 
 It's a pocketknife, and it takes you a long, cold second to place it, and when you place it your stomach drops: it's *like* your grandfather's. The same make, the same bone handle. Not the chip in the bolster — you'd swear his had a chip — but close enough that you can't breathe for a moment, close enough that Reese's "so it's a knife, somebody lost a knife down here" lands and *almost* holds. Almost.
 
@@ -351,7 +351,7 @@ Options:
 
 > trace: day 2 · stats — · flags —
 
-## Step 7 — `ux_return_end`
+## Step 21 — `ux_return_end`
 
 You sit with it, and the doubt lodges where you can't reach it.
 
@@ -369,7 +369,7 @@ Options:
 
 ## — end of scene —
 
-## Step 4 — `__run_over__`
+## Step 23 — `__run_over__`
 
 The run is over.
 
