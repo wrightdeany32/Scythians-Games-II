@@ -172,7 +172,10 @@ const porch = driveRouted(vesselB,
   "ux_dale_porch");
 check("10 · vessel B: the collision surfaces on the porch, reader-facing and nameless",
   !!porch && porch.prose.includes("unbearably ashamed of something you have never done") &&
-  !porch.prose.includes("another") && vesselB.flag("went_after_dale") === true,
+  // Leak guard on the meta-reveal PHRASES, not the bare word — a benign
+  // "another" in future porch base prose must not false-fail (review nit).
+  !porch.prose.includes("another life") && !porch.prose.includes("another run") &&
+  vesselB.flag("went_after_dale") === true,
   porch ? `porch reached day ${porch.day}` : "porch never reached");
 
 // ---- report ----------------------------------------------------------------

@@ -127,6 +127,9 @@ interface BotRun {
   milestoneDay: Record<string, number>;
   traceRecords: number;
   deferredMornings: number;   // mornings past lastDay the selector held
+  finalG: GameState;          // the completed run's end-state — the zero-displacement
+                              // assertion centroids THIS, not a fresh game (Armature's
+                              // review catch: fresh is trivially at the origin)
 }
 
 const MAX_DAYS = 40;
@@ -195,7 +198,7 @@ function runBot(db: ContentDB, seed: number, persona: Persona): BotRun {
     persona: persona.name, seed, days: g.day,
     terminal: status.over ? (status.flag ?? status.cause ?? "over") : "none(maxDays)",
     quietActions, threadActions, exposureByDay, milestoneDay, traceRecords,
-    deferredMornings,
+    deferredMornings, finalG: g,
   };
 }
 
@@ -302,17 +305,17 @@ const deterministic = JSON.stringify(rA) === JSON.stringify(rB);
 const abs = factorAbs();
 
 // Bots v2 (Azimuth's standing asks):
-// (a) ZERO-DISPLACEMENT, asserted loudly every run: a run that resolved no
-//     coordinated card must sit at both origins — a mis-tagged card can never
-//     drift a quiet week silently. Checked against the real end-states.
+// (a) ZERO-DISPLACEMENT, asserted loudly on COMPLETED quiet runs — Armature's
+//     review catch on the first cut: a fresh game is trivially at the origin,
+//     so the guard must centroid the end-state a quiet week actually produced.
+//     THIS is the assertion that trips when a mis-tagged breather drifts a
+//     centroid: every card the quiet persona resolved, weighed.
 import { dispositionCentroid, lensCentroid } from "../engine/centroid";
-const zeroDisplacement = runs
-  .filter((r) => r.persona === "quiet")
-  .every((r) => r.traceRecords <= 8);   // quiet runs stay out of coordinated content entirely
-// The direct assertion, on a fresh quiet replay: no coordinated resolutions ⇒ both origins.
-const gZ = newGame({ seed: SEEDS[0], name: "Bot", age: 27, body: { height: 0.5, build: 0.5 }, townId: "town_edge", tier: "outer" }, explorerDb);
-const zc = dispositionCentroid(gZ, explorerDb);
-const zOrigin = zc.sanction === 0 && zc.vertical === 0 && Object.keys(lensCentroid(gZ, explorerDb)).length === 0;
+const quietRuns = runs.filter((r) => r.persona === "quiet");
+const zeroDisplacement = quietRuns.length > 0 && quietRuns.every((r) => {
+  const c = dispositionCentroid(r.finalG, explorerDb);
+  return c.sanction === 0 && c.vertical === 0 && Object.keys(lensCentroid(r.finalG, explorerDb)).length === 0;
+});
 
 // (b) TERMINAL DISTRIBUTION — three authored terminals + grip make a run-shape
 //     metric for the Run Reads.
@@ -349,7 +352,7 @@ md.push(`|---|---|---|---|`);
 for (const a of abs) md.push(`| ${a.factor} | ${a.off} | ${a.on} | ${a.note} |`);
 md.push(`\n*Every switch ships OFF; the OFF column is the shipped behavior. The ON deltas are each factor's isolated drift, per the ratified guardrail.*`);
 md.push(`\n## 5 · Standing assertions & run-shape metrics (bots v2)\n`);
-md.push(`- **Zero-displacement (ASSERTED)**: a run with no coordinated resolutions sits at both origins — ${zOrigin ? "**HOLDS**" : "**VIOLATED — a neutral card is drifting a centroid**"}. Quiet-persona runs stayed out of coordinated content on every seed (${zeroDisplacement ? "confirmed" : "NOT confirmed"}).`);
+md.push(`- **Zero-displacement (ASSERTED, on completed quiet runs)**: every quiet-persona end-state (${quietRuns.length} runs, ${quietRuns.reduce((n, r) => n + r.traceRecords, 0)} resolutions centroided) sits at both origins — ${zeroDisplacement ? "**HOLDS**" : "**VIOLATED — a neutral card is drifting a centroid**"}.`);
 md.push(`- **Terminal distribution** (${runs.length} runs): ${Object.entries(terminalMix).map(([t, n]) => `${t} ×${n}`).join(" · ")}.`);
 md.push(`- **Day-scale invisibility, as a number**: at the measured lensBias shares, the expected extra matching-flavor draws per day = k × ${(lensDelta).toFixed(3)} — at 1/2/3 draws a day: ${[1, 2, 3].map((k) => (k * lensDelta).toFixed(2)).join(" / ")} extra draws. Perceptible across a run, statistically invisible within any single day — the contract's second half, measured.`);
 
@@ -357,5 +360,5 @@ mkdirSync("reports", { recursive: true });
 writeFileSync("reports/bot-measurement-v1.md", md.join("\n") + "\n");
 
 console.log(md.join("\n"));
-console.log(`\nbots — ${runs.length} runs, deterministic=${deterministic}, zeroDisplacement=${zOrigin}, report: reports/bot-measurement-v1.md`);
-if (!deterministic || !zOrigin) process.exit(1);
+console.log(`\nbots — ${runs.length} runs, deterministic=${deterministic}, zeroDisplacement=${zeroDisplacement}, report: reports/bot-measurement-v1.md`);
+if (!deterministic || !zeroDisplacement) process.exit(1);

@@ -66,6 +66,6 @@
 
 ## 5 · Standing assertions & run-shape metrics (bots v2)
 
-- **Zero-displacement (ASSERTED)**: a run with no coordinated resolutions sits at both origins — **HOLDS**. Quiet-persona runs stayed out of coordinated content on every seed (confirmed).
+- **Zero-displacement (ASSERTED, on completed quiet runs)**: every quiet-persona end-state (3 runs, 12 resolutions centroided) sits at both origins — **HOLDS**.
 - **Terminal distribution** (9 runs): run_end_never_returned ×6 · run_end_whites_return ×3.
 - **Day-scale invisibility, as a number**: at the measured lensBias shares, the expected extra matching-flavor draws per day = k × 0.046 — at 1/2/3 draws a day: 0.05 / 0.09 / 0.14 extra draws. Perceptible across a run, statistically invisible within any single day — the contract's second half, measured.
