@@ -69,6 +69,10 @@ export function dealStart(db: ContentDB, seed: number, profile: Profile): StartD
   const view = { flags: profile, player: { stats: ZERO_STATS } } as unknown as GameState;
   const eligible = starts.filter((s) => !s.qualifiers || evalCondition(s.qualifiers, view));
   const pool = eligible.length ? eligible : starts.filter((s) => !s.qualifiers);
+  // The linter's fallback-totality rule makes this unreachable on linted
+  // content; the throw is for a db that skipped the linter (a silent undefined
+  // here would surface as a crash three calls later).
+  if (!pool.length) throw new Error("dealStart: no eligible start and no unqualified fallback");
   const draw = { rngState: seedToState(dealSeed(seed)) };
   const total = pool.reduce((sum, s) => sum + (s.weight ?? 1), 0);
   let r = randFloat(draw) * total;
