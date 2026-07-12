@@ -201,6 +201,52 @@ check("11 · start-deck: creation surfaces first, deal invisible, one step line,
   deckRun.current.terminal === run1.current.terminal && deckRun.current.day === run1.current.day,
   `creation screens=${creationScreens.length} · terminal=${deckRun.current.terminal} · day=${deckRun.current.day} (matches legacy)`);
 
+// ---- Crit 12: the LIVE reader sees every resolution (Finding #2) -------------
+// The batch shakedown surfaced a systemic drop: a scene's final resolution
+// reached the RECORDER (via the __end__ hook) but never the live `current`
+// screen, so a human/AI reader saw the next card with no outcome for their last
+// pick — and a terminal read only "The run is over." The old crits inspected
+// the recorder, so the bug was invisible to them. This one plays the run the way
+// a live reader does — reading `session.current` between picks — and asserts (a)
+// recorder fidelity: the ordered live screens the reader faced ARE the
+// presentation stream, and (b) the run-ender's resolution shows on the live end
+// screen, not the bare sentinel.
+type LiveShot = { step: number; card: string; prose: string; kind: LoopScreen["kind"]; dateLabel?: string };
+function driveLive(session: LoopSession): LiveShot[] {
+  const live: LiveShot[] = [];
+  let guard = 0;
+  while (!session.done && guard++ < 500) {
+    const s = session.current;
+    live.push({ step: s.step, card: s.card, prose: s.prose, kind: s.kind, dateLabel: s.dateLabel });
+    const idx = s.kind === "day" ? chooseDay(s) : firstAvailable(s);
+    if (!session.pick(idx, "").ok) break;
+  }
+  const e = session.current;   // the terminal screen the reader ends on
+  live.push({ step: e.step, card: e.card, prose: e.prose, kind: e.kind, dateLabel: e.dateLabel });
+  return live;
+}
+
+const liveRun = new LoopSession(explorerDb, baseOpts("read"));
+const live = driveLive(liveRun);
+const livePres = presentations(liveRun.recorder.stream().records);
+// (a) Recorder fidelity — the ordered live screens the reader faced ARE the
+// presentation stream, step for step, prose for prose. Before the fix this
+// FAILED: the recorder held every scene's "__end__" screen that the live view
+// dropped, so pres carried steps the reader never saw.
+const fidelity =
+  live.length === livePres.length &&
+  live.every((v, i) => v.step === livePres[i].step && v.card === livePres[i].card && v.prose === livePres[i].prose);
+// (b) No "__end__" screen leaks as its own record — every one is folded into a
+// reader-facing screen, never dropped and never surfaced bare.
+const noEndLeak = livePres.every((p) => p.card !== "__end__");
+// (c) A scene that resolved into the day menu shows its outcome ABOVE the date —
+// the concrete drop the shakedown hit (the cave's "…through the pinch" landing
+// on the next morning). At least one such folded day screen must reach the eye.
+const foldedDayScreens = live.filter((v) => v.kind === "day" && v.dateLabel && v.prose !== v.dateLabel).length;
+check("12 · live reader sees every resolution (recorder == live view; scene outcomes fold onto the next screen)",
+  fidelity && noEndLeak && foldedDayScreens > 0,
+  `live=${live.length} pres=${livePres.length} · folded day screens=${foldedDayScreens}`);
+
 // ---- report ----------------------------------------------------------------
 const line = (s = "") => console.log(s);
 line(`\n=== Loop cold-read hardware — acceptance ===\n`);
