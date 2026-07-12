@@ -201,16 +201,42 @@ check("11 · start-deck: creation surfaces first, deal invisible, one step line,
   deckRun.current.terminal === run1.current.terminal && deckRun.current.day === run1.current.day,
   `creation screens=${creationScreens.length} · terminal=${deckRun.current.terminal} · day=${deckRun.current.day} (matches legacy)`);
 
-// ---- Crit 12: no narration is ever dropped at a scene→day seam ---------------
-// The wave's bug 2: SceneRunner's __end__ prose (the scene's payoff — Doug's
-// reply, the errand outcome) vanished at loop scale, while the record claimed
-// it was shown. Now: __end__ never presents (record = surface truth) and its
-// prose folds into the NEXT screen — so no __end__ cards exist in the stream,
-// and at least one day screen opens with more than its date line.
-const noEndCards = !pres1.some((p) => p.card === "__end__");
-const dayWithNarration = pres1.some((p) => p.card === "__day__" && p.prose.includes("\n\n") );
-check("12 · scene payoffs ride to the next screen (no __end__ records; day screens carry closings)",
-  noEndCards && dayWithNarration);
+// ---- Crit 12: the LIVE reader sees every resolution (the wave's bug 2) -------
+// Armature's stronger form of this criterion, ported from the parallel fix
+// (PR #26): the old crits inspected the RECORDER, which is exactly where the
+// bug was invisible (the recorder held __end__ screens the live view dropped).
+// This one plays the run the way a live reader does — reading session.current
+// between picks — and asserts (a) RECORDER FIDELITY: the ordered live screens
+// the reader faced ARE the presentation stream, step for step, prose for
+// prose; (b) no __end__ screen leaks as its own record; (c) at least one
+// scene resolved into a day menu whose outcome shows above the date (the
+// cave's "…through the pinch" landing on the next morning — the concrete
+// drop the wave hit).
+type LiveShot = { step: number; card: string; prose: string; kind: LoopScreen["kind"]; dateLabel?: string };
+function driveLive(session: LoopSession): LiveShot[] {
+  const live: LiveShot[] = [];
+  let guard = 0;
+  while (!session.done && guard++ < 500) {
+    const s = session.current;
+    live.push({ step: s.step, card: s.card, prose: s.prose, kind: s.kind, dateLabel: s.dateLabel });
+    const idx = s.kind === "day" ? chooseDay(s) : firstAvailable(s);
+    if (!session.pick(idx, "").ok) break;
+  }
+  const e = session.current;   // the terminal screen the reader ends on
+  live.push({ step: e.step, card: e.card, prose: e.prose, kind: e.kind, dateLabel: e.dateLabel });
+  return live;
+}
+const liveRun = new LoopSession(explorerDb, baseOpts("read"));
+const live = driveLive(liveRun);
+const livePres = presentations(liveRun.recorder.stream().records);
+const fidelity =
+  live.length === livePres.length &&
+  live.every((v, i) => v.step === livePres[i].step && v.card === livePres[i].card && v.prose === livePres[i].prose);
+const noEndLeak = livePres.every((p) => p.card !== "__end__");
+const foldedDayScreens = live.filter((v) => v.kind === "day" && v.dateLabel && v.prose !== v.dateLabel).length;
+check("12 · live reader sees every resolution (recorder == live view; outcomes fold onto the next screen)",
+  fidelity && noEndLeak && foldedDayScreens > 0,
+  `live=${live.length} pres=${livePres.length} · folded day screens=${foldedDayScreens}`);
 
 // ---- report ----------------------------------------------------------------
 const line = (s = "") => console.log(s);
