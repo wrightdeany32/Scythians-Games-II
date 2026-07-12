@@ -92,6 +92,17 @@ export class LoopSession {
   private stepSeq = 0;
   private stepBase = 0;
   private screen!: LoopScreen;
+  // The just-ended scene's final resolution prose, waiting to fold into the next
+  // loop screen. A scene's mid-steps fold each resolution into the NEXT card's
+  // body inside SceneRunner; the LAST pick has no next card, so its "__end__"
+  // screen prose would otherwise reach only the recorder (via the hook) and
+  // never the live reader — the systemic drop Finding #2 caught. We capture it
+  // here and fold it into the next loop screen (day / next scene / end).
+  private pendingResolution = "";
+  // The folded prose the scene hook built for the current live scene screen —
+  // shared with syncScene so the live screen shows EXACTLY what the recorder
+  // recorded (recorder fidelity: reader-facing view == presentation stream).
+  private currentSceneProse = "";
 
   constructor(db: ContentDB, opts: LoopSessionOpts) {
     this.db = db;
@@ -108,8 +119,20 @@ export class LoopSession {
     });
     this.hooks = {
       onScreen: (s) => {
+        // The scene's closing "__end__" screen carries the last pick's
+        // resolution prose. It is NOT a reader screen of its own and NOT a step
+        // in the stream — capture it and fold it into the next loop screen (the
+        // day menu, the next queued scene's opening, or the end screen). This is
+        // the one place a resolution can be stranded; SceneRunner already folds
+        // every mid-scene resolution into the following card's body.
+        if (s.card === "__end__") { this.pendingResolution = s.prose.trim(); return; }
+        // A real scene screen: fold any pending resolution above the card body,
+        // then record and show that SAME prose (recorder fidelity).
+        const prose = this.pendingResolution ? (this.pendingResolution + "\n\n" + s.prose).trim() : s.prose;
+        this.pendingResolution = "";
+        this.currentSceneProse = prose;
         this.stepSeq = this.stepBase + s.step;
-        if (this.mode === "read") this.recorder.pushPresentation({ step: this.stepBase + s.step, card: s.card, prose: s.prose, options: s.options });
+        if (this.mode === "read") this.recorder.pushPresentation({ step: this.stepBase + s.step, card: s.card, prose, options: s.options });
       },
       onResolve: (r) => {
         this.recorder.pushTrace({
@@ -286,10 +309,21 @@ export class LoopSession {
   private syncScene(): void {
     const s = this.scene!.current;
     this.screen = {
-      kind: "scene", step: this.stepBase + s.step, card: s.card, prose: s.prose,
+      // currentSceneProse is what the hook folded and recorded for THIS screen
+      // (a pending resolution above the card body, if one was waiting) — the
+      // live screen must carry the identical prose the recorder holds.
+      kind: "scene", step: this.stepBase + s.step, card: s.card, prose: this.currentSceneProse,
       options: s.options.map((o) => ({ index: o.index, label: o.label, available: o.available })),
       day: this.g.day, over: false,
     };
+  }
+
+  // Consume the just-ended scene's resolution prose (fold-once): the next loop
+  // screen prepends it, then it's cleared so it can't leak onto a later screen.
+  private takeResolution(): string {
+    const r = this.pendingResolution;
+    this.pendingResolution = "";
+    return r;
   }
 
   private presentDay(): void {
@@ -302,7 +336,11 @@ export class LoopSession {
       ...(a.cost <= menu.energy ? {} : { lockedReason: a.tiredText ?? TIRED_DEFAULT }),
     }));
     options.push({ index: menu.actions.length, label: END_LABEL, available: true });
-    let prose = menu.dateLabel;   // diegetic date only — never energy/stats
+    // A scene that just resolved folds its outcome in above the date, so the
+    // reader sees what happened before choosing the next thing (no extra click —
+    // it matters under the batch-latency Dean flagged).
+    const res = this.takeResolution();
+    let prose = res ? res + "\n\n" + menu.dateLabel : menu.dateLabel;   // diegetic date only — never energy/stats
     if (this.showJournal) {
       const known = journalLines(this.g, this.db);
       if (known.length) prose += "\n\nWhat you know:\n" + known.map((l) => `· ${l}`).join("\n");
@@ -320,7 +358,11 @@ export class LoopSession {
   private presentEnd(): void {
     const st = runStatus(this.g, this.db);
     const terminal = st.flag ?? st.cause ?? "over";
-    const prose = "The run is over.";
+    // The run-ender's own resolution prose (the authored terminal beat) folds in
+    // above the sentinel — before this fix it was the most-stranded of all, a
+    // reader hitting the terminal saw only "The run is over."
+    const res = this.takeResolution();
+    const prose = res ? res + "\n\nThe run is over." : "The run is over.";
     this.stepSeq++;
     this.screen = { kind: "end", step: this.stepSeq, card: "__run_over__", prose, options: [], day: this.g.day, over: true, terminal };
     if (this.mode === "read") this.recorder.pushPresentation({ step: this.stepSeq, card: "__run_over__", prose, options: [] });
