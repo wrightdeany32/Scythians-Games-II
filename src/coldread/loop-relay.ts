@@ -34,9 +34,14 @@ const s = new LoopSession(explorerDb, {
   showJournal: true,
 });
 
+// Reader numbers are POSITIONS in the presented list (1..k); the screen's
+// options carry engine indices (hidden-locked choices are absent, so position
+// and index can diverge). Translate at the door, both directions.
 for (let i = 0; i < picks.length; i++) {
   if (s.done) { process.stderr.write(`!! extra pick ${picks[i]} but the run is already over\n`); break; }
-  const res = s.pick(picks[i] - 1, "");
+  const opt = s.current.options[picks[i] - 1];
+  if (!opt) { process.stderr.write(`!! pick #${picks[i]} rejected on ${s.current.card}: no such option\n`); process.exit(1); }
+  const res = s.pick(opt.index, "");
   if (!res.ok) { process.stderr.write(`!! pick #${picks[i]} rejected on ${s.current.card}: ${res.reason} (greyed options can't be taken)\n`); process.exit(1); }
 }
 
@@ -46,7 +51,7 @@ if (picks.length === 0) { out.push(FRAMING_SCRIPT, "", "---", ""); }   // first 
 out.push(s.current.prose);
 if (s.current.options.length) {
   out.push("");
-  for (const o of s.current.options) out.push(`${o.index + 1}. ${o.label}${o.available ? "" : "  (unavailable)"}`);
+  s.current.options.forEach((o, pos) => out.push(`${pos + 1}. ${o.label}${o.available ? "" : o.lockedReason ? `  — ${o.lockedReason}` : "  (unavailable)"}`));
 }
 process.stdout.write(out.join("\n") + "\n");
 

@@ -82,7 +82,7 @@ export class Session {
     if (this.mode === "read") {
       this.recorder.pushReader({
         step: this.current.step, card: this.current.card,
-        note, pick: idx, pickLabel: this.current.options[idx].label,
+        note, pick: idx, pickLabel: this.current.options.find((o) => o.index === idx)!.label,
       });
     }
     return this.runner.pick(idx);

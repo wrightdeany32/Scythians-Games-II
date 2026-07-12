@@ -177,6 +177,13 @@ export interface LocationAction {
   surface?: string;      // e.g. "map" | "phone" | "home"; omit = the default surface ("here")
   place?: string;        // town/location id the action belongs to on a map surface
   contact?: string;      // npc id the action belongs to on a phone surface
+  // The diegetic fatigue line (Courier's dry-run S3, the tired-vs-gone fix,
+  // Vigil-blessed): what an energy-greyed day option SAYS instead of a bare
+  // "(unavailable)" - the felt reason, never the count. Authored per action in
+  // Loom's register set (physical/social/focus/generic); surfaces fall back to
+  // the generic line when absent. Day-menu greying is only ever energy, so
+  // this string is always the honest one.
+  tiredText?: string;
   // -- coordinates (WO-1c): research actions are ordinary card-resolutions —
   // resolving a coordinated action appends to the same log as a card. No special case.
   diamondCoord?: DiamondCoord;

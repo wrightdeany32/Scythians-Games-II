@@ -23,6 +23,7 @@ import type { GameEvent, LocationAction } from "../../engine/types";
 export const noraActions: LocationAction[] = [
   {
     id: "ux_act_nora_daytrip",
+    tiredText: "Not today. Your legs are done, and you know it.",
     name: "Drive out to the center with Nora",
     sub: "Past the county line. She doesn't want to see it alone.",
     cost: 3,   // a committed outing — the whole day

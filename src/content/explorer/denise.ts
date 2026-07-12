@@ -36,6 +36,7 @@ export const deniseDoors: Door[] = [
 export const deniseActions: LocationAction[] = [
   {
     id: "ux_act_denise_visit",
+    tiredText: "Not today. You haven't got the face for people right now.",
     name: "Go see Denise",
     sub: "The other one who was there. North side of the county. She'll talk.",
     cost: 1,
@@ -53,6 +54,7 @@ export const deniseActions: LocationAction[] = [
   // inside the chain set pursuit_dropped, which retires this for good.
   {
     id: "ux_act_pursue_dig",
+    tiredText: "Not today. The words would just swim; you'd be staring at nothing.",
     name: "Look into Dale yourself",
     sub: "If it fits, there's evidence. Somebody just has to finally look.",
     cost: 1,

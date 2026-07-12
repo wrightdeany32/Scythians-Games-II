@@ -44,15 +44,21 @@ function renderStep(recs: StreamRecord[]): string {
       // grip-illegible options are ▓▓ blocks (you can't read what they'd say); inserted
       // options (far future) get a distinct silhouette/? costume. The renderer only marks
       // availability — it never restyles the label, so the three provenances never blur.
-      for (const o of pres.options) {
-        out.push(`${o.index + 1}. ${o.label}${o.available ? "" : "  *(unavailable)*"}`);
-      }
+      // Numbers are POSITIONS in the presented list — exactly what the reader
+      // saw (options carry engine indices, and hidden-locked choices are
+      // absent, so index and position can diverge).
+      pres.options.forEach((o, pos) => {
+        out.push(`${pos + 1}. ${o.label}${o.available ? "" : o.lockedReason ? `  — *${o.lockedReason}*` : "  *(unavailable)*"}`);
+      });
       out.push("");
     }
   }
   if (reader && reader.type === "reader") {
     out.push(`**Reader:** ${reader.note || "_(no note)_"}`);
-    out.push(`**Picked:** ${reader.pick + 1}. ${reader.pickLabel}\n`);
+    // reader.pick is the engine index; render the POSITION the reader typed.
+    const pos = pres && pres.type === "presentation"
+      ? pres.options.findIndex((o) => o.index === reader.pick) : -1;
+    out.push(`**Picked:** ${pos >= 0 ? pos + 1 : reader.pick + 1}. ${reader.pickLabel}\n`);
   }
   if (trace && trace.type === "trace") {
     const roll = trace.roll

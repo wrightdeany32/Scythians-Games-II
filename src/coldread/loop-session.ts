@@ -24,6 +24,7 @@
 
 import type { ContentDB, GameState, CrossRunStore, LocationAction } from "../engine/types";
 import { newGame, harvestCrossRun } from "../engine/engine";
+import { CreationRunner } from "../engine/creation";
 import { dayMenu, runAction, startQueuedScene, advanceDay } from "../engine/loop";
 import { runStatus } from "../engine/loop";
 import { journalLines } from "../engine/journal";
@@ -41,9 +42,18 @@ export interface LoopSessionOpts {
   crossRun?: CrossRunStore;    // a prior vessel's harvest — §3 (the cross-run collision, readable)
   showJournal?: boolean;       // fold journalLines into the day screen — a DESIGN call, default OFF
   playerName?: string;
+  // THE START-DECK CUTOVER FLAG (Azimuth's ruling: deck-start creation changes
+  // what a reader sees at minute one, so the cutover is a re-baseline event
+  // that happens ONCE, deliberately, when Loom's real questions land). OFF
+  // (default): the legacy opening — shakedowns and the first silent Run Reads
+  // run here, and `tier`/`townId` above seat the run. ON: the session starts
+  // at creation — CreationRunner screens through this same surface, the deal
+  // invisible (no-catalog: the reader answers and a life begins), and the
+  // dealt start seats the run (`tier`/`townId` above are overridden).
+  startDeck?: boolean;
 }
 
-export type LoopScreenKind = "scene" | "day" | "end";
+export type LoopScreenKind = "creation" | "scene" | "day" | "end";
 
 // The one screen a reader ever faces — prose + numbered options — whichever
 // shape (scene / day / end) is under it. No mechanical fields ever populate it.
@@ -52,7 +62,7 @@ export interface LoopScreen {
   step: number;
   card: string;                // scene card id, or "__day__", or "__run_over__"
   prose: string;
-  options: { index: number; label: string; available: boolean }[];
+  options: { index: number; label: string; available: boolean; lockedReason?: string }[];
   day: number;
   dateLabel?: string;
   over: boolean;
@@ -60,15 +70,21 @@ export interface LoopScreen {
 }
 
 const END_LABEL = "Call it a day.";
+// The generic fatigue line (Loom's), the fallback when an action carries no
+// tiredText of its own - same precedent as DEFAULT_OPENING_LOG: an engine
+// fallback for unauthored content, overridden per action in the pack.
+const TIRED_DEFAULT = "Not today — there's nothing left in you for it.";
 
 export class LoopSession {
   readonly recorder: Recorder;
-  private g: GameState;
+  private g!: GameState;          // set at construction (legacy) or when creation completes (startDeck)
   private db: ContentDB;
+  private opts: LoopSessionOpts;
   private mode: "read" | "bot";
   private showJournal: boolean;
   private hooks: SceneHooks;
   private scene?: SceneRunner;    // the live scene, when one is playing
+  private creation?: CreationRunner;   // the live creation phase (startDeck only), before day 1 exists
   // One monotonic step counter for the WHOLE run's stream (Azimuth's rider:
   // stream-level tooling sorts by step, so per-scene restarts would collide).
   // stepSeq is the run-level high-water mark; stepBase anchors each scene's
@@ -79,6 +95,7 @@ export class LoopSession {
 
   constructor(db: ContentDB, opts: LoopSessionOpts) {
     this.db = db;
+    this.opts = opts;
     this.mode = opts.mode ?? "read";
     this.showJournal = opts.showJournal ?? false;
     this.recorder = new Recorder({
@@ -89,14 +106,6 @@ export class LoopSession {
       ...(opts.crossRun?.seeds && Object.keys(opts.crossRun.seeds).length
         ? { crossRunSeeds: { ...opts.crossRun.seeds } } : {}),
     });
-    this.g = newGame(
-      {
-        seed: opts.seed, name: opts.playerName ?? "You", age: 25,
-        body: { height: 0.5, build: 0.5 }, tier: opts.tier, townId: opts.townId,
-        crossRun: opts.crossRun,
-      },
-      db,
-    );
     this.hooks = {
       onScreen: (s) => {
         this.stepSeq = this.stepBase + s.step;
@@ -110,8 +119,32 @@ export class LoopSession {
         });
       },
     };
-    // Morning of day 1: drain the opening/creation queue, then present.
-    this.enterMorning();
+    if (opts.startDeck) {
+      // The deck path: the run starts at creation. Screens present through the
+      // one surface; presentations record (read mode); the deal is silent at
+      // the phase boundary. newGame waits until creation completes.
+      this.creation = new CreationRunner(db, { seed: opts.seed }, {
+        onScreen: (s) => {
+          if (s.card === "__creation_done__") return;   // internal boundary marker, never a reader screen
+          this.stepSeq = s.step;   // creation runs first — its local 1..N IS the stream's opening line
+          if (this.mode === "read") this.recorder.pushPresentation({ step: s.step, card: s.card, prose: s.prose, options: s.options });
+        },
+      });
+      if (this.creation.done) this.finishCreation();   // a deck with zero questions deals immediately
+      else this.syncCreation();
+    } else {
+      // The legacy path (the shipped default until the cutover milestone):
+      // opts seat the run; morning of day 1 drains the opening queue.
+      this.g = newGame(
+        {
+          seed: opts.seed, name: opts.playerName ?? "You", age: 25,
+          body: { height: 0.5, build: 0.5 }, tier: opts.tier, townId: opts.townId,
+          crossRun: opts.crossRun,
+        },
+        db,
+      );
+      this.enterMorning();
+    }
   }
 
   get current(): LoopScreen { return this.screen; }
@@ -122,6 +155,7 @@ export class LoopSession {
   // cave); day picks take an action (refusing "too tired") or end the day.
   pick(idx: number, note = ""): PickResult {
     if (this.screen.kind === "end") return { ok: false, reason: "the run is over" };
+    if (this.screen.kind === "creation") return this.pickCreation(idx, note);
     return this.screen.kind === "scene" ? this.pickScene(idx, note) : this.pickDay(idx, note);
   }
 
@@ -132,7 +166,7 @@ export class LoopSession {
   // Analyst/telemetry read (flags are legal readers; the reader-facing SCREEN
   // never carries them). Lets a harness verify cross-run injection through the
   // actual tool without cracking the surface open.
-  flag(name: string): boolean | number | string | undefined { return this.g.flags[name]; }
+  flag(name: string): boolean | number | string | undefined { return this.g ? this.g.flags[name] : undefined; }
 
   // Harvest this run into a cross-run store at its terminal (the second save
   // scope) — so the NEXT vessel can be built with opts.crossRun and the
@@ -141,12 +175,56 @@ export class LoopSession {
 
   // ---- internals -----------------------------------------------------------
 
+  // A creation pick: routes to the CreationRunner exactly as scene picks route
+  // to the SceneRunner — refusals touch nothing, reader records carry the
+  // label. When the runner finishes, the dealt start seats the run and day 1
+  // begins; the reader never sees the boundary (no-catalog: no start names,
+  // no "you drew" — the next screen is simply the morning).
+  private pickCreation(idx: number, note: string): PickResult {
+    const runner = this.creation!;
+    const check = runner.checkPick(idx);
+    if (!check.ok) return check;
+    if (this.mode === "read") {
+      this.recorder.pushReader({ step: this.screen.step, card: this.screen.card, note, pick: idx, pickLabel: this.screen.options.find((o) => o.index === idx)!.label });
+    }
+    runner.pick(idx);
+    if (runner.done) this.finishCreation();
+    else this.syncCreation();
+    return { ok: true };
+  }
+
+  private syncCreation(): void {
+    const s = this.creation!.current;
+    this.screen = {
+      kind: "creation", step: s.step, card: s.card, prose: s.prose,
+      options: s.options.map((o) => ({ index: o.index, label: o.label, available: o.available })),
+      day: 0, over: false,   // day 0: the run hasn't begun — creation is before the calendar
+    };
+  }
+
+  private finishCreation(): void {
+    const res = this.creation!.result!;
+    this.creation = undefined;
+    this.g = newGame(
+      {
+        seed: this.opts.seed, name: this.opts.playerName ?? "You", age: 25,
+        body: { height: 0.5, build: 0.5 }, tier: res.tier, townId: res.townId,
+        startId: res.startId, answers: res.answers,
+        crossRun: this.opts.crossRun,
+      },
+      this.db,
+    );
+    // enterMorning anchors stepBase to the high-water mark, so day-1 scenes
+    // continue the monotonic line the creation screens opened.
+    this.enterMorning();
+  }
+
   private pickScene(idx: number, note: string): PickResult {
     const runner = this.scene!;
     const check = runner.checkPick(idx);
     if (!check.ok) return check;   // greyed / out of range — no state touched, no reader record
     if (this.mode === "read") {
-      this.recorder.pushReader({ step: this.screen.step, card: this.screen.card, note, pick: idx, pickLabel: this.screen.options[idx].label });
+      this.recorder.pushReader({ step: this.screen.step, card: this.screen.card, note, pick: idx, pickLabel: this.screen.options.find((o) => o.index === idx)!.label });
     }
     const res = runner.pick(idx);
     if (runner.done) this.afterScene();
@@ -216,7 +294,13 @@ export class LoopSession {
 
   private presentDay(): void {
     const menu = dayMenu(this.g, this.db);
-    const options = menu.actions.map((a, i) => ({ index: i, label: dayLabel(a), available: a.cost <= menu.energy }));
+    // Day-menu greying is only ever energy, so a greyed option carries its
+    // diegetic fatigue line (tired-vs-gone: absence means gone; greyed says
+    // why, in the fiction, never as a number).
+    const options: LoopScreen["options"] = menu.actions.map((a, i) => ({
+      index: i, label: dayLabel(a), available: a.cost <= menu.energy,
+      ...(a.cost <= menu.energy ? {} : { lockedReason: a.tiredText ?? TIRED_DEFAULT }),
+    }));
     options.push({ index: menu.actions.length, label: END_LABEL, available: true });
     let prose = menu.dateLabel;   // diegetic date only — never energy/stats
     if (this.showJournal) {
@@ -228,7 +312,7 @@ export class LoopSession {
     if (this.mode === "read") {
       this.recorder.pushPresentation({
         step: this.stepSeq, card: "__day__", prose,
-        options: options.map((o) => ({ index: o.index, label: o.label, available: o.available, showWhenLocked: !o.available })),
+        options: options.map((o) => ({ index: o.index, label: o.label, available: o.available, showWhenLocked: !o.available, ...(o.lockedReason ? { lockedReason: o.lockedReason } : {}) })),
       });
     }
   }

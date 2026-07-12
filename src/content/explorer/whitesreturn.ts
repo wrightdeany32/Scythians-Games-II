@@ -27,6 +27,7 @@ import type { GameEvent, LocationAction } from "../../engine/types";
 export const returnActions: LocationAction[] = [
   {
     id: "ux_act_return_whites",
+    tiredText: "Not today. Your legs are done, and you know it.",
     name: "Go back to White's Hall",
     sub: "Neither of you has said out loud that you can't stop thinking about it.",
     cost: 3,   // a full day, like the first trip

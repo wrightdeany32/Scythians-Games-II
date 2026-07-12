@@ -26,6 +26,7 @@ export const dougActions: LocationAction[] = [
   // -- the run (repeatable; the tonal beat fires first visit via its once-flag)
   {
     id: "ux_act_doug_workout",
+    tiredText: "Not today. Your legs are done, and you know it.",
     name: "Run with Doug",
     sub: "The six a.m. ritual — the fire road out past the reservoir.",
     cost: 2,
@@ -42,6 +43,7 @@ export const dougActions: LocationAction[] = [
   // -- the phone-as-hand: answering Doug's message is the player's move
   {
     id: "ux_act_doug_reply",
+    tiredText: "Not today. You haven't got the face for people right now.",
     name: "Call Doug back",
     sub: "The message is still sitting in your phone. No rush, he said.",
     cost: 1,
@@ -61,6 +63,7 @@ export const dougActions: LocationAction[] = [
   // -- the dinner stays open for a deferred or wary player
   {
     id: "ux_act_doug_dinner_yes",
+    tiredText: "Not today. You haven't got the face for people right now.",
     name: "Tell Doug you'll come to dinner",
     sub: "Standing invitation, he said. They host most weeks.",
     cost: 1,
@@ -83,6 +86,7 @@ export const dougActions: LocationAction[] = [
   // -- the deferred ask stays open (the invitation's door never closes)
   {
     id: "ux_act_doug_commit",
+    tiredText: "Not today. You haven't got the face for people right now.",
     name: "Call Doug — tell him you're in",
     sub: "The gathering. The pieces. The ask that stands.",
     cost: 1,
