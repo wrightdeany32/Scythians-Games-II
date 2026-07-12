@@ -8,6 +8,7 @@
 import { caveDb } from "../content/cave.db";
 import { explorerDb } from "../content/explorer";
 import { db as smokeDb } from "../smoke/content";
+import { protoDb } from "../content/proto-interrogation";
 import { loopDb } from "../smoke/loopworld";
 import { lintContent } from "./lint";
 import type { ContentDB } from "../engine/types";
@@ -17,6 +18,7 @@ const TARGETS: [string, ContentDB][] = [
   ["explorer", explorerDb],
   ["smoke", smokeDb],
   ["loopworld", loopDb],
+  ["proto-interrogation", protoDb],   // the interrogation prototype scaffold (placeholder prose; structure linted)
 ];
 
 let errors = 0;

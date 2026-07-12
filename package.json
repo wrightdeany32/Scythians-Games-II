@@ -15,6 +15,7 @@
     "coldread:sample": "tsx src/coldread/sample.ts",
     "coldread:loop": "tsx src/coldread/loop-relay.ts",
     "coldread:loop-sample": "tsx src/coldread/loop-sample.ts",
+    "coldread:proto": "tsx src/coldread/proto-relay.ts",
     "typecheck": "tsc --noEmit",
     "bots": "tsx src/bots/run.ts",
     "bots:sweep": "tsx src/bots/sweep.ts"
