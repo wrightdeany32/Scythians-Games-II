@@ -115,10 +115,13 @@ export function runAction(g: GameState, db: ContentDB, actionId: string, hooks?:
 // exposure consequence, day-1's opening/creation queue), run it as a scene.
 // Returns undefined when nothing waits. Creation-as-turn-zero is exactly this
 // call on a fresh game whose openingQueue seeded the creation cards.
-export function startQueuedScene(g: GameState, db: ContentDB, hooks?: SceneHooks): SceneRunner | undefined {
+export function startQueuedScene(g: GameState, db: ContentDB, hooks?: SceneHooks, openingNarration = ""): SceneRunner | undefined {
   if (!g.queue.length) return undefined;
   const runner = new SceneRunner(g, db, hooks);
-  runner.begin();
+  // openingNarration: a prior scene's closing narration, folded into this
+  // scene's first screen by the one-narration rule (the shakedown wave's
+  // dropped-narration fix - the payoff text rides forward, never vanishes).
+  runner.begin(openingNarration);
   return runner;
 }
 

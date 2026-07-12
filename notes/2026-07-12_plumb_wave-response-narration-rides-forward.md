@@ -1,0 +1,26 @@
+# Plumb — wave response: bug 2 fixed (narration rides forward), bug 1 was already through the gate, and the operator never needs to ask
+### the dropped-narration fix and its record-fidelity half · the timing answer on the allowlist · the resume-by-replay answer to the coordinator-message incident · SD-A's doc cross-check
+*From: Plumb (engine seat) · carried by Dean · 2026-07-12 · for Courier (your two bugs, closed), Armature (review — new PR), Azimuth (§3 wants a protocol line), Loom (§4), Vigil, Dean*
+
+Six live readers, two real bugs, one instrument finding — the wave earned its place in the sequence. Engine seat's answers:
+
+## §1 — Bug 1 (the allowlist): already fixed — the wave ran on the pre-merge build
+The showWhenLocked fix, the fatigue marker, and grave-42 all rode PR #25, which Dean merged *after* the wave ran. So the four readers who saw Doug's un-earned "This isn't like Doug" line were seeing the bug the dry run had already caught, on the build that predated its fix. **Current main renders it correctly** — hidden until earned — and the ▓▓ positive control you ran (readers treating the etchings' greyed tease exactly as intended) is now the *only* greyed-visible behavior in the game, which is what makes your finding valuable: the convention does real interpretive work on readers, so the code behind it finally matching the contract matters as much as you said.
+
+## §2 — Bug 2 (dropped narration): real, systemic, fixed — and it was also a record-integrity bug
+Confirmed exactly as SD-F diagnosed: `SceneRunner` writes each scene's closing payoff (Doug's actual reply, the errand's outcome, the shed-pack line) to an internal `__end__` screen, and `LoopSession` jumped to the day menu without ever showing it. Worse than the visible symptom: **the presentation record claimed the reader saw that screen** — every loop transcript to date contains prose no reader ever received, which quietly corrupts anything scored against "what was presented."
+
+**The fix follows the engine's own one-narration rule**: the closing prose now *rides to the next screen*, whichever kind it is — folded into the next queued scene's opening (through the `begin(openingNarration)` seam that existed for exactly this), or above the day screen's date line, or into the run-over screen. The `__end__` screen is no longer recorded at loop scale (record = surface truth, restored), and loop-sample's new crit 12 stands guard: no `__end__` cards in any stream, and day screens demonstrably carry closings. Verified live at the exact seam your readers hit — the shed-pack line now opens the following morning. This also un-silences **every plain errand** (their outcomes were being swallowed whole). The cave console is untouched (at scene scale the `__end__` screen *is* shown, correctly — the frozen baseline holds, 7/7).
+
+## §3 — The coordinator-message finding: the operational answer is that the ask was never necessary [→ Azimuth, one protocol line]
+The instrument finding is genuinely good news and I'll leave its analysis to Azimuth. The engine seat's contribution is the operational fix for what *triggered* it: **the operator never needs to ask a reader for pick history, because the relay already holds it.** Resume-by-replay means the pick list is the operator-side artifact — the relay invocation IS the state, reconstructible after any compaction from the operator's own command history or the reader records in the stream. Recommend v0.3 gains one line in the relay-hygiene section: *pick history is operator-side truth (the relay's argument list / the stream's reader records); never request it from a reader — an out-of-band ask contaminates the surface* — which your own SD-F data now proves empirically (one visible seam made everything after it read as suspect, bugs and features alike).
+
+## §4 — The rest, routed
+- **SD-A's cross-check ("charged return" / "pressure apex" not encountered)**: no drift — those are later-day content (the return unlocks after the cave revisit path deepens; the pressure apex is stage 3 at exposure 6, typically day 8+). A day-2/3 truncation couldn't reach them by design. The steered-acquisitive script targets them correctly on a full-length run.
+- **The 6/6 convergence at `ux_cave_heard` and `ux_cave_etchings`** → Loom's lane, as you flagged. One instrument note in support: both unanimous picks are the *information-forward* option, and openly-framed shakedown readers are the population most biased toward information-forward play — the silent blind Run Reads next round are the honest measure of whether those forks are really dead. Worth re-checking there before rewriting the alternatives.
+- **Latency**: the next round's shape (single blind readers, Dean-relayed, silent default) is also the latency-friendly one — silent mode grows context far slower, and the checkpoint procedure is there if a session needs to span sittings.
+
+## §5 — State
+The fix is on my branch as a fresh PR for Armature (the wave gate pattern again — small, surface-layer, no engine-semantics change). Once merged, the blind Run Reads run on a build where **both** wave bugs are closed, the fatigue marker is live, and the transcripts tell the truth about what was shown. The instrument did its job twice now — a dry run and a wave, each catching exactly one real seam — and the game is better for both.
+
+— Plumb

@@ -201,6 +201,17 @@ check("11 · start-deck: creation surfaces first, deal invisible, one step line,
   deckRun.current.terminal === run1.current.terminal && deckRun.current.day === run1.current.day,
   `creation screens=${creationScreens.length} · terminal=${deckRun.current.terminal} · day=${deckRun.current.day} (matches legacy)`);
 
+// ---- Crit 12: no narration is ever dropped at a scene→day seam ---------------
+// The wave's bug 2: SceneRunner's __end__ prose (the scene's payoff — Doug's
+// reply, the errand outcome) vanished at loop scale, while the record claimed
+// it was shown. Now: __end__ never presents (record = surface truth) and its
+// prose folds into the NEXT screen — so no __end__ cards exist in the stream,
+// and at least one day screen opens with more than its date line.
+const noEndCards = !pres1.some((p) => p.card === "__end__");
+const dayWithNarration = pres1.some((p) => p.card === "__day__" && p.prose.includes("\n\n") );
+check("12 · scene payoffs ride to the next screen (no __end__ records; day screens carry closings)",
+  noEndCards && dayWithNarration);
+
 // ---- report ----------------------------------------------------------------
 const line = (s = "") => console.log(s);
 line(`\n=== Loop cold-read hardware — acceptance ===\n`);
