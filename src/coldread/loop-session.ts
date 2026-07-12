@@ -91,6 +91,7 @@ export class LoopSession {
   // local 1..N counter onto it, so scene, day, and end screens share one line.
   private stepSeq = 0;
   private stepBase = 0;
+  private endProse = "";          // a finished scene's closing narration, riding to the next screen
   private screen!: LoopScreen;
 
   constructor(db: ContentDB, opts: LoopSessionOpts) {
@@ -108,6 +109,12 @@ export class LoopSession {
     });
     this.hooks = {
       onScreen: (s) => {
+        // The __end__ screen is never SHOWN at loop scale (the day resumes
+        // instead), so it must not be recorded as if it were - its prose is
+        // stashed and folded into the NEXT presented screen (the wave's
+        // dropped-narration fix; record = surface truth). Its step is not
+        // consumed on the shown line.
+        if (s.card === "__end__") { this.endProse = s.prose; return; }
         this.stepSeq = this.stepBase + s.step;
         if (this.mode === "read") this.recorder.pushPresentation({ step: this.stepBase + s.step, card: s.card, prose: s.prose, options: s.options });
       },
@@ -193,6 +200,14 @@ export class LoopSession {
     return { ok: true };
   }
 
+  // Hand over (and clear) a finished scene's closing narration - exactly one
+  // next screen carries it, whichever kind that screen is.
+  private takeEndProse(): string {
+    const p = this.endProse;
+    this.endProse = "";
+    return p;
+  }
+
   private syncCreation(): void {
     const s = this.creation!.current;
     this.screen = {
@@ -263,7 +278,7 @@ export class LoopSession {
   private enterMorning(): void {
     if (runStatus(this.g, this.db).over) return this.presentEnd();
     this.stepBase = this.stepSeq;
-    const r = startQueuedScene(this.g, this.db, this.hooks);
+    const r = startQueuedScene(this.g, this.db, this.hooks, this.takeEndProse());
     if (r) { this.scene = r; this.syncScene(); }
     else this.presentDay();
   }
@@ -277,7 +292,7 @@ export class LoopSession {
     if (runStatus(this.g, this.db).over) return this.presentEnd();
     if (this.g.queue.length) {
       this.stepBase = this.stepSeq;
-      const r = startQueuedScene(this.g, this.db, this.hooks);
+      const r = startQueuedScene(this.g, this.db, this.hooks, this.takeEndProse());
       if (r) { this.scene = r; return this.syncScene(); }
     }
     this.presentDay();
@@ -302,7 +317,8 @@ export class LoopSession {
       ...(a.cost <= menu.energy ? {} : { lockedReason: a.tiredText ?? TIRED_DEFAULT }),
     }));
     options.push({ index: menu.actions.length, label: END_LABEL, available: true });
-    let prose = menu.dateLabel;   // diegetic date only — never energy/stats
+    const closing = this.takeEndProse();
+    let prose = (closing ? closing + "\n\n" : "") + menu.dateLabel;   // the finished scene's payoff, then the diegetic date — never energy/stats
     if (this.showJournal) {
       const known = journalLines(this.g, this.db);
       if (known.length) prose += "\n\nWhat you know:\n" + known.map((l) => `· ${l}`).join("\n");
@@ -320,7 +336,8 @@ export class LoopSession {
   private presentEnd(): void {
     const st = runStatus(this.g, this.db);
     const terminal = st.flag ?? st.cause ?? "over";
-    const prose = "The run is over.";
+    const closing = this.takeEndProse();
+    const prose = (closing ? closing + "\n\n" : "") + "The run is over.";
     this.stepSeq++;
     this.screen = { kind: "end", step: this.stepSeq, card: "__run_over__", prose, options: [], day: this.g.day, over: true, terminal };
     if (this.mode === "read") this.recorder.pushPresentation({ step: this.stepSeq, card: "__run_over__", prose, options: [] });
