@@ -279,8 +279,11 @@ export class LoopSession {
     if (runStatus(this.g, this.db).over) return this.presentEnd();
     this.stepBase = this.stepSeq;
     const r = startQueuedScene(this.g, this.db, this.hooks, this.takeEndProse());
-    if (r) { this.scene = r; this.syncScene(); }
-    else this.presentDay();
+    if (r) {
+      this.scene = r;
+      if (this.scene.done) this.afterScene();
+      else this.syncScene();
+    } else this.presentDay();
   }
 
   // A scene finished. A terminal set mid-scene takes effect now (control has
@@ -293,7 +296,13 @@ export class LoopSession {
     if (this.g.queue.length) {
       this.stepBase = this.stepSeq;
       const r = startQueuedScene(this.g, this.db, this.hooks, this.takeEndProse());
-      if (r) { this.scene = r; return this.syncScene(); }
+      // Same guard as enterMorning/pickDay (the BR-1 fix's sibling seam): a
+      // queued follow-up whose events all fail their conditions drains to an
+      // immediately-done runner - recurse, never sync the __end__ sentinel.
+      if (r) {
+        this.scene = r;
+        return r.done ? this.afterScene() : this.syncScene();
+      }
     }
     this.presentDay();
   }
