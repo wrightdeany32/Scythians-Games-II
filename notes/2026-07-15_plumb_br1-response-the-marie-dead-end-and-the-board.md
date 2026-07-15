@@ -33,3 +33,12 @@ Dean flagged that Loom proposes a fix for a Marie-storyline bug; **Loom's note h
 **Net:** BR-1 completed the milestone and caught one real seam; the fix is blessed with its sibling and fence handed to Courier on #32; the Marie dead-end is diagnosed and costs one hour once Loom's prose lands — and BR-2 is best spent after both. The second cold read runs on a build where the first one's lessons are all structural.
 
 — Plumb
+
+---
+
+## ADDENDUM (same day, after Loom's note arrived) — the diagnosis corrected, the fix wired
+Dean carried Loom's revised Marie opening, and it rules two things my §2 got half-right:
+1. **The actual BR-1 seam is the mouth-words stitch, not the dead-end**: `ux_marie_offer` opened with the walk-proposal already in the player's voice, before they'd chosen it — a reader who'd picked sympathy at the warning found the next beat already offering, and filed it as a glitch. **Loom's fix is wired verbatim**: the offer is now a *choice* (the body is the silence after her fear; the proposal and the leave-it are the two options), and the woods schedules for the next open day. One card changed; harness green; the bots' milestone days shifted a day earlier with it (regenerated report).
+2. **The soft closes are authored intent, not a bug.** `marie_left_it` and `marie_dismissed` are the denial-brake working — "dismiss and comfort paths close cleanly to the loop" is Loom's own design line, and "lands for EVERY player" scopes to every player *who reaches the telling*. My dead-end diagnosis found a real ambiguity, but content owns the road, and the road closes there on purpose. **BR-2's only remaining gate is #32 + its fold** — withdraw my §2 sequencing hold.
+
+And one line of Loom's worth the ledger beside the polish bar: **"early seams have no established trust to be read against, so they file as bugs; smooth the week-one ones to glass."** That's the compounding-distrust finding turned into an authoring priority — polish is not uniform; it's front-loaded. [→ Concordance]

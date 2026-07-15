@@ -67,28 +67,27 @@ You don't answer fast enough.
     ],
   },
 
-  // -- you offer to go with her -----------------------------------------------------
+  // -- after the fear is said (the BR-1 seam fix, Loom's revision: the offer is
+  // now a CHOICE the player makes, never a line the setup put in their mouth —
+  // early seams have no established trust to be read against, so they file as
+  // bugs; week-one seams get smoothed to glass) ------------------------------------
   ux_marie_offer: {
     id: "ux_marie_offer",
     title: "The Offer",
     body:
-`"Let me ask you something," you say. "Would it help if I went out there? With you. In the daylight. Just so you can see it's a — it's a hole in the ground and some trees. Nothing's out there, Marie. Let me show you."
-
-The silence this time is longer.
-
-"You'd do that," she says. Not quite a question. "You'd come with me."`,
+`The silence on the line stretches. She's told you she's afraid — really afraid, forty years of it — and now she's just *there*, breathing, waiting the way people wait after they've said a true thing they can't take back. There's a reasonable, kind thing forming in your head. There's also just letting it be.`,
     choices: [
       {
-        label: `"Of course. This weekend. We'll walk out, you'll see it's nothing, and you'll sleep better."`,
+        label: `"Would it help if I came out there with you? In the daylight. Just so you can see it's a hole in the ground and some trees — nothing's out there, Marie. Let me show you."`,
         outcome: {
-          log: "She agrees the way people agree to things they're afraid of — because someone kind is offering, and being alone with a fear is worse than facing it with company. You've just made a plan. It feels like a favor.",
+          log: "The silence this time is longer. 'You'd do that,' she says. Not quite a question. 'You'd come with me.' And she agrees the way people agree to things they're afraid of — because someone kind is offering, and being alone with a fear is worse than facing it with company. You've just made a plan. It feels like a favor.",
           tone: "n",
           setFlags: { marie_woods_planned: true },
-          scheduleEvent: { eventId: "ux_marie_woods", inDays: 2 },
+          scheduleEvent: { eventId: "ux_marie_woods", inDays: 1 },
         },
       },
       {
-        label: `"…actually, if it scares you that much, maybe don't. Maybe just steer clear and we'll leave it."`,
+        label: `"If it scares you that much, Marie — maybe just steer clear of the place. Don't go out there at all. Leave it be."`,
         outcome: {
           log: "She's quiet, then grateful, then off the phone. You've done the gentle thing. The plan dissolves before it existed, and you'll wonder, later, with no way to know, whether that was the kindness it felt like.",
           tone: "n",

@@ -12,7 +12,7 @@
 | quiet | 202 | 15 | run_end_never_returned | 28:0 | —/—/— | 4 |
 | quiet | 303 | 15 | run_end_never_returned | 28:0 | —/—/— | 4 |
 | balanced | 101 | 4 | run_end_whites_return | 2:3 | —/—/— | 20 |
-| balanced | 202 | 5 | run_end_whites_return | 3:4 | —/—/— | 22 |
+| balanced | 202 | 6 | run_end_whites_return | 4:5 | —/—/— | 33 |
 | balanced | 303 | 17 | run_end_never_returned | 28:8 | 5/—/— | 32 |
 
 ## 2 · Thread exhaustion — first day each milestone lands (— = never)
@@ -21,7 +21,7 @@
 |---|---|---|---|---|---|---|---|---|---|
 | cave_done | 1 | 2 | 1 | — | — | — | 1 | 2 | 1 |
 | took_shard | — | — | — | — | — | — | — | — | — |
-| marie_episode_done | — | — | — | — | — | — | — | — | — |
+| marie_episode_done | — | — | — | — | — | — | — | 4 | — |
 | grave_suspicion | — | — | — | — | — | — | — | — | — |
 | grave_beat_done | — | — | — | — | — | — | — | — | — |
 | thread_nora | 3 | 4 | 3 | — | — | — | 3 | 4 | 3 |
@@ -29,15 +29,15 @@
 | doug_dinner_done | 5 | 4 | — | — | — | — | — | — | 8 |
 | doug_meeting_done | 10 | 9 | — | — | — | — | — | — | 13 |
 | doug_break_done | 13 | 12 | — | — | — | — | — | — | 16 |
-| dale_met | — | — | — | — | — | — | — | — | — |
+| dale_met | — | — | — | — | — | — | — | 4 | — |
 | dale_bond | — | — | — | — | — | — | — | — | — |
-| pointed_to_denise | — | — | — | — | — | — | — | — | — |
+| pointed_to_denise | — | — | — | — | — | — | — | 5 | — |
 | denise_met | — | — | — | — | — | — | — | — | — |
 | convergence_seen | — | — | — | — | — | — | — | — | — |
 | pressure1_seen | 5 | 6 | — | — | — | — | — | — | 5 |
 | pressure2_seen | 12 | 9 | — | — | — | — | — | — | — |
 | pressure3_seen | — | 11 | — | — | — | — | — | — | — |
-| run_end_whites_return | — | — | 4 | — | — | — | 3 | 4 | — |
+| run_end_whites_return | — | — | 4 | — | — | — | 3 | 5 | — |
 | run_end_never_returned | 15 | 15 | — | 15 | 15 | 15 | — | — | 17 |
 | went_after_dale | — | — | — | — | — | — | — | — | — |
 
@@ -50,7 +50,7 @@
 - **quiet/202**: 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 - **quiet/303**: 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 - **balanced/101**: 0 0 0
-- **balanced/202**: 0 0 0 0
+- **balanced/202**: 0 0 0 0 0
 - **balanced/303**: 0 0 2 3 3 3 3 3 3 3 3 3 3 3 3 3
 
 ## 4 · The factor A/Bs (seed-matched, loopworld, N=400×3 seeds)
