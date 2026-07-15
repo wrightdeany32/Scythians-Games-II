@@ -296,7 +296,13 @@ export class LoopSession {
     if (this.g.queue.length) {
       this.stepBase = this.stepSeq;
       const r = startQueuedScene(this.g, this.db, this.hooks, this.takeEndProse());
-      if (r) { this.scene = r; return this.syncScene(); }
+      // Same guard as enterMorning/pickDay (the BR-1 fix's sibling seam): a
+      // queued follow-up whose events all fail their conditions drains to an
+      // immediately-done runner - recurse, never sync the __end__ sentinel.
+      if (r) {
+        this.scene = r;
+        return r.done ? this.afterScene() : this.syncScene();
+      }
     }
     this.presentDay();
   }
