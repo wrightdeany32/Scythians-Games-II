@@ -24,24 +24,20 @@ You don't answer fast enough.
 
 - **"Every place has a bad story, Marie. You go anywhere long enough, something bad happened there."** → **grip +1**; sets `marie_dismissed`, `lead_marie_cooled`. *(narration: "It's true, and you say it kindly, and you can hear it land like a door closing on her side. She says you're probably right. She doesn't believe you're right, but she lets it go, and something in you settles at having said the sensible thing out loud.")* → resolve.
 - **"What kind of bad things?"** → sets `marie_engaged`. *(narration: "There's a silence on the line where she decides how much to say. 'People get lost,' she says finally. 'People get hurt. And there was — a long time ago, there was worse. I don't like to talk about it on the phone.'")* → queue `ux_marie_offer`.
-- *(introspective)* **"…you sound really scared, Marie."** → sets `marie_engaged`, narration only, no stat, `diamondCoord` leans *attuned* (small). *(narration: "'I am,' she says, simply, like it costs her nothing to admit and everything to feel. 'I've been scared of that place for forty years. I don't expect you to understand it.'")* → queue `ux_marie_offer`.
+- *(introspective)* **"…you sound really scared, Marie."** → sets `marie_engaged`, narration only, no stat, `attune` leans *attuned* (small). *(narration: "'I am,' she says, simply, like it costs her nothing to admit and everything to feel. 'I've been scared of that place for forty years. I don't expect you to understand it.'")* → queue `ux_marie_offer`.
 
 > DESIGN: The dismiss option is the denial-brake in its purest form — kind, correct, and steadying, and it *closes the thread* (recovery-via-denial: grip back, lead gone). It's not a wrong choice; it's the choice that keeps you safe and shallow, and the narration lets the player feel the settling. The other two open the down-axis. `marie_dismissed` leaves Marie a warm contact who simply doesn't lead anywhere — she can still be called, she just won't raise it again unless the player does.
 
 ---
 
-## `ux_marie_offer` — you offer to go with her
+## `ux_marie_offer` — after the fear is said
 
-"Let me ask you something," you say. "Would it help if I went out there? With you. In the daylight. Just so you can see it's a — it's a hole in the ground and some trees. Nothing's out there, Marie. Let me show you."
+The silence on the line stretches. She's told you she's afraid — really afraid, forty years of it — and now she's just *there*, breathing, waiting the way people wait after they've said a true thing they can't take back. There's a reasonable, kind thing forming in your head. There's also just letting it be.
 
-The silence this time is longer.
+- **"Would it help if I came out there with you? In the daylight. Just so you can see it's a hole in the ground and some trees — nothing's out there, Marie. Let me show you."** → *(narration: "The silence this time is longer. 'You'd do that,' she says. Not quite a question. 'You'd come with me.' And she agrees the way people agree to things they're afraid of — because someone kind is offering, and being alone with a fear is worse than facing it with company. You've just made a plan. It feels like a favor.")* → sets `marie_woods_planned`; **schedules** `ux_marie_woods` for the next open day.
+- **"If it scares you that much, Marie — maybe just steer clear of the place. Don't go out there at all. Leave it be."** → *(narration: "She's quiet, then grateful, then off the phone. You've done the gentle thing. The plan dissolves before it existed, and you'll wonder, later, with no way to know, whether that was the kindness it felt like.")* → sets `marie_left_it`; → resolve.
 
-"You'd do that," she says. Not quite a question. "You'd come with me."
-
-- **"Of course. This weekend. We'll walk out, you'll see it's nothing, and you'll sleep better."** → sets `marie_woods_planned`; **schedules** `ux_marie_woods` for the next open day. *(narration: "She agrees the way people agree to things they're afraid of — because someone kind is offering, and being alone with a fear is worse than facing it with company. You've just made a plan. It feels like a favor.")*
-- **"…actually, if it scares you that much, maybe don't. Maybe just steer clear and we'll leave it."** → sets `marie_left_it`. *(narration: "She's quiet, then grateful, then off the phone. You've done the gentle thing. The plan dissolves before it existed, and you'll wonder, later, with no way to know, whether that was the kindness it felt like.")* → resolve.
-
-> DESIGN: The offer is the vehicle — the *rational, generous* act that walks them both to the wound. The alternative (talk her out of going) is also kind, and closes the thread more softly than the dismiss did. Both are decent. Only one goes to the woods, and it's the one that feels most like help.
+> DESIGN: The seam fix (BR-1). The offer to walk Marie to the caves is now a *choice the player makes*, not a line the beat's setup put in their mouth before they'd decided — a reader who picked a sympathy response in the warning and then found the next beat *already offering to go* read it as a glitch, and because it landed in week one (before the game had earned the authority for the on-theme reading) it nicked the spell. The reader's own finding is the rule: early seams have no established trust to be read against, so they file as bugs; smooth the week-one ones to glass. Moving the offer into the options closes the stitch. It's still the vehicle — the rational, generous act that walks them both to the wound; the alternative (talk her out) is also kind and closes the thread softly; and only the first goes to the woods, which is the whole point: the one that feels most like help is the one that walks you down, and now it's chosen, not narrated.
 
 ---
 
@@ -65,7 +61,7 @@ She looks at you.
 
 - **"God. Marie. I'm sorry."** → sets `marie_grief`. *(sits with it.)* → queue `ux_marie_ellen`.
 - **"…what did the boy say happened?"** → sets `asked_boy`. → queue `ux_marie_ellen`.
-- *(introspective — requires `cave_done OR doug_off OR grave_suspicion`)* **"I think I might believe you."** → sets `marie_believed`, narration only, no stat, `diamondCoord` leans *attuned* (small). *(narration: "You don't say what it is you believe, because you couldn't name it. She hears it anyway. Her hand tightens on your arm, and for the first time she looks less alone and more afraid, because now there are two of you.")* → queue `ux_marie_ellen`.
+- *(introspective — requires `cave_done OR doug_off OR grave_suspicion`)* **"I think I might believe you."** → sets `marie_believed`, narration only, no stat, `attune` leans *attuned* (small). *(narration: "You don't say what it is you believe, because you couldn't name it. She hears it anyway. Her hand tightens on your arm, and for the first time she looks less alone and more afraid, because now there are two of you.")* → queue `ux_marie_ellen`.
 
 ---
 
@@ -73,13 +69,16 @@ She looks at you.
 
 "The boy said something took her." Marie says it flat, the way you say a thing you've turned over ten thousand times. "Said it came out of the trees and took her and there was nothing he could do. Nobody believed him. Half the town decided he did it himself — that he hurt her, and made up the rest. He grew up here. He's still here. People still cross the street."
 
-"His name's Dale. And I'll tell you something nobody else will: I've talked to that man. He's a decent man. I don't know what happened out here, and I don't know if I believe every word, but I've sat across from Dale and I don't believe he hurt anybody." She shakes her head. "I don't know what I believe. I just know it wasn't nothing."
+"His name's Dale. And I'll tell you something nobody else will: I've talked to that man. He's a decent man. I don't know what happened out here, and I don't know if I believe every word, but I've sat across from Dale and I don't believe he hurt anybody." She shakes her head. "Once, a long time ago, he told me I should go and not come back for my own sake — that being seen with him doesn't do anybody any favors. But if you're going to keep pulling at this, hear it from him, not from me. He'd tell you straighter than I can."
 
-- **"What was the girl's name?"** → sets `knows_ellen`. *(narration: "'Ellen,' she says, and it comes out immediate, no reaching for it. 'Ellen Fields. I've carried that name forty years. You don't forget the ones that just — stop.'")* → queue `ux_marie_grave`.
-- **"Have you ever talked to him about what he saw?"** → *(narration: "'Once. A long time ago. He told me the same thing he told everyone, and he told it like a man telling the truth, and then he told me I should go and not come back for my own sake, that being seen with him doesn't do anybody any favors.' She almost smiles. 'Maybe you should talk to him yourself. If you're going to keep pulling at this. He'd tell you straighter than I can.'")* → sets `pointed_to_dale`; → queue `ux_marie_grave`.
-- **"Has anyone else ever gone missing out here? Has anyone — changed?"** → sets `asked_pattern`. *(narration: "She looks at you sharply, like you've said something closer to the bone than you know. 'Why would you ask me that,' she says — not angry, almost hopeful, the question of someone who has waited a long time for anyone to ask it. 'Have you seen something? Has someone —' and you realize you don't have an answer, and the two of you stand there with the question open between you, and neither of you closes it.")* → sets `pattern_open`; → queue `ux_marie_grave`.
+"The girl's name was Ellen. Ellen Fields." It comes immediate, no reaching for it. "I've carried that name forty years. You don't forget the ones that just — stop."
 
-> DESIGN: Dale is spoken-of here, never met — the town's judgment lands before the player forms their own, and Marie's "he's a decent man / go talk to him yourself" is the seed of the Dale beat (his kindness will subvert the town's read later). Ellen's name is surfaced *by Marie* (she remembers because it stuck), and it's the thread Nora's research will independently catch — the two frames reaching toward each other through the player. `asked_pattern` is the unfalsifiable seam: the player asks about change/disappearance, has no answer, and the question stays open — Marie's folk-avoidant frame brushing the cult's density without either of them knowing.
+*(Wiring: `ux_marie_ellen` sets `pointed_to_dale` regardless of the choice below — Marie names Ellen and points to Dale in the telling itself, so both land for every player. Ellen's name is prose, not a flag. Set `pointed_to_dale` on card entry, or on both choice-resolutions — the invariant is that it is **never** gated behind the pattern probe, so the Dale thread is always reachable.)*
+
+- **"Has anyone else ever gone missing out here? Has anyone — changed?"** *(you push past the one story)* → sets `asked_pattern`, `pattern_open`. *(narration: "She looks at you sharply, like you've said something closer to the bone than you know. 'Why would you ask me that,' she says — not angry, almost hopeful, the question of someone who has waited a long time for anyone to ask it. 'Have you seen something? Has someone —' and you realize you don't have an answer, and the two of you stand there with the question open between you, and neither of you closes it.")* → queue `ux_marie_grave`.
+- **"I'll go and find him. Dale."** *(you take the thread she's handing you and leave the rest alone)* → *(narration: "She nods, slow, like she's set down a weight she's carried too long by herself. 'Be kind to him,' she says. 'Whatever he turns out to be. Nobody has been, in a long time.'")* → queue `ux_marie_grave`.
+
+> DESIGN: Marie is the hub, and after the split she hands off *without forcing a trade.* She names Ellen and points to Dale in the telling — `pointed_to_dale` and the name land for **every** player, so the Dale thread and Ellen's grave are always reachable and the Dale relief valve is never gated behind a competing lead. The one branching choice is the **pattern probe** — the unfalsifiable seam (`asked_pattern`/`pattern_open`), the player pushing past the single story toward the shape underneath it, which the convergence beat later pays off against Nora. Splitting the old three-way fork means no run trades Dale away for the pattern; the convergence is an *additional* reward for the player who both probes here and does Nora's day-trip, not a mutually exclusive alternative — and the null pole (Dale) is reached by more players, not fewer, which is the whole point of not gating him. Dale spoken-of, never met — the town's judgment lands before the player forms their own, and Marie's "he's a decent man / hear it from him" is the seed the Dale beat subverts. (`knows_ellen` dropped: the name lands in prose for everyone, fixing the grave beat's assumption that the player knows it, and Ellen's tendril toward Nora's research is carried — safely, without a compass-adjacent bridge — by the convergence percept, not by a flag that pointed at the sealed Ellen/research-center edge. The `ux_marie_ellen`/Denise reframe Dean has parked — a witness who paints Dale as the antagonist, on a path where you never get his account — layers on top of this split later; noted, not built.)
 
 ---
 
@@ -106,17 +105,17 @@ You walk her back. The truck's where she left it. She holds your arm the whole w
 
 Then she gets in her car and drives back toward town and her ordinary evening, and leaves you at the edge of the trees with a girl's name, a man to maybe go find, and a grave neither of you will look at.
 
-> DESIGN: Marie closes as a hub, not a resolution — she hands off to Dale (`pointed_to_dale`) and leaves Ellen Fields (`knows_ellen`) for Nora's research to catch, and her parting line is the game's thesis in her own folk register: *it waits for you to keep coming back*, which is the return trip's whole logic spoken by someone who has no idea she's describing it. No terminal — control returns to the loop. The threads left live: Dale, the grave, the pattern, Ellen's name.
+> DESIGN: Marie closes as a hub, not a resolution — she hands off to Dale (`pointed_to_dale`, now for every player) and leaves Ellen's name in the air for the convergence to catch against Nora, and her parting line is the game's thesis in her own folk register: *it waits for you to keep coming back*, which is the return trip's whole logic spoken by someone who has no idea she's describing it. No terminal — control returns to the loop. The threads left live: Dale, the grave, the pattern, Ellen's name.
 
-Exit flags: `marie_episode_done`, plus whichever of `grave_suspicion` / `pointed_to_dale` / `knows_ellen` / `pattern_open` the player earned.
+Exit flags: `marie_episode_done`, `pointed_to_dale` (always, after the split), plus whichever of `grave_suspicion` / `pattern_open` the player earned.
 
 ---
 
 ## Notes for the wire (Armature / Plumb)
 
-- **Loop-native, frozen-cave-safe.** Met-door (`scheduleEvent`, gated `arrived_town`) → a scheduled outing → a queue-chained conversation. Reads `arrived_town`, `cave_done`, `doug_off`, `grave_suspicion`; writes `marie_*`, `knows_ellen`, `grave_suspicion`, `pointed_to_dale`, `pattern_open`.
+- **Loop-native, frozen-cave-safe.** Met-door (`scheduleEvent`, gated `arrived_town`) → a scheduled outing → a queue-chained conversation. Reads `arrived_town`, `cave_done`, `doug_off`, `grave_suspicion`; writes `marie_*`, `grave_suspicion`, `pointed_to_dale`, `pattern_open`.
 - **The denial-brake is a real grip lever** — `ux_marie_warning`'s dismiss option grants **grip +1** and sets `lead_marie_cooled`. Grip is a stat; legal. This is recovery-via-denial's first showcase.
-- **No position gates anywhere.** The three introspective/attuned options carry small `diamondCoord`s only (needs the branch-level field, same as the others).
+- **No position gates anywhere.** The three introspective/attuned options carry small `attune` leans only (volition, never in the draw) (needs the branch-level field, same as the others).
 - **Every branch resolves or queues; no dead ends.** Dismiss and comfort paths close cleanly to the loop; the engaged path chains through to `ux_marie_close`.
 - **Linter-clean** — echoes are prose; no `*…*` in any `log`; all refs resolve within this pass.
 
