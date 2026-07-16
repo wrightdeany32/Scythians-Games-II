@@ -284,7 +284,17 @@ export interface CreationAnswer {
   lensFlavor?: string;
   attune?: number;
   profile?: Record<string, boolean | number | string>;   // deal-profile keys — pre-game scratch, NEVER game state
+  // The chosen answer's reply prose (the creation ride's introspective
+  // narrations). PRESENTATION-ONLY: it rides the same fold a beat uses —
+  // above the next creation screen, or into the first gameplay screen if the
+  // question was last. newGame never reads it; headless paths lose nothing.
+  narration?: string;
 }
+// A question with an EMPTY answers array is a BEAT (the option-less fold,
+// Armature-approved): it lands and passes - its prose folds above the next
+// presented screen (or rides into the first gameplay screen if trailing).
+// Beats are inert by construction: no profile write, no attune seed, no
+// consumed answer slot (answers stay question-indexed; the holes are skipped).
 export interface CreationQuestion { q: string; answers: CreationAnswer[]; }
 
 // A START — a card in the creation deck. The deal picks ONE (weighted, filtered

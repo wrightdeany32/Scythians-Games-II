@@ -219,6 +219,11 @@ export class LoopSession {
 
   private finishCreation(): void {
     const res = this.creation!.result!;
+    // Rider (a) of the option-less-beat fold: a TRAILING creation beat (the
+    // radio's last murmur, nothing presenting after it) rides the same
+    // endProse seam a finished scene's closing narration does - it folds
+    // above the first gameplay screen, whichever kind that turns out to be.
+    if (this.creation!.trailingProse) this.endProse = this.creation!.trailingProse;
     this.creation = undefined;
     this.g = newGame(
       {

@@ -238,6 +238,56 @@ check("12 · live reader sees every resolution (recorder == live view; outcomes 
   fidelity && noEndLeak && foldedDayScreens > 0,
   `live=${live.length} pres=${livePres.length} · folded day screens=${foldedDayScreens}`);
 
+// ---- Crit 13: the empty-screen fence (absorbs PR #38, Armature's fixture) ----
+// BR-1's bug: a morning-queued scene whose events all fail their conditions
+// resolves immediately, and enterMorning surfaced the internal __end__ sentinel
+// (empty prose, no options) instead of the day menu. Armature's phantom fixture
+// forces the trigger deterministically; this absorbs it (credited) and extends
+// it with a presentable opener, which buys the assertion nothing else makes:
+// THE FOLD SURVIVES A DRAIN - the played card's closing narration must reach
+// the day menu THROUGH the drained phantom. (Per Courier's instrumented
+// finding on #38: afterScene's queue-branch is unreachable today - done
+// implies the queue drained - so this asserts the INVARIANT at the surface,
+// not a specific code path. The day-2 door re-runs the enterMorning seam.)
+import type { ContentDB } from "../engine/types";
+const phantomDb: ContentDB = {
+  openingLog: "sentinel-fence world.",
+  openingQueue: ["p_open", "p_phantom"],
+  events: {
+    p_open: { id: "p_open", title: "t", body: "A card that plays.",
+      choices: [{ label: "On.", outcome: { log: "Onward, then.", tone: "n" } }] },
+    p_phantom: { id: "p_phantom", title: "t", body: "never shown",
+      condition: { kind: "flag", flag: "never_set" },
+      choices: [{ label: "x", outcome: {} }] },
+  },
+  actions: [],
+  towns: { p_town: { id: "p_town", name: "T", tiersOffered: ["outer"], amenities: [], reachable: true, fixtures: [] } },
+  factions: {}, traits: {}, items: {}, npcs: {},
+  doors: [{ eventId: "p_phantom", when: { kind: "noflag", flag: "never_set" } }],
+  names: { first: ["P"], last: ["Q"] },
+};
+const s13 = new LoopSession(phantomDb, { contentId: "sentinel", seed: 5, buildTag: "sentinel-v0", tier: "outer", townId: "p_town", mode: "read" });
+const s13Screens: string[] = [];
+let s13Ok = true;
+let s13Days = 0;
+let s13FoldHeld = false;
+let s13Guard = 0;
+while (!s13.done && s13Guard++ < 20) {
+  const scr = s13.current;
+  s13Screens.push(scr.card);
+  if (scr.card === "__end__" || (!scr.over && !scr.prose && scr.options.length === 0)) s13Ok = false;
+  if (scr.kind === "day") {
+    if (s13Days === 0 && scr.prose.includes("Onward, then.")) s13FoldHeld = true;   // the fold rode THROUGH the drain
+    if (++s13Days >= 2) break;   // day-1 (post-scene drain) and day-2 (door-queued phantom, the BR-1 seam) both clean
+  }
+  const idx = scr.kind === "day" ? scr.options[scr.options.length - 1].index : firstAvailable(scr);
+  if (!s13.pick(idx, "").ok) break;
+}
+const s13NoSentinelRecorded = presentations(s13.recorder.stream().records).every((p) => p.card !== "__end__");
+check("13 · empty-screen fence: drained phantoms land on the day menu, the fold survives the drain, no sentinel recorded",
+  s13Ok && s13FoldHeld && s13Days >= 2 && s13Screens[0] === "p_open" && s13NoSentinelRecorded,
+  `screens=${s13Screens.join(">")}`);
+
 // ---- report ----------------------------------------------------------------
 const line = (s = "") => console.log(s);
 line(`\n=== Loop cold-read hardware — acceptance ===\n`);

@@ -175,6 +175,11 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
       checkCoord(issues, `creation q${qi} a${ai}`, a.diamondCoord);
       checkAttune(issues, `creation q${qi} a${ai}`, a.attune);
       if (a.flag) setFlags.add(a.flag);   // creation answers set flags too — keep the flag-web honest
+      // reply narrations are log-analog (the pick's reply, not body prose) —
+      // same intent-note fence as logs and journal lines
+      if (a.narration && /\*[^*\n]+\*/.test(a.narration)) {
+        err(`creation q${qi} a${ai}`, `narration carries an *intent-note* — author-facing italics must never reach the surface: "${a.narration.slice(0, 60)}"`);
+      }
     });
   });
   if (starts.length) {

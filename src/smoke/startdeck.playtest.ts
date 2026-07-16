@@ -93,6 +93,75 @@ check("10 · backfill: a start-deck-bearing db still runs the legacy path when n
   legacy.queue.length === 1 && legacy.queue[0] === "ux_explorer_opening" && legacy.tier === "outer",
   `legacy queue=[${legacy.queue.join(",")}]`);
 
+// ---- 11 · THE OPTION-LESS BEAT (the fold, Armature-approved option 1) --------
+// A question with no answers is a BEAT: it lands and passes. Assert all four
+// properties: (a) it never presents its own screen - its prose folds above the
+// NEXT question's; (b) it consumes no answer slot (answers stay question-
+// indexed, real picks land on their own questions); (c) it is inert to the
+// deal/profile; (d) a TRAILING beat rides out on trailingProse for the console.
+const beatDb: ContentDB = {
+  ...explorerDb,
+  creationCommon: [
+    { q: "Q-one.", answers: [{ label: "A" }, { label: "B", profile: { beat_marker: true } }] },
+    { q: "The beat - it lands and passes.", answers: [] },
+    { q: "Q-two.", answers: [{ label: "C" }, { label: "D" }] },
+    { q: "The trailing murmur.", answers: [] },
+  ],
+};
+const beatRun = new CreationRunner(beatDb, { seed: 4242 });
+const screens: string[] = [];
+screens.push(beatRun.current.prose);
+beatRun.pick(1);                       // Q-one -> B (writes beat_marker to the profile)
+screens.push(beatRun.current.prose);   // must be the beat's prose FOLDED above Q-two
+beatRun.pick(0);                       // Q-two -> C ... then the trailing beat, then done
+const beatFolded = screens[1].startsWith("The beat - it lands and passes.") && screens[1].includes("Q-two.");
+const noBeatScreen = screens.every((p) => p !== "The beat - it lands and passes.");
+const aligned = beatRun.result!.answers[0] === 1 && beatRun.result!.answers[2] === 0
+  && beatRun.result!.answers[1] === undefined && beatRun.result!.answers[3] === undefined;
+check("11 · the option-less beat: folds forward, never presents alone, answers stay question-indexed, trailing rides out",
+  beatRun.done && beatFolded && noBeatScreen && aligned && beatRun.trailingProse === "The trailing murmur.",
+  `screens=${screens.length} · answers=[${beatRun.result!.answers.map((a) => a ?? "_").join(",")}] · trailing=${JSON.stringify(beatRun.trailingProse)}`);
+
+// ---- 12 · THE REPLY FOLD (CreationAnswer.narration) --------------------------
+// The chosen answer's narration rides the beat fold: above the next screen,
+// stacking under an intervening beat in encounter order, and out on
+// trailingProse when the answered question was last. Presentation-only:
+// newGame ignores it (the record is picks, never prose).
+const replyDb: ContentDB = {
+  ...explorerDb,
+  creationCommon: [
+    { q: "R-one.", answers: [{ label: "A", narration: "The reply lands." }, { label: "B" }] },
+    { q: "A beat between.", answers: [] },
+    { q: "R-two.", answers: [{ label: "C", narration: "The last word." }, { label: "D" }] },
+  ],
+};
+const replyRun = new CreationRunner(replyDb, { seed: 707 });
+const rScreens: string[] = [replyRun.current.prose];
+replyRun.pick(0);                       // R-one -> A: reply folds, then the beat stacks under it
+rScreens.push(replyRun.current.prose);
+replyRun.pick(0);                       // R-two -> C: the trailing reply rides out
+const replyFolded = rScreens[1] === "The reply lands.\n\nA beat between.\n\nR-two.";
+check("12 · the reply fold: narration folds above the next screen (beat stacks under), trailing reply rides out",
+  replyRun.done && replyFolded && replyRun.trailingProse === "The last word."
+    && replyRun.result!.answers[0] === 0 && replyRun.result!.answers[2] === 0,
+  `screen2=${JSON.stringify(rScreens[1])} · trailing=${JSON.stringify(replyRun.trailingProse)}`);
+
+// ---- 13 · the finalized ride deals clean end-to-end ---------------------------
+// Loom's v2 creation ride (the shipped creationCommon): eight questions, one
+// beat (the radio — it must never present its own screen), and every pick-0
+// ride deals the reunion. The radio's prose folds above the Explorer fork.
+const rideScreens: string[] = [];
+const ride = new CreationRunner(explorerDb, { seed: 91007 }, { onScreen: (s) => rideScreens.push(s.prose) });
+let rideGuard = 0;
+while (!ride.done && rideGuard++ < 20) { if (!ride.pick(0).ok) break; }
+const radioQ = explorerDb.creationCommon!.find((q) => q.answers.length === 0)!.q;
+const radioFolded = rideScreens.some((p) => p !== radioQ && p.includes("meant for *you*") && p.includes("It occurs to you"));
+check("13 · the shipped ride: 7 presented screens, the radio beat folds above the Explorer fork, the deal seats the reunion",
+  ride.done && ride.result!.startId === "start_explorer_reunion"
+    && rideScreens.filter((p) => p !== "").length === 7 && radioFolded
+    && rideScreens.every((p) => p !== radioQ),
+  `screens=${rideScreens.length} · start=${ride.result!.startId}`);
+
 // ---- report ----------------------------------------------------------------
 console.log(`\n=== Start-deck acceptance ===\n`);
 let allOk = true;
