@@ -14,6 +14,7 @@ import type { LoopSessionOpts, LoopScreen } from "./loop-session";
 import { renderTranscript, transcriptFilename } from "./transcript";
 import { DEBRIEF_QUESTIONS } from "./scripts";
 import type { PresentationRecord, StreamRecord } from "./recorder";
+import type { ContentDB } from "../engine/types";
 import { newCrossRunStore } from "../engine/engine";
 
 const BUILD_TAG = "explorer-loop-v1";
@@ -237,6 +238,39 @@ const foldedDayScreens = live.filter((v) => v.kind === "day" && v.dateLabel && v
 check("12 · live reader sees every resolution (recorder == live view; outcomes fold onto the next screen)",
   fidelity && noEndLeak && foldedDayScreens > 0,
   `live=${live.length} pres=${livePres.length} · folded day screens=${foldedDayScreens}`);
+
+// ---- Crit 13: the empty-screen regression guard (BR-1's day-boundary bug) ---
+// A morning-queued scene whose events all fail their fire conditions resolves
+// IMMEDIATELY: SceneRunner.begin -> advance finds nothing mountable -> the
+// internal "__end__" sentinel (empty prose, no options). enterMorning/afterScene
+// must DRAIN that to the day menu, never surface the sentinel to the reader.
+// Courier caught the raw empty screen live at a day-6→7 boundary during BR-1;
+// PR #32 guarded both drain paths. This forces the trigger deterministically on
+// a synthetic db so the surface regression can't silently return (a cold reader
+// can't tell an empty screen from intended uncanny — the polish bar's whole point).
+const phantomOnly: ContentDB = {
+  openingLog: "x",
+  openingQueue: ["p_phantom"],   // the ONLY morning beat, gated permanently false
+  events: {
+    p_phantom: {
+      id: "p_phantom", title: "t", body: "never shown",
+      condition: { kind: "flag", flag: "never_set" },   // fails every time → skipped → immediately-done scene
+      choices: [{ label: "x", outcome: {} }],
+    },
+  },
+  actions: [],
+  towns: { t: { id: "t", name: "T", tiersOffered: ["outer"], amenities: [], reachable: true, fixtures: [] } },
+  factions: {}, traits: {}, items: {}, npcs: {}, names: { first: ["P"], last: ["Q"] },
+};
+const s13 = new LoopSession(phantomOnly, baseOpts("read"));
+// (a) the live first screen must be the day menu, never the empty __end__ sentinel
+const firstScreenClean = s13.current.card !== "__end__" && s13.current.kind === "day"
+  && s13.current.prose.trim().length > 0 && s13.current.options.length > 0;
+// (b) the recorder must not hold an __end__ presentation for that drained scene
+const noSentinelRecorded = presentations(s13.recorder.stream().records).every((p) => p.card !== "__end__");
+check("13 · empty-screen regression: an immediately-done queued scene drains to the day menu, never the __end__ sentinel",
+  firstScreenClean && noSentinelRecorded,
+  `first screen: kind=${s13.current.kind} card=${s13.current.card} opts=${s13.current.options.length}`);
 
 // ---- report ----------------------------------------------------------------
 const line = (s = "") => console.log(s);
