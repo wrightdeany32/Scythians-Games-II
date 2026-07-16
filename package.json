@@ -18,12 +18,17 @@
     "coldread:build-loop": "tsx src/coldread/build-loop-transcript.ts",
     "coldread:proto": "tsx src/coldread/proto-relay.ts",
     "typecheck": "tsc --noEmit",
+    "web": "vite",
+    "web:build": "vite build",
+    "web:preview": "vite preview",
+    "web:smoke": "tsx src/app/websession.smoke.ts",
     "bots": "tsx src/bots/run.ts",
     "bots:sweep": "tsx src/bots/sweep.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vite": "^8.1.5"
   }
 }
