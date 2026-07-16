@@ -115,6 +115,14 @@ export class CreationRunner {
   private qIndex = 0;
   private dealt?: StartDef;
   private step = 0;
+  // THE FOLD (the option-less beat, Armature-approved option 1): a question
+  // with NO answers is a BEAT - it lands and passes. Its prose stashes here
+  // and folds above the next real screen (the one-narration rule at creation).
+  private pendingBeat = "";
+  // Rider (a): a TRAILING beat (nothing presents after it) rides out to the
+  // caller - LoopSession threads it into the first gameplay screen via the
+  // same endProse seam the scene fold uses.
+  trailingProse = "";
 
   constructor(db: ContentDB, opts: { seed: number }, hooks?: CreationHooks) {
     this.db = db;
@@ -126,13 +134,28 @@ export class CreationRunner {
   }
 
   // Present the current question; at the common→specialized boundary, deal
-  // first; when both phases are exhausted, finish.
+  // first; when both phases are exhausted, finish. Option-less BEATS never
+  // present - their prose folds forward (across the deal boundary too, so a
+  // beat placed last in the common phase folds into the first affinity
+  // screen). Beats are INERT by construction (rider b): no answers means no
+  // profile write, no attune seed, and no consumed answer slot - answers stay
+  // question-indexed, so newGame's existing answers[i] lookup skips the holes.
   private settle(): void {
-    if (this.phase === "common" && this.qIndex >= this.commonQs.length) {
-      this.dealt = dealStart(this.db, this.seed, buildProfile(this.commonQs, this.commonAnswers));
-      this.specQs = this.dealt.questions ?? [];
-      this.phase = "specialized";
-      this.qIndex = 0;
+    for (;;) {
+      if (this.phase === "common" && this.qIndex >= this.commonQs.length) {
+        this.dealt = dealStart(this.db, this.seed, buildProfile(this.commonQs, this.commonAnswers));
+        this.specQs = this.dealt.questions ?? [];
+        this.phase = "specialized";
+        this.qIndex = 0;
+      }
+      const qs = this.phase === "common" ? this.commonQs : this.specQs;
+      const question = qs[this.qIndex];
+      if (question && question.answers.length === 0) {
+        this.pendingBeat += (this.pendingBeat ? "\n\n" : "") + question.q;
+        this.qIndex += 1;
+        continue;   // the beat lands and passes - nothing pauses, nothing asks
+      }
+      if (this.phase === "specialized" || this.qIndex < qs.length) break;
     }
     const qs = this.phase === "common" ? this.commonQs : this.specQs;
     if (this.qIndex < qs.length) {
@@ -141,9 +164,10 @@ export class CreationRunner {
       this.current = {
         step: this.step,
         card: this.phase === "common" ? "__creation_common__" : "__creation_start__",
-        prose: question.q,
+        prose: (this.pendingBeat ? this.pendingBeat + "\n\n" : "") + question.q,
         options: question.answers.map((a, i) => ({ index: i, label: a.label, available: true, showWhenLocked: false })),
       };
+      this.pendingBeat = "";
       this.hooks.onScreen?.(this.current);
       return;
     }
@@ -152,6 +176,8 @@ export class CreationRunner {
 
   private finish(): void {
     this.done = true;
+    this.trailingProse = this.pendingBeat;   // rider (a): the trailing beat rides out
+    this.pendingBeat = "";
     const start = this.dealt!;
     this.result = {
       startId: start.id,

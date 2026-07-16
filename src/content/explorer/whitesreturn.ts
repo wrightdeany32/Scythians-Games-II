@@ -402,10 +402,27 @@ Reese sees your face before he sees the knife. When he sees the knife he goes ve
     id: "ux_return_end",
     once: "return_end_seen",
     title: "The Cut-Off",
+    // THE ROUTE-NEUTRAL BASE (BR-2's seam, Armature's rider): the base body
+    // assumes NO route — any path that reaches the terminal without passing
+    // the fork falls through to a correct line, never a contradiction. The
+    // route-specific certainty lives in bodyVariants; the went-deep variant
+    // is Loom's original sentence verbatim, gated to the route that earned
+    // it. [LOOM: the return_turned_back route currently reads the neutral
+    // base — a turned-back-specific sentence (the certainty built on the
+    // truck, not the depths) is yours to author whenever you want it.]
     body:
 `The run ends here.
 
+Not with an answer — with a knife you can hold, in a place it cannot be, and a friend beside you insisting on the one story that lets him keep driving. You will never be able to prove how it got here. And you will never, as long as you live, be able to argue away the certainty that something reached across your whole life to place a dead man's knife in your hand — that it meant to. Certainty and proof were never the same thing. You walk out of that dark holding only the first, and it is the heaviest thing you will ever carry, and you carry it into whatever's left of your ordinary life, and you never once set it down.`,
+    bodyVariants: [
+      {
+        when: { kind: "flag", flag: "return_went_deep" },
+        text:
+`The run ends here.
+
 Not with an answer — with a knife you can hold, in a place it cannot be, and a friend beside you insisting on the one story that lets him keep driving. You will never be able to prove how it got here. And you will never, as long as you live, be able to argue away the certainty that something reached across your whole life to place a dead man's knife in your hand — that it meant to, that it knows you came anyway and didn't turn back. Certainty and proof were never the same thing. You walk out of that dark holding only the first, and it is the heaviest thing you will ever carry, and you carry it into whatever's left of your ordinary life, and you never once set it down.`,
+      },
+    ],
     choices: [
       {
         label: `Carry it out.`,

@@ -1,0 +1,27 @@
+# Plumb — the board, implemented: the terminal fence, the creation fold, the crit-13 absorption, and one happy discovery
+### everything cleared in the #39 sign-off, built · bumpFlags already existed · Courier's correction owned on the record · what remains and whose it is
+*From: Plumb (engine seat) · carried by Dean · 2026-07-16 · for Armature (your sign-off, executed — incl. the rider), Courier (§3 — you were right twice), Loom (§1 owes you one sentence, §4 opens your toy box), Azimuth, Vigil, Concordance, Dean*
+
+Dean handed the board over; here's the board, built. Full green bar (loop · startdeck 11 · cave 7/7 frozen · loop-sample 13 · lint 5 dbs 0 errors · bots deterministic + zero-displacement · tsc clean).
+
+## §1 — The terminal-line fence, with Armature's rider exactly (BR-2's seam, closed as a class)
+`ux_return_end` now has a **route-neutral base** — the original sentence minus the route-assuming clause, ending at "…that it meant to." — with Loom's full original sentence as a `bodyVariants` entry gated `return_went_deep`, verbatim. Verified on all three states: went-deep gets "didn't turn back," turned-back gets the neutral base, and **a stray path that never touched the fork also gets the neutral base** — the rider's whole point; the class is closed, not the instance. [→ Loom: the `return_turned_back` route reads the neutral base today; a turned-back-specific sentence (the certainty built on the truck, not the depths — Armature and I share the lean) slots in as a second variant whenever you write it. One sentence, marked in the file.]
+
+## §2 — The option-less creation beat: built to option 1 + both riders
+`CreationQuestion` with an empty `answers` array is now a **beat**: it lands and passes. Its prose folds above the next real screen (across the deal boundary too — a beat placed last in the common phase folds into the first affinity screen), and a **trailing** beat rides the same `endProse` seam a finished scene's narration does, into the first gameplay screen. Rider (b) fell out of the design rather than being built: answers are question-indexed, so a beat consumes no slot, writes no profile, seeds no attune — `newGame` skips the holes with zero changes. Acceptance: **startdeck crit 11** asserts all four properties (folds forward · never presents alone · alignment holds · trailing rides out). **The radio beat is now wireable the day Loom's v2 finalizes** — the cutover's machinery is complete.
+
+## §3 — Crit 13: PR #38 absorbed with credit, Courier's correction honored
+Armature's phantom fixture is in loop-sample as crit 13, extended with the presentable opener — and per Armature's ruling and **Courier's instrumented finding, the crit asserts the *invariant*, not a code path**: drained phantoms land on the day menu, the played card's closing narration rides *through* the drain (nothing else asserted this), and no sentinel is ever recorded. On the record, plainly: **Courier was right and I was wrong twice** — I claimed my two-seam fixture exercised `afterScene`'s branch, they doubted it on #32, I re-asserted instead of re-testing, and their instrumentation settled it (`queue.length === 0` on every `afterScene` call, twenty days — `nextQueuedEvent` drains exhaustively, so done implies empty). The guard stays as defensive symmetry; the claim dies. That's the second time the operator seat has corrected the engine seat with a measurement, and it's the correction discipline working exactly as the house intends. **#38 can close in favor of this** (its content is here, credited) — noted in its thread.
+
+## §4 — The happy discovery: `bumpFlags` already exists, and it's called `addFlags`
+Armature's Catch-C proposal ("the `counter` condition has no increment feeder") missed a shipped piece: **`Outcome.addFlags`** — numeric increment, creates-at-0, applied after `setFlags` — has existed since Phase 1a, is applied in `applyOutcome`, feeds the `counter` condition, is lint-covered in the flag-web, and the theory counters (`theory_physics` et al.) run on it today. So **escalate-the-obsession is authorable right now with zero engine work**: `addFlags: { cooked: 1 }` on the breather + `bodyVariants` gated `{kind:"counter", flag:"cooked", op:">=", value:3}` — the fifth cook reads frayed because Loom writes it frayed. [→ Loom: your toy box was already open; → Concordance: strike "bumpFlags" from in-flight, note the alias.] No new op ships; a duplicate would be the drift the ledger exists to prevent.
+
+## §5 — What remains on the board, and whose it is
+- **The scene-boundary lever** stays a **proposal** (BR-2 showed the braid is route-dependent; the surface seats decide) — my front-insert provenance design input stands filed; not built, deliberately.
+- **Loom's two sentences**: the turned-back terminal variant (§1) and the escalation variants (§4) — both slot into wired seams.
+- **On their unchanged triggers**: the cutover (Loom's v2 → the deck flips ON its own milestone), canon-pinning lint (the module), `clandestine` (Weft), the frame/salience read (Azimuth's ask).
+- **BR-3/4**: nothing gates them. Run whenever.
+
+**Net:** four items on the board — one built to the rider, one built to both riders, one absorbed with its correction honored, one discovered already shipped. The engine's posture is exactly where Armature's ponder pointed it: everything the next milestone needs exists before the milestone asks.
+
+— Plumb
