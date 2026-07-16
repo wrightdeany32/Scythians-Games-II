@@ -21,6 +21,7 @@
 import type { ContentDB, Npc } from "../../engine/types";
 import { caveEvents, caveEntryAction, caveItems } from "../cave";
 import { openingEvents, openingDoors, openingQueue } from "./opening";
+import { explorerCreationCommon } from "./creation";
 import { dougActions, dougEvents } from "./doug";
 import { marieEvents } from "./marie";
 import { noraActions, noraEvents } from "./nora";
@@ -49,19 +50,13 @@ export const explorerDb: ContentDB = {
   openingQueue,
   // The start-deck (spec v3.3 §7; engine: src/engine/creation.ts). BACKFILL-SAFE:
   // the legacy `openingQueue` above still drives every harness that doesn't pass
-  // a `startId`, so nothing here changes existing runs — this is the OPT-IN deck
-  // the Run Read will use once the consoles wire creation. Today it holds the
-  // flagship's one scenario; when Loom / the corner writers author the
-  // doctor-visit et al., they become deck cards and the deal picks among them.
-  creationCommon: [
-    // PLACEHOLDER intro — Loom authors the real creation questions. This exists
-    // to realize Dean's shape (a fixed intro/menu, THEN the start card is drawn)
-    // and to give the common phase one screen. No effects, no profile key.
-    {
-      q: "Somewhere, a person is about to have an ordinary day that won't stay ordinary. It's you. It was always going to be you.",
-      answers: [{ label: "Begin." }],
-    },
-  ],
+  // a `startId`, so nothing here changes existing runs — the deck is OPT-IN
+  // (LoopSession opts.startDeck / newGame startId) and FLIPS ON as its own
+  // named milestone after BR-4 (Azimuth's comparability ruling). The common
+  // phase is Loom's finalized v2 creation ride (see ./creation.ts); when the
+  // corner writers' starts land, they become deck cards with qualifiers and
+  // the deal picks among them.
+  creationCommon: explorerCreationCommon,
   starts: [
     {
       id: "start_explorer_reunion",

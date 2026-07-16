@@ -793,6 +793,62 @@ const harvestU = harvestCrossRun(gU, explorerDb, newCrossRunStore());
 check("explorer: held_truth persists across vessels; denied_knife does not (not chosen)",
   harvestU.seeds?.held_truth === true && harvestU.seeds?.denied_knife === undefined);
 
+// THE TERMINAL FENCE, asserted automatically (Armature's belt-and-suspenders,
+// endorsed four seats): ux_return_end's certainty clause must follow the route
+// actually taken — and a stray path that never touched the fork must read the
+// route-neutral base, never a contradiction. Guards the fence's route selection
+// the way crit 13 guards the empty screen: a future edit to the card can't
+// silently re-open BR-2's seam.
+line(`\n-- the terminal fence (ux_return_end route selection) --`);
+const fireReturnEnd = (flags: Record<string, boolean>): string => {
+  const g = newExplorer(48);
+  driveScene(startQueuedScene(g, explorerDb)!);   // clear the opening (the mis-probe lesson: a seeded queue reads the wrong card)
+  Object.assign(g.flags, flags);
+  g.queue.push("ux_return_end");
+  const r = startQueuedScene(g, explorerDb)!;
+  const prose = r.current.prose;
+  driveScene(r);
+  return prose;
+};
+const deepEnd = fireReturnEnd({ return_went_deep: true });
+const backEnd = fireReturnEnd({ return_turned_back: true });
+const strayEnd = fireReturnEnd({});
+check("fence: the went-deep run earns the deep clause",
+  deepEnd.includes("came anyway and didn't turn back"));
+check("fence: the turned-back run reads its own certainty, never the deep clause (BR-2's seam)",
+  backEnd.includes("turning around bought you nothing") && !backEnd.includes("didn't turn back"));
+check("fence: a stray path that never touched the fork reads the route-neutral base",
+  strayEnd.includes("that it meant to. Certainty and proof") &&
+  !strayEnd.includes("didn't turn back") && !strayEnd.includes("turning around bought you nothing"));
+
+// SCHEDULER RECURRENCE, verified by driving (the ledger's open engine
+// question — Static's deep arc and the long-Run-Read loop-back depend on it):
+// the same event CAN re-present on a later day. scheduleEvent carries no
+// dedup and the sweep re-queues whatever is due, so a fixture re-presents by
+// re-scheduling (or an un-fenced door re-firing); the ONLY recurrence fence
+// is the event's own `once` flag.
+line(`\n-- scheduler recurrence (a fixture can re-present) --`);
+const gRec = newMini(50);
+applyOutcome(gRec, miniDb, { scheduleEvent: { eventId: "m_after", inDays: 1 } });
+advanceDay(gRec, miniDb);
+const recFirst = gRec.queue.includes("m_after");
+driveScene(startQueuedScene(gRec, miniDb)!);
+applyOutcome(gRec, miniDb, { scheduleEvent: { eventId: "m_after", inDays: 2 } });   // re-promise the SAME event
+advanceDay(gRec, miniDb);
+const recQuietDay = !gRec.queue.includes("m_after");   // not due yet — no early fire
+advanceDay(gRec, miniDb);
+check("recurrence: a re-scheduled event fires again on its later day (no dedup, no hidden fence)",
+  recFirst && recQuietDay && gRec.queue.includes("m_after"));
+driveScene(startQueuedScene(gRec, miniDb)!);
+const gRec2 = newMini(51);
+applyOutcome(gRec2, miniDb, { scheduleEvent: { eventId: "p_stage1", inDays: 1 } });
+advanceDay(gRec2, miniDb);
+driveScene(startQueuedScene(gRec2, miniDb)!);         // fires; p_stage1 sets its once flag
+applyOutcome(gRec2, miniDb, { scheduleEvent: { eventId: "p_stage1", inDays: 1 } });
+advanceDay(gRec2, miniDb);
+check("recurrence: the `once` flag is the one fence — a re-scheduled once-event queues but its scene ends immediately",
+  (() => { const r = startQueuedScene(gRec2, miniDb); return !!r && r.done; })());
+
 // The never-returned run: dismiss Marie, never go back, reach the calendar's end.
 const gV = newExplorer(42);
 driveScene(startQueuedScene(gV, explorerDb)!);

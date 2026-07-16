@@ -405,11 +405,11 @@ Reese sees your face before he sees the knife. When he sees the knife he goes ve
     // THE ROUTE-NEUTRAL BASE (BR-2's seam, Armature's rider): the base body
     // assumes NO route — any path that reaches the terminal without passing
     // the fork falls through to a correct line, never a contradiction. The
-    // route-specific certainty lives in bodyVariants; the went-deep variant
-    // is Loom's original sentence verbatim, gated to the route that earned
-    // it. [LOOM: the return_turned_back route currently reads the neutral
-    // base — a turned-back-specific sentence (the certainty built on the
-    // truck, not the depths) is yours to author whenever you want it.]
+    // route-specific certainty lives in bodyVariants, both Loom's prose
+    // verbatim: went-deep earns the certainty that it was waiting down
+    // there; turned-back earns the crueler one, built on the truck, not the
+    // depths. First matching variant wins; a stray path matches neither and
+    // reads the neutral base.
     body:
 `The run ends here.
 
@@ -421,6 +421,13 @@ Not with an answer — with a knife you can hold, in a place it cannot be, and a
 `The run ends here.
 
 Not with an answer — with a knife you can hold, in a place it cannot be, and a friend beside you insisting on the one story that lets him keep driving. You will never be able to prove how it got here. And you will never, as long as you live, be able to argue away the certainty that something reached across your whole life to place a dead man's knife in your hand — that it meant to, that it knows you came anyway and didn't turn back. Certainty and proof were never the same thing. You walk out of that dark holding only the first, and it is the heaviest thing you will ever carry, and you carry it into whatever's left of your ordinary life, and you never once set it down.`,
+      },
+      {
+        when: { kind: "flag", flag: "return_turned_back" },
+        text:
+`The run ends here.
+
+Not with an answer — with a knife you can hold, in a place it cannot be, and a friend beside you insisting on the one story that lets him keep driving. You will never be able to prove how it got here. And you will never, as long as you live, be able to argue away the certainty that something reached across your whole life to place a dead man's knife in your hand — that it meant to, that it knows you turned back — that you did the careful, sane thing and kept to the shallows, and that it reached past all of it, into a locked truck in an ordinary lot, to put the knife in your hand regardless; that turning around bought you nothing, and depth was never the lock. Certainty and proof were never the same thing. You walk out of that dark holding only the first, and it is the heaviest thing you will ever carry, and you carry it into whatever's left of your ordinary life, and you never once set it down.`,
       },
     ],
     choices: [

@@ -201,8 +201,14 @@ export class CreationRunner {
   pick(idx: number): PickResult {
     const check = this.checkPick(idx);
     if (!check.ok) return check;
+    const qs = this.phase === "common" ? this.commonQs : this.specQs;
+    const answer = qs[this.qIndex].answers[idx];
     if (this.phase === "common") this.commonAnswers[this.qIndex] = idx;
     else this.specializedAnswers[this.qIndex] = idx;
+    // THE REPLY FOLD: the chosen answer's narration rides the same fold a
+    // beat's prose does - above the next screen, or out to the first gameplay
+    // screen if this question was last (the one-narration rule, reply half).
+    if (answer.narration) this.pendingBeat += (this.pendingBeat ? "\n\n" : "") + answer.narration;
     this.qIndex += 1;
     this.settle();
     return { ok: true };
