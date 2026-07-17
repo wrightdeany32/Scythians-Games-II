@@ -52,6 +52,7 @@ export interface WebDayAction extends WebOption {
   surface: string;
   place?: string;
   contact?: string;
+  cost?: number;               // the action's energy price — shown so the player can budget (Dean's ruling, 2026-07-17)
 }
 
 export interface WebScreen {
@@ -271,7 +272,7 @@ export class WebSession {
   private presentDay(): void {
     const menu = dayMenu(this.g, this.db);
     const dayActions: WebDayAction[] = menu.actions.map((a, i) => ({
-      index: i, label: dayLabel(a), available: a.cost <= menu.energy,
+      index: i, label: dayLabel(a), available: a.cost <= menu.energy, cost: a.cost,
       ...(a.cost <= menu.energy ? {} : { lockedReason: a.tiredText ?? TIRED_DEFAULT }),
       surface: a.surface ?? DEFAULT_SURFACE,
       ...(a.place ? { place: a.place } : {}),

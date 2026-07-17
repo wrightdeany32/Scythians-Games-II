@@ -241,6 +241,9 @@ function renderDay(scr: WebScreen): HTMLElement {
   const shown = bySurface.get(activeTab) ?? actions;
   shown.forEach((a) => {
     const btn = el("button", "action" + (a.available ? "" : " locked"), a.label) as HTMLButtonElement;
+    // the energy price, shown so the player can budget (Dean's ruling) — a
+    // separate chip, never folded into the diegetic label
+    if (a.cost != null) btn.appendChild(el("span", "action-cost", `${a.cost} energy`));
     if (a.available) btn.onclick = () => doPick(a.index);
     else {
       btn.disabled = true;

@@ -103,8 +103,13 @@ const dayScreens = pres1.filter((p) => p.card === "__day__");
 const leak = pres1.find((p) =>
   /ux_[a-z]/.test(p.prose) || p.options.some((o) => /ux_[a-z]/.test(o.label) || /\benergy\b|\bcost\b/i.test(o.label)));
 const currencyShown = dayScreens.every((p) => /Energy: \d+ of \d+\./.test(p.prose));
-check("4 · day menu reader-facing (no id leak, diegetic labels) and the energy currency visible on every day screen",
-  dayScreens.length > 0 && dayScreens.every((p) => p.options.length > 0) && !leak && currencyShown,
+// AND every day screen's actions carry their energy PRICE as a structured field
+// (Dean's ruling, 2026-07-17) — the player budgets the day; the cost rides
+// beside the option, never inside the diegetic label (so the leak-check above
+// still holds). Every day menu has actions, so at least one costed option.
+const costsShown = dayScreens.every((p) => p.options.some((o) => typeof o.cost === "number"));
+check("4 · day menu reader-facing (no id leak, diegetic labels), energy currency + per-action costs visible on every day screen",
+  dayScreens.length > 0 && dayScreens.every((p) => p.options.length > 0) && !leak && currencyShown && costsShown,
   `${dayScreens.length} day screens`);
 
 // Crit 5 — a scheduled/queued scene surfaced in a morning (the opening + cave),
