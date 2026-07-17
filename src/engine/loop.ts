@@ -60,6 +60,7 @@ export interface DayMenu {
   day: number;
   dateLabel: string;
   energy: number;
+  energyMax: number;   // energy is the day's VISIBLE currency (Dean's ruling 2026-07-17) — surfaces show "N of M"
   status: RunStatus;                           // the terminal check, surfaced where every driver already looks
   pendingScene: boolean;                       // something queued wants to run before the errands (see startQueuedScene)
   actions: LocationAction[];                   // every action available right now (tier ∧ town ∧ requires)
@@ -76,6 +77,7 @@ export function dayMenu(g: GameState, db: ContentDB): DayMenu {
     day: g.day,
     dateLabel: dateOf(g.day).label,
     energy: g.player.stats.energy,
+    energyMax: g.player.stats.energyMax,
     status: runStatus(g, db),
     pendingScene: g.queue.length > 0,
     actions,

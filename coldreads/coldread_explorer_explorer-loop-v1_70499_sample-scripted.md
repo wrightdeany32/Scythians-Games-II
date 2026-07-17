@@ -30,6 +30,8 @@ That's the version you'd say out loud — new chapter, clean slate, the whole li
 
 Week 1 · Mon
 
+Energy: 3 of 3.
+
 Options:
 1. Go caving with Reese — He's been texting about the White's Hall Cave System, off the old fire road.
 2. Run with Doug — The six a.m. ritual — the fire road out past the reservoir.
@@ -203,6 +205,8 @@ You shove the pack ahead of you through the pinch and come out with nothing on y
 
 Week 1 · Mon
 
+Energy: 0 of 3.
+
 Options:
 1. Run with Doug — The six a.m. ritual — the fire road out past the reservoir.  — *Not today. Your legs are done, and you know it.*
 2. Research the mark — You sketch it from memory. Somebody, somewhere, has seen this before.  — *Not today. The words would just swim; you'd be staring at nothing.*
@@ -223,6 +227,8 @@ Options:
 ## Step 12 — `__day__`
 
 Week 1 · Tue
+
+Energy: 3 of 3.
 
 Options:
 1. Run with Doug — The six a.m. ritual — the fire road out past the reservoir.

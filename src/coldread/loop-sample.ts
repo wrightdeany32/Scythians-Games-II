@@ -94,13 +94,17 @@ const p1 = JSON.stringify(pres1);
 const p2 = JSON.stringify(presentations(run2.recorder.stream().records));
 check("3 · same seed + picks ⇒ byte-identical presentation (verified twice)", p1 === p2);
 
-// Crit 4 — the DAY menu is reader-facing: at least one day screen, and no
-// presentation (day OR scene) leaks a card id / mechanical token to the reader.
+// Crit 4 — the DAY menu is reader-facing: at least one day screen, no card id
+// leaks anywhere, labels stay diegetic (no cost/energy tokens in a LABEL) —
+// AND the day's currency is VISIBLE (Dean's ruling, 2026-07-17): every day
+// screen's prose carries the "Energy: N of M." line. The player spends energy
+// to decide, so they see it; the grip number and exposure stay sealed.
 const dayScreens = pres1.filter((p) => p.card === "__day__");
 const leak = pres1.find((p) =>
   /ux_[a-z]/.test(p.prose) || p.options.some((o) => /ux_[a-z]/.test(o.label) || /\benergy\b|\bcost\b/i.test(o.label)));
-check("4 · day menu renders reader-facing (labels only; no id/cost/energy leak)",
-  dayScreens.length > 0 && dayScreens.every((p) => p.options.length > 0) && !leak,
+const currencyShown = dayScreens.every((p) => /Energy: \d+ of \d+\./.test(p.prose));
+check("4 · day menu reader-facing (no id leak, diegetic labels) and the energy currency visible on every day screen",
+  dayScreens.length > 0 && dayScreens.every((p) => p.options.length > 0) && !leak && currencyShown,
   `${dayScreens.length} day screens`);
 
 // Crit 5 — a scheduled/queued scene surfaced in a morning (the opening + cave),

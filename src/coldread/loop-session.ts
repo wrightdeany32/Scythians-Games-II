@@ -12,9 +12,12 @@
 // wear that costume — a SCENE screen (a queued morning beat, or an action's
 // scene, presented by the shared SceneRunner) and a DAY screen (the menu: the
 // day's actions by their diegetic names, plus "call it a day"). The reader never
-// sees ids, costs, energy numbers, stats, flags, or card ids (the WO-4 surface
-// guard; Courier's ask) — an action you're too tired to take renders greyed, the
-// way a scene's locked option does, and nothing mechanical reaches the prose.
+// sees ids, stats, flags, or card ids (the WO-4 surface guard; Courier's ask) —
+// with ONE ruled exception: ENERGY IS THE DAY'S VISIBLE CURRENCY (Dean's
+// ruling, 2026-07-17 — the player spends it to decide, so they see it; hiding
+// it was over-applied concealment). The day screen shows "Energy: N of M".
+// The grip NUMBER, exposure, and every trajectory stay sealed as always; an
+// action you're too tired to take still renders greyed with its felt reason.
 //
 // Determinism: same seed + same picks => byte-identical presentation (the cave
 // contract, now at loop scale). Cross-run (opts.crossRun): a new vessel arrives
@@ -65,6 +68,8 @@ export interface LoopScreen {
   options: { index: number; label: string; available: boolean; lockedReason?: string }[];
   day: number;
   dateLabel?: string;
+  energy?: number;             // day screens only — the visible currency (also in the prose line)
+  energyMax?: number;
   over: boolean;
   terminal?: string;           // the terminal flag/cause, on the end screen only
 }
@@ -332,13 +337,19 @@ export class LoopSession {
     }));
     options.push({ index: menu.actions.length, label: END_LABEL, available: true });
     const closing = this.takeEndProse();
-    let prose = (closing ? closing + "\n\n" : "") + menu.dateLabel;   // the finished scene's payoff, then the diegetic date — never energy/stats
+    // The finished scene's payoff, then the diegetic date, then the day's
+    // CURRENCY. Energy is visible by ruling (Dean, 2026-07-17): the player
+    // spends it to decide, so they see it — hiding it was over-applied
+    // concealment. What stays sealed is what was always sealed: the grip
+    // number (band/felt word only), exposure, and every trajectory.
+    let prose = (closing ? closing + "\n\n" : "") + menu.dateLabel
+      + `\n\nEnergy: ${menu.energy} of ${menu.energyMax}.`;
     if (this.showJournal) {
       const known = journalLines(this.g, this.db);
       if (known.length) prose += "\n\nWhat you know:\n" + known.map((l) => `· ${l}`).join("\n");
     }
     this.stepSeq++;
-    this.screen = { kind: "day", step: this.stepSeq, card: "__day__", prose, options, day: menu.day, dateLabel: menu.dateLabel, over: false };
+    this.screen = { kind: "day", step: this.stepSeq, card: "__day__", prose, options, day: menu.day, dateLabel: menu.dateLabel, energy: menu.energy, energyMax: menu.energyMax, over: false };
     if (this.mode === "read") {
       this.recorder.pushPresentation({
         step: this.stepSeq, card: "__day__", prose,
