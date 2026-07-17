@@ -33,15 +33,15 @@ Week 1 · Mon
 Energy: 3 of 3.
 
 Options:
-1. Go caving with Reese — He's been texting about the White's Hall Cave System, off the old fire road.
-2. Run with Doug — The six a.m. ritual — the fire road out past the reservoir.
-3. Work a shift — You have a job, because everyone has a job.
-4. Cook something — Nothing ambitious. The thing you know how to make without thinking.
-5. Call someone from before — A friend, a sibling, a parent — someone whose world has never touched the woods.
-6. Run the errands — Groceries. The hardware store. The post office. The ordinary list.
-7. Take the morning slow — You woke before the alarm, and the light's good, and there's coffee.
-8. An evening in — Nothing on. Nothing owed. An early night.
-9. Go for a walk — No destination, nobody's pace but your own. Not the woods.
+1. Go caving with Reese — He's been texting about the White's Hall Cave System, off the old fire road.  (3 energy)
+2. Run with Doug — The six a.m. ritual — the fire road out past the reservoir.  (2 energy)
+3. Work a shift — You have a job, because everyone has a job.  (2 energy)
+4. Cook something — Nothing ambitious. The thing you know how to make without thinking.  (1 energy)
+5. Call someone from before — A friend, a sibling, a parent — someone whose world has never touched the woods.  (1 energy)
+6. Run the errands — Groceries. The hardware store. The post office. The ordinary list.  (1 energy)
+7. Take the morning slow — You woke before the alarm, and the light's good, and there's coffee.  (1 energy)
+8. An evening in — Nothing on. Nothing owed. An early night.  (1 energy)
+9. Go for a walk — No destination, nobody's pace but your own. Not the woods.  (1 energy)
 10. Call it a day.
 
 **Reader:** [reader think-aloud for __day__]
@@ -208,17 +208,17 @@ Week 1 · Mon
 Energy: 0 of 3.
 
 Options:
-1. Run with Doug — The six a.m. ritual — the fire road out past the reservoir.  — *Not today. Your legs are done, and you know it.*
-2. Research the mark — You sketch it from memory. Somebody, somewhere, has seen this before.  — *Not today. The words would just swim; you'd be staring at nothing.*
-3. Look up what caves do to people — The other thing. The rock, the air, the body. What's actually known.  — *Not today. The words would just swim; you'd be staring at nothing.*
-4. Work a shift — You have a job, because everyone has a job.  — *Not today — there's nothing left in you for it.*
-5. Cook something — Nothing ambitious. The thing you know how to make without thinking.  — *Not today. You haven't got the face for people right now.*
-6. Call someone from before — A friend, a sibling, a parent — someone whose world has never touched the woods.  — *Not today. You haven't got the face for people right now.*
-7. Run the errands — Groceries. The hardware store. The post office. The ordinary list.  — *Not today — there's nothing left in you for it.*
-8. Take the morning slow — You woke before the alarm, and the light's good, and there's coffee.  — *Not today. Your legs are done, and you know it.*
-9. An evening in — Nothing on. Nothing owed. An early night.  — *Not today — there's nothing left in you for it.*
-10. Go for a walk — No destination, nobody's pace but your own. Not the woods.  — *Not today. Your legs are done, and you know it.*
-11. Go back to White's Hall — Neither of you has said out loud that you can't stop thinking about it.  — *Not today. Your legs are done, and you know it.*
+1. Run with Doug — The six a.m. ritual — the fire road out past the reservoir.  (2 energy)  — *Not today. Your legs are done, and you know it.*
+2. Research the mark — You sketch it from memory. Somebody, somewhere, has seen this before.  (1 energy)  — *Not today. The words would just swim; you'd be staring at nothing.*
+3. Look up what caves do to people — The other thing. The rock, the air, the body. What's actually known.  (1 energy)  — *Not today. The words would just swim; you'd be staring at nothing.*
+4. Work a shift — You have a job, because everyone has a job.  (2 energy)  — *Not today — there's nothing left in you for it.*
+5. Cook something — Nothing ambitious. The thing you know how to make without thinking.  (1 energy)  — *Not today. You haven't got the face for people right now.*
+6. Call someone from before — A friend, a sibling, a parent — someone whose world has never touched the woods.  (1 energy)  — *Not today. You haven't got the face for people right now.*
+7. Run the errands — Groceries. The hardware store. The post office. The ordinary list.  (1 energy)  — *Not today — there's nothing left in you for it.*
+8. Take the morning slow — You woke before the alarm, and the light's good, and there's coffee.  (1 energy)  — *Not today. Your legs are done, and you know it.*
+9. An evening in — Nothing on. Nothing owed. An early night.  (1 energy)  — *Not today — there's nothing left in you for it.*
+10. Go for a walk — No destination, nobody's pace but your own. Not the woods.  (1 energy)  — *Not today. Your legs are done, and you know it.*
+11. Go back to White's Hall — Neither of you has said out loud that you can't stop thinking about it.  (3 energy)  — *Not today. Your legs are done, and you know it.*
 12. Call it a day.
 
 **Reader:** [reader think-aloud for __day__]
@@ -231,17 +231,17 @@ Week 1 · Tue
 Energy: 3 of 3.
 
 Options:
-1. Run with Doug — The six a.m. ritual — the fire road out past the reservoir.
-2. Research the mark — You sketch it from memory. Somebody, somewhere, has seen this before.
-3. Look up what caves do to people — The other thing. The rock, the air, the body. What's actually known.
-4. Work a shift — You have a job, because everyone has a job.
-5. Cook something — Nothing ambitious. The thing you know how to make without thinking.
-6. Call someone from before — A friend, a sibling, a parent — someone whose world has never touched the woods.
-7. Run the errands — Groceries. The hardware store. The post office. The ordinary list.
-8. Take the morning slow — You woke before the alarm, and the light's good, and there's coffee.
-9. An evening in — Nothing on. Nothing owed. An early night.
-10. Go for a walk — No destination, nobody's pace but your own. Not the woods.
-11. Go back to White's Hall — Neither of you has said out loud that you can't stop thinking about it.
+1. Run with Doug — The six a.m. ritual — the fire road out past the reservoir.  (2 energy)
+2. Research the mark — You sketch it from memory. Somebody, somewhere, has seen this before.  (1 energy)
+3. Look up what caves do to people — The other thing. The rock, the air, the body. What's actually known.  (1 energy)
+4. Work a shift — You have a job, because everyone has a job.  (2 energy)
+5. Cook something — Nothing ambitious. The thing you know how to make without thinking.  (1 energy)
+6. Call someone from before — A friend, a sibling, a parent — someone whose world has never touched the woods.  (1 energy)
+7. Run the errands — Groceries. The hardware store. The post office. The ordinary list.  (1 energy)
+8. Take the morning slow — You woke before the alarm, and the light's good, and there's coffee.  (1 energy)
+9. An evening in — Nothing on. Nothing owed. An early night.  (1 energy)
+10. Go for a walk — No destination, nobody's pace but your own. Not the woods.  (1 energy)
+11. Go back to White's Hall — Neither of you has said out loud that you can't stop thinking about it.  (3 energy)
 12. Call it a day.
 
 **Reader:** [reader think-aloud for __day__]

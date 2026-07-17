@@ -48,7 +48,7 @@ function renderStep(recs: StreamRecord[]): string {
       // saw (options carry engine indices, and hidden-locked choices are
       // absent, so index and position can diverge).
       pres.options.forEach((o, pos) => {
-        out.push(`${pos + 1}. ${o.label}${o.available ? "" : o.lockedReason ? `  — *${o.lockedReason}*` : "  *(unavailable)*"}`);
+        out.push(`${pos + 1}. ${o.label}${o.cost != null ? `  (${o.cost} energy)` : ""}${o.available ? "" : o.lockedReason ? `  — *${o.lockedReason}*` : "  *(unavailable)*"}`);
       });
       out.push("");
     }

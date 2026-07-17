@@ -65,7 +65,7 @@ export interface LoopScreen {
   step: number;
   card: string;                // scene card id, or "__day__", or "__run_over__"
   prose: string;
-  options: { index: number; label: string; available: boolean; lockedReason?: string }[];
+  options: { index: number; label: string; available: boolean; lockedReason?: string; cost?: number }[];
   day: number;
   dateLabel?: string;
   energy?: number;             // day screens only — the visible currency (also in the prose line)
@@ -331,8 +331,13 @@ export class LoopSession {
     // Day-menu greying is only ever energy, so a greyed option carries its
     // diegetic fatigue line (tired-vs-gone: absence means gone; greyed says
     // why, in the fiction, never as a number).
+    // cost: the day-action's energy price, a STRUCTURED field (never folded into
+    // the diegetic label) so the reader can budget — Dean's ruling (2026-07-17):
+    // a person knows a 6am run costs more than an evening at the laptop, so
+    // hiding the price kills immersion. Consoles render it beside the option;
+    // the label stays name-only, the leak-checks stay honest.
     const options: LoopScreen["options"] = menu.actions.map((a, i) => ({
-      index: i, label: dayLabel(a), available: a.cost <= menu.energy,
+      index: i, label: dayLabel(a), available: a.cost <= menu.energy, cost: a.cost,
       ...(a.cost <= menu.energy ? {} : { lockedReason: a.tiredText ?? TIRED_DEFAULT }),
     }));
     options.push({ index: menu.actions.length, label: END_LABEL, available: true });
@@ -353,7 +358,7 @@ export class LoopSession {
     if (this.mode === "read") {
       this.recorder.pushPresentation({
         step: this.stepSeq, card: "__day__", prose,
-        options: options.map((o) => ({ index: o.index, label: o.label, available: o.available, showWhenLocked: !o.available, ...(o.lockedReason ? { lockedReason: o.lockedReason } : {}) })),
+        options: options.map((o) => ({ index: o.index, label: o.label, available: o.available, showWhenLocked: !o.available, ...(o.lockedReason ? { lockedReason: o.lockedReason } : {}), ...(o.cost != null ? { cost: o.cost } : {}) })),
       });
     }
   }
