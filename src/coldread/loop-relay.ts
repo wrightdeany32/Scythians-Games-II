@@ -42,7 +42,29 @@ for (let i = 0; i < picks.length; i++) {
   const opt = s.current.options[picks[i] - 1];
   if (!opt) { process.stderr.write(`!! pick #${picks[i]} rejected on ${s.current.card}: no such option\n`); process.exit(1); }
   const res = s.pick(opt.index, "");
-  if (!res.ok) { process.stderr.write(`!! pick #${picks[i]} rejected on ${s.current.card}: ${res.reason} (greyed options can't be taken)\n`); process.exit(1); }
+  if (!res.ok) {
+    // THE POLITE REFUSAL IS READER-FACING (Dean's BR-3 catch). A greyed
+    // option picked anyway used to crash the relay to stderr, leaving the
+    // operator (and Dean) to improvise "you're too tired" by hand, turn
+    // after turn. Now, when the LIVE pick (the last one) is refused, the
+    // refusal IS the screen: the option's own felt line goes to stdout as
+    // the paste. Stateless by construction — the pick was never accepted,
+    // the session is untouched, and the reader still holds the same menu —
+    // so the operator drops the number from the pick list and relays this.
+    if (i === picks.length - 1) {
+      const line = (!opt.available && opt.lockedReason) ? opt.lockedReason
+        : "That isn't open to you right now.";
+      process.stdout.write(line + "\n");
+      process.stderr.write(
+        `[operator] pick #${picks[i]} ("${opt.label}") REFUSED: ${res.reason} — refusal relayed above; ` +
+        `NOT part of the record. Drop ${picks[i]} from the pick list; the reader keeps the same menu.\n`);
+      process.exit(0);
+    }
+    // A refused pick anywhere EARLIER in the list is an operator error (it
+    // should have been dropped when it was refused live) — hard stop.
+    process.stderr.write(`!! pick #${picks[i]} rejected on ${s.current.card}: ${res.reason} (refused picks never enter the pick list)\n`);
+    process.exit(1);
+  }
 }
 
 // ---- reader-facing screen -> stdout (paste this, nothing else) --------------
