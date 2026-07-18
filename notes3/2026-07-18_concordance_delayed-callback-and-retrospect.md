@@ -1,0 +1,52 @@
+# Concordance — the delayed callback & the retrospect
+### Dean's directive, structured: the run's missing middle memory — its taxonomy, its guards, the seam it industrializes, and the register it needs
+*From: Concordance (librarian) · 2026-07-18 · for Loom & the corner writers first (§3–4 are authoring), Armature/Plumb (§5, lint), Vigil/Slate/Azimuth cc, Dean*
+
+Dean's directive this round: **more retrospect-type events, and more events that are gated but *delayed*** — a decision on day 4 whose consequence arrives on day 9, referencing and extending it. This report structures both, because they're two halves of one family and the family has specific failure modes worth naming *before* anyone authors into it. **Engine-wise it's free** — `scheduleEvent{inDays}`, doors, flag-gates, and verified recurrence already do all of it. The work is authoring discipline and one lint extension.
+
+---
+
+## §1 — Two devices, one family: the run's relationship to its own past
+- **The delayed callback** — a past decision reaches *forward*. You do a thing on day 4; on day 9 something arrives that knows you did it, and extends it.
+- **The retrospect** — a present choice reaches *backward*. A card lets the player specify what *already happened* ("when Doug taught you to drive, he…" with two or three completions) rather than what they say now.
+
+Together they're one system: **the run remembers, in both directions.** And they close a real gap — the game currently has memory at two scales, the **fold** (within-scene, a reply landing on the next screen) and the **harvest** (across runs, a faint familiarity in a later vessel). The delayed callback is the **missing middle**: memory across *days*, which is the scale the loop actually lives at.
+
+## §2 — Why it's compass-true (not just a nice mechanic)
+The sealed structure is *literally* a chain of delayed callbacks: Ellen taken forty years ago, Dale spared the same night, Doug reached-for thirty years ago, the player today — a decision-and-consequence separated by decades, which is the wake and the frugality tell. **A delayed callback is the wake at run-scale**: the same shape compressed into the calendar, so the loop teaches the compass's thesis by its own rhythm without stating a word of it. That's mechanic-as-meaning again — the recency window as the foresight cosmology, the centroid as the player shaping the vessel, the null pole as the honest man who can't be proven right, and now the calendar as the wake.
+
+It also does something the reads asked for: BR-1's timid normal-life week and BR-3's *"I spread myself too thin"* both describe a loop where days didn't visibly accumulate into anything. A callback is the loop **accumulating**.
+
+## §3 — The taxonomy (four callbacks + the retrospect) [→ Loom & the corner writers]
+Worth authoring by *type*, because each does different work and each has a different risk:
+- **The echo** — the same person returns to the decision (*"I've been thinking about what you said"*). Cheapest, warmest, most characterizing; the safest default. Pairs naturally with the fixture cores.
+- **The consequence** — the decision's effect arrives in the world (you told someone something; five days on, it's traveled). Carries the strongest *"the world is bigger than this room"* feeling.
+- **The reversal** — what you decided *looks different now*: the mundane read curdles, or the sinister read deflates. **This is the antidote dial on a timer** — a cross-type percept arriving late is exactly Slate's **lens-pulling** device, and the delayed callback is its natural vehicle. If the rigidity fork holds at BR-4, this is the tool that produces *late-run* divergence rather than early-fork divergence.
+- **The bill** — a cost lands late (money, standing, exposure, a day's energy). Per Loom's rule, **grip-colored**: to the grounded player it's a nuisance; to the frayed player it's the world closing in.
+- **The retrospect** — the backward device. Cheap (one card), deeply characterizing, and **it confirms nothing about the cosmology because it's all human past** — which makes it the safest possible way to deepen a fixture. It also does something sly for the compass: *the player authoring the character's past is the keystone enacted, never stated.*
+
+## §4 — The guards (the part that matters — a callback can breach four disciplines)
+1. **NEVER show a pending callback** [no-catalog, hardest line]. No "something will come of this" marker, no consequences-in-flight list. **The schedule surface shows commitments the player *accepted*, never consequences they *incurred*.** The dread depends on the player not knowing which of their decisions are still alive.
+2. **Route-neutral base + variants, always** [and this is the loud one]. A callback references a route-specific choice *by definition* — which is precisely the seam class that has now bitten us **three** times (Marie's mouth-words, the Nora→dinner braid, the return terminal). Delayed callbacks **industrialize that seam**: the referenced decision is far away in *time* from the card being authored, which is exactly when a writer's assumption about "what the player did" goes stale. So every callback gets a base that reads true for *any* route, plus `bodyVariants` for the specific ones — and the per-instance regression crit (four seats blessed it) should ride each new callback, since lint can't catch semantic route-reference.
+3. **Gate on the *percept* flag, not the event flag** [percept-discipline]. The callback fires only if the player actually perceived the thing, never merely because a card resolved near them.
+4. **Extend, never resolve** [anti-noun]. A callback complicates and deepens; it never confirms. *"Five days later, the thing you did comes back"* is dread. *"Five days later, you learn you were right"* is a deduction-verifier wearing a calendar.
+5. **Ration and pace** — like the fortune-draws. Too many and the run becomes a chain of scheduled payoffs, which would flatten the **drift-vs-obsession** distinction the two terminals are built on. And a callback landing on a *drained* day is wasted, so keep them low-cost or energy-aware.
+
+## §5 — The register and the lint [→ Armature/Plumb; mine to keep]
+A delayed callback is a **dependency between two cards separated by days**, and nothing currently tracks that. Two pieces:
+- **The callback register** (mine): decision-flag → lag → callback event, kept human-readable, so a writer editing a day-4 card can see what on day 9 depends on it. Same dependency-tracking shape as canon-version-pinning; it belongs beside it.
+- **The lint extension** (cheap, and it catches a real class): the flag-web linter already cross-references reads against writes — extend it to **scheduled** events' gates, so a callback gating on a flag nothing writes fails the build. That's exactly the typo'd-gate class it already caught once (`cave_saw_etchings`), and delayed callbacks will generate far more of them, because the writer and the gate are days apart in the fiction and files apart in the repo.
+
+## §6 — What it connects to (three things it completes)
+- **It makes the drip pay off.** A clue surfaced on day 4 and referenced on day 9 turns the drip from a slot machine into a **thread** — which is the difference between "research sometimes gives you something" and "research is going somewhere."
+- **It gives the barometer its counterpart.** The escalation arc frays the loop over time; the callback is the loop *remembering*. Fraying and memory are the two halves of a run that has a history.
+- **It's the middle term of the game's memory** — fold (within-scene) → **callback (across days)** → harvest (across runs). Three scales, one shape: *the thing you did is still here.* Which is, at the deepest level, the watcher's thread told mechanically.
+
+## §7 — Logged this round (holding for v3.6, no ledger roll yet)
+Two **corrections I own**: v3.5's header says BR-1 and BR-2 reached the same terminal — wrong; **BR-1 `never_returned`, BR-2 & BR-3 `whites_return`, gated by re-entry, not depth** (and the finding is *stronger*: three authored doors, two used, neither a grip-death, divergence in frame *and* ending). And v3.5 lists the **never-opens-▓▓ linter as mechanically enforced** — it isn't built; the invariant holds by authoring discipline, marked pending-build until Armature ships it.
+
+Also queued: the **antidote dial** (ratified — the third cell of the model's own cross-product: an authored antidote is free, a matching anchor crowns a world, a cross-type anchor taxes it) and Slate's **rigidity fork** (hold-and-pay vs. let-it-move-you, falsifiable at BR-4 by looking for *narrated revision*); **frame gravity** (readers drift to the defensible pole under reasoning pressure — so the **Paranormal corner is the most exposed of the four** and needs anchors that survive *argument*, not just atmosphere, and every frame statistic we quote carries that tilt as a caveat); the **energy boundary** (conceal what the character *feels* and can't quantify; show what they *know* — and over-applying a good discipline is its own failure mode, harder to catch because it looks like rigor); the **systems horizon** (energy + money + grip, health folded in, the drip's two rails, grip-colored fortune, the symmetrical grip economy where *neither pole is right*); **explain-the-symbol-less** (the meander is the design defending itself); the **conspiracy figure** as the fixture module's first core (his antidote is built into his biography, so every corner meets one man and supplies its own reading); **clue cores** as a register beside the fixture cores (author by type, let the lens decide the tier); and the **null pole's third face** — Dale deflecting vindication because being believed would drag him back under the forty years he clawed out of, so the null pole is no longer a character type but *a thesis about how people survive not knowing*.
+
+**Net:** the delayed callback and the retrospect are the run's forward and backward memory, they cost the engine nothing, and they're compass-true — the wake at run-scale. The four callback types each do different work; the guards that matter are *never show a pending consequence*, *route-neutral base always* (this system industrializes our most-repeated seam), *gate on the percept*, and *extend, never resolve*. I'll keep the callback register and would ask Armature for the one lint extension. Point me at v3.6, the creation `attune` weights (mine — directions fixed, magnitudes provisional), or the fixture cores.
+
+— Concordance
