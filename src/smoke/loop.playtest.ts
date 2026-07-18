@@ -976,5 +976,34 @@ check("linter: a journal intent-note leak is an error",
 check("linter: the explorer db carries zero errors",
   lintContent(explorerDb, "explorer").every((i) => i.level !== "error"));
 
+// ── the route-neutral-base regression crit (BR-2's recurring seam class) ──────
+// A terminal/summary beat that references a route-specific choice gets a
+// route-neutral BASE + bodyVariants, so a path reaching it WITHOUT passing the
+// fork reads a true line, never a contradiction — the seam that has bitten
+// three times (Marie's mouth-words, the Nora→dinner braid, this return
+// terminal). This pins ux_return_end: fired under each route flag it renders
+// that route's certainty; fired under NEITHER it must fall to the neutral base
+// and carry NO route-specific "that it knows you…" clause. Locks the fix so a
+// future edit that folds a route assumption back into the base fails here.
+function returnEndBody(route: Record<string, boolean>): string {
+  const g = newGame({ seed: 99, name: "N", age: 25, body: { height: 0.5, build: 0.5 }, townId: "town_edge", tier: "outer" }, explorerDb);
+  applyOutcome(g, explorerDb, { setFlags: route });
+  g.queue.length = 0;                 // drop newGame's opening seed; fire only the terminal
+  g.queue.push("ux_return_end");
+  const r = new SceneRunner(g, explorerDb);
+  r.begin();
+  return r.current.prose;
+}
+const rnBase = returnEndBody({});
+const rnDeep = returnEndBody({ return_went_deep: true });
+const rnBack = returnEndBody({ return_turned_back: true });
+const ROUTE_CLAUSE = "that it knows you";   // the opener of every route-specific certainty clause
+check("route-neutral base: ux_return_end neutral base carries no route-specific clause",
+  rnBase.includes("that it meant to. Certainty") && !rnBase.includes(ROUTE_CLAUSE),
+  rnBase.includes(ROUTE_CLAUSE) ? "LEAK: a route clause reached the neutral base" : "base reads route-neutral");
+check("route-neutral base: each route selects its own variant, all three distinct",
+  rnDeep.includes("didn't turn back") && rnBack.includes("kept to the shallows") &&
+  rnDeep !== rnBase && rnBack !== rnBase && rnDeep !== rnBack);
+
 line(`\n${failed ? "SOME LOOP CRITERIA FAILED" : "ALL LOOP CRITERIA PASS"}\n`);
 if (failed) process.exit(1);

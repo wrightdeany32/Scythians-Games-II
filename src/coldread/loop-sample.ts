@@ -297,6 +297,34 @@ check("13 · empty-screen fence: drained phantoms land on the day menu, the fold
   s13Ok && s13FoldHeld && s13Days >= 2 && s13Screens[0] === "p_open" && s13NoSentinelRecorded,
   `screens=${s13Screens.join(">")}`);
 
+// ---- Crit 14: the fatigue-note contract (Armature's owned build; belt-and-
+// suspenders on the engine's `tiredText ?? TIRED_DEFAULT` guarantee) ----------
+// Every greyed day option carries a FELT reason. On the day menu an unavailable
+// option is unavailable for exactly one reason — too tired (cost > energy);
+// requires-gated actions are ABSENT, not greyed (the screen is the allowlist).
+// So every greyed option must present a non-empty lockedReason. BR-3's
+// exhausted-day menus are the live case this pins against a refactor dropping
+// the fallback (the failure there lived at the operator's paste, not here — but
+// nothing may quietly remove the engine half of the guarantee either).
+const fatigueSession = new LoopSession(explorerDb, baseOpts("read"));
+let fatigueDay: LoopScreen | undefined;
+let fGuard = 0;
+while (!fatigueSession.done && fGuard++ < 80) {
+  const s = fatigueSession.current;
+  if (s.kind === "day") {
+    if (s.options.some((o) => !o.available)) { fatigueDay = s; break; }               // a greyed option surfaced
+    const spend = s.options.find((o) => o.available && typeof o.cost === "number");    // burn energy toward exhaustion
+    const idx = spend ? spend.index : s.options[s.options.length - 1].index;           // else call it a day
+    if (!fatigueSession.pick(idx, "").ok) break;
+  } else if (!fatigueSession.pick(firstAvailable(s), "").ok) break;
+}
+const greyed = fatigueDay?.options.filter((o) => !o.available) ?? [];
+const everyGreyedFelt = greyed.length > 0 && greyed.every((o) => typeof o.lockedReason === "string" && o.lockedReason.trim().length > 0);
+const endOpen = !!fatigueDay && fatigueDay.options[fatigueDay.options.length - 1].available;
+check("14 · fatigue-note contract: every greyed day option carries a felt lockedReason; the day's-end option stays open",
+  everyGreyedFelt && endOpen,
+  fatigueDay ? `${greyed.length} greyed options, each with a felt reason` : "no exhausted day reached");
+
 // ---- report ----------------------------------------------------------------
 const line = (s = "") => console.log(s);
 line(`\n=== Loop cold-read hardware — acceptance ===\n`);

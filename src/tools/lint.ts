@@ -328,6 +328,43 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
   for (const q of db.questionnaire?.questions ?? []) {
     for (const ans of q.answers) if (ans.flag) flagWrites.add(ans.flag);
   }
+
+  // -- the ▓▓ negative-space guard (v3.5 §1's "mechanically enforced", made true) --
+  // A ▓▓ blackout choice — an all-block-glyph label, the redacted/illegible
+  // grammar — is PERMANENT negative space: the player sees it and it never lifts
+  // into a legible door opened by progress. Cold readers (BR-2, BR-3) built their
+  // reading on that permanence. Fenced per Plumb so it can't false-positive:
+  //   1. it must be `showWhenLocked` — negative space is SEEN greyed, never a
+  //      silently-absent gate;
+  //   2. it must be `requires`-gated — an ungated blackout is an always-live door;
+  //   3. its gate must never depend on a plain flag an OUTCOME writes — that would
+  //      lift (or drop) the redaction as the run advances. Exempt: STAT/counter
+  //      gates (grip<=3 is the illegible-until-frayed seed — a fluctuating STATE,
+  //      not revelation) and once-flags (engine fire-once markers, not "you learned
+  //      X"). This is the rule Armature owned as an overclaim and Plumb fenced.
+  const BLACKOUT_GLYPH = /[▀-▟]/;             // any Block-Elements glyph
+  const BLACKOUT_LABEL = /^[▀-▟\s]+$/;        // label is ONLY block glyphs
+  for (const id in db.events) {
+    for (const c of db.events[id].choices) {
+      if (!BLACKOUT_GLYPH.test(c.label) || !BLACKOUT_LABEL.test(c.label)) continue;
+      const where = `event ${id} ▓▓-choice`;
+      if (!c.showWhenLocked) {
+        err(where, "a ▓▓ blackout choice must be showWhenLocked — negative space is SEEN greyed, never a silently-absent gate");
+      }
+      if (!c.requires) {
+        err(where, "a ▓▓ blackout choice must be requires-gated — an ungated blackout is an always-available door");
+        continue;
+      }
+      const gateFlags = new Set<string>();
+      conditionFlagReads(c.requires, gateFlags);
+      for (const f of gateFlags) {
+        if (setFlags.has(f) && !onceFlags.has(f)) {
+          err(where, `▓▓ blackout gates on flag "${f}", which an outcome writes — the redaction must stay permanent (negative space never opens or closes as the run advances); gate on a fluctuating stat like grip, not a written flag`);
+        }
+      }
+    }
+  }
+
   const flagReads = new Set<string>();
   for (const id in db.events) {
     const ev = db.events[id];
