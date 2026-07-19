@@ -295,7 +295,20 @@ export interface CreationAnswer {
 // presented screen (or rides into the first gameplay screen if trailing).
 // Beats are inert by construction: no profile write, no attune seed, no
 // consumed answer slot (answers stay question-indexed; the holes are skipped).
-export interface CreationQuestion { q: string; answers: CreationAnswer[]; }
+//
+// qVariants (the cutover batch): PROFILE-KEYED prose variants - the first
+// variant whose condition passes against the ACCUMULATED PROFILE (profile
+// keys read as flags, same view the deal uses) replaces `q`. Presentation-
+// only and deal-scratch-driven: an earlier answer's profile key (e.g. the
+// ride's mode choice) selects a later scene's retext; no game state is read
+// or written, newGame ignores it, and beats retext the same way (the walking
+// radio). Answers stay shared across variants - the DISPOSITION a scene
+// reads is identical in every mode; only the sensory dressing changes.
+export interface CreationQuestion {
+  q: string;
+  answers: CreationAnswer[];
+  qVariants?: { when: Condition; text: string }[];
+}
 
 // A START — a card in the creation deck. The deal picks ONE (weighted, filtered
 // by the profile the common questions built), and it seats the run: its

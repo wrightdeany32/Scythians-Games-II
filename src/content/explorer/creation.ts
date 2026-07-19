@@ -35,31 +35,41 @@
 import type { CreationQuestion } from "../../engine/types";
 
 export const explorerCreationCommon: CreationQuestion[] = [
-  // -- the frame: the ride -------------------------------------------------------
-  // The mode choice costs nothing and seeds nothing mechanical — it exists so
-  // the scene fits whoever they'll turn out to be (Loom's v1 frame).
-  // [LOOM: this frame prose is drafted to your one-line spec — yours to
-  // retext. Your v1 offered driving / riding / WALKING; the finalized rain
-  // and radio scenes assume wipers and a car radio, so only the two car modes
-  // are wired — a walking mode wants mode-aware retexts of both scenes (the
-  // route-neutral discipline, applied at the door) or a drop. Your call.]
+  // -- the frame: the ride (Loom's FINALIZED frame, 2026-07-17 retexts pack;
+  // replaces the one-line-spec draft) ---------------------------------------------
+  // The mode choice is coordinate-silent — pure flavor, so the scene fits
+  // whoever they turn out to be. Mechanically it writes ONE profile key
+  // (mode_walking) that the rain and radio read to select their retext
+  // (qVariants — the route-neutral rule applied at the door: the disposition
+  // each scene reads is identical across modes; only the dressing changes).
+  // Driving and riding share the car text (a cab still has a windshield and
+  // a radio), so only walking carries a key.
   {
-    q: `Rain, and a road, and a while yet to go. Somewhere behind you, somewhere ahead of you — and for exactly this long, nothing asked of you at all. An hour like this is the one kind a mind uses honestly.`,
+    q: `Rain, and a while yet to go. It's been coming down since you set out — steady, the kind that settles in for the night — and the world's gone soft and smeared at the edges of it. There's somewhere behind you and somewhere ahead, and in between there's only this: the wet dark, the going, and the particular honesty of a mind with nothing to do but drift.`,
     answers: [
-      { label: `Your own hands on the wheel, your own quiet in the car.` },
-      { label: `Somebody else is driving. The window does the work for you.` },
+      { label: `You're driving — your hands on the wheel, the wipers keeping their patient time.` },
+      { label: `You're riding — a back seat, someone else's hands on the wheel, your forehead near the cold glass.` },
+      { label: `You're walking — hood up, the long way home on foot, the streetlights smearing in the wet.`, profile: { mode_walking: true } },
     ],
   },
 
   // -- common scene 1: the rain (disposition + orientation; v1 verbatim, v2
-  // "unchanged") — the four-way read across the diamond's shades. The darker
-  // and the open leans seed attune at index 0 (the creation-orientation
-  // signal, the one fence reused); ready-for-home is the first-class null.
+  // "unchanged"; walking retext from the 2026-07-17 pack) — the four-way read
+  // across the diamond's shades. The darker and the open leans seed attune at
+  // index 0 (the creation-orientation signal, the one fence reused);
+  // ready-for-home is the first-class null. The four answers are shared
+  // across modes — they read the same disposition; only the setup line varies.
   // [PROVISIONAL: the elsewhere answer's "slight grounded read" is encoded as
   // a small negative attune — the grounded pole of the one orientation
   // channel; sign and magnitude are Concordance's spec pass.]
   {
     q: `The rain hasn't let up since you started out. It blurs the lights ahead into long smears, and the wipers keep their patient time, and there's a while yet to go.`,
+    qVariants: [
+      {
+        when: { kind: "flag", flag: "mode_walking" },
+        text: `The rain hasn't let up since you started out. It's soaked through the shoulders of your coat, and the streetlights smear long and gold in it, and there's a good way yet to walk.`,
+      },
+    ],
     answers: [
       {
         label: `You've never minded the gray. There's a kind of comfort in it.`,
@@ -118,6 +128,16 @@ export const explorerCreationCommon: CreationQuestion[] = [
   // watcher-recognition; the player will never connect the two.
   {
     q: `The radio's been on low the whole drive — some call-in show you stopped listening to a while ago, just voices under the rain. And then the host says a thing. An ordinary thing. Something about how the ones who go looking are never the ones who find, or how some doors only open the once — you couldn't say exactly, after. Because for half a second it didn't land like a voice on the radio. It landed like it was meant for *you*. Specifically. And then it's just the radio again, some ad, the wipers, the road, and you couldn't repeat the line if someone asked.`,
+    // The walking variant (Loom, finalized): the too-personal line drifts
+    // from a passing radio instead of the dashboard — the prickle and its
+    // unaccountability preserved exactly; the watcher's touch was never
+    // about the car.
+    qVariants: [
+      {
+        when: { kind: "flag", flag: "mode_walking" },
+        text: `Somewhere close as you walk — a window cracked against the warm inside, or a car idling at the curb, or the open door of a bar you pass — there's a radio going, some call-in show under the rain. And the voice says a thing. An ordinary thing. Something about how the ones who go looking are never the ones who find, or how some doors only open the once — you couldn't say exactly, after. Because for half a second it didn't land like a voice from a doorway. It landed like it was meant for *you*. Specifically. And then you're past it — the rain, the walk, your own footsteps — and you couldn't repeat the line if someone asked.`,
+      },
+    ],
     answers: [],
   },
 

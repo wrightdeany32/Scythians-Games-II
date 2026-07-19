@@ -198,13 +198,19 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
       for (const k in s.seedFlags ?? {}) setFlags.add(k);
       checkCoord(issues, `start ${s.id} coord`, s.coord);
     }
-    // Profile flag-web: qualifiers READ profile keys; common answers WRITE them.
+    // Profile flag-web: qualifiers and qVariants READ profile keys; common
+    // answers WRITE them. (qVariants — the cutover batch — select creation
+    // prose against the accumulated profile, so a variant keyed on a key no
+    // answer writes can never render.)
     const profileWritten = new Set<string>();
     for (const q of creationCommon) for (const a of q.answers) for (const k in a.profile ?? {}) profileWritten.add(k);
     const profileRead = new Set<string>();
     for (const s of starts) { conditionFlagReads(s.qualifiers, profileRead); conditionCounterFlags(s.qualifiers, profileRead); }
+    const variantRead = new Set<string>();
+    for (const q of allCreationQs) for (const v of q.qVariants ?? []) { conditionFlagReads(v.when, variantRead); conditionCounterFlags(v.when, variantRead); }
+    for (const k of variantRead) if (!profileWritten.has(k)) warn("creation qVariants", `variant reads profile key "${k}" that no common answer writes — a retext that can never render`);
     for (const k of profileRead) if (!profileWritten.has(k)) warn("starts", `qualifier reads profile key "${k}" that no common answer writes — a gate that can never pass`);
-    for (const k of profileWritten) if (!profileRead.has(k)) warn("creationCommon", `profile key "${k}" written but no start's qualifiers read it (fine if held for a future start)`);
+    for (const k of profileWritten) if (!profileRead.has(k) && !variantRead.has(k)) warn("creationCommon", `profile key "${k}" written but no start's qualifiers read it (fine if held for a future start)`);
   }
 
   // -- once-flag advice: "fires once" reads the once flag --------------------------

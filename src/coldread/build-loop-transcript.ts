@@ -29,6 +29,10 @@ interface Spec {
   readerLabel: string;
   surface: string;
   note?: string;
+  // The opening era the run was PLAYED under. Omit = "legacy" — every
+  // pre-cutover spec (BR-1..4) rebuilds byte-identically without edits;
+  // deck-era reads (post the 2026-07-19 cutover) say "deck" explicitly.
+  opening?: "deck" | "legacy";
   steps: { pick: number; note?: string }[];
   debrief: { q: string; a: string }[];
   operatorNotes?: string;
@@ -41,6 +45,7 @@ const spec: Spec = JSON.parse(readFileSync(specPath, "utf8"));
 const s = new LoopSession(explorerDb, {
   contentId: EXPLORER_CONTENT_ID, seed: spec.seed, buildTag: BUILD_TAG,
   tier: "outer", townId: "town_edge", mode: "read", showJournal: true,
+  startDeck: spec.opening === "deck",   // rebuilds replay the era the run was PLAYED under (spec default: legacy)
 });
 
 for (const step of spec.steps) {
