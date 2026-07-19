@@ -24,6 +24,11 @@ const TERMINALS = new Set(["run_end_whites_return", "run_end_never_returned", "r
 const baseOpts = (mode: "read" | "bot"): LoopSessionOpts => ({
   contentId: EXPLORER_CONTENT_ID, seed: SEED, buildTag: BUILD_TAG,
   tier: "outer", townId: "town_edge", mode,
+  // [ARMATURE'S RE-BASELINE HALF — the cutover split, 2026-07-19]: pinned
+  // legacy so this harness stays green while the crit/determinism half lands
+  // (regenerated expectations under creation-on + crit 11 promoted to the
+  // shipped-default path). Remove this pin in that pass.
+  startDeck: false,
 });
 
 // The scripted policy: in a scene take the first available option; on the day

@@ -41,6 +41,20 @@ export interface CreationHooks {
 
 const ZERO_STATS: Stats = { money: 0, energy: 0, energyMax: 0, tradecraft: 0, standing: 0, exposure: 0, grip: 0 };
 
+// The profile as a condition-view (shared by the deal and qVariants): profile
+// keys read as flags; stats zeroed so only flag/noflag/counter shapes bite.
+function profileView(profile: Profile): GameState {
+  return { flags: profile, player: { stats: ZERO_STATS } } as unknown as GameState;
+}
+
+// qVariants (the cutover batch): the first variant whose condition passes
+// against the accumulated profile replaces the question's prose. Presentation-
+// only - the deal, the answers, and newGame never read it.
+function questionProse(question: CreationQuestion, profile: Profile): string {
+  const v = question.qVariants?.find((x) => evalCondition(x.when, profileView(profile)));
+  return v ? v.text : question.q;
+}
+
 // A fixed offset from the game seed, so the deal's stream is seed-derived but
 // disjoint from the gameplay stream (which starts at seedToState(seed)).
 function dealSeed(seed: number): number {
@@ -66,7 +80,7 @@ export function dealStart(db: ContentDB, seed: number, profile: Profile): StartD
   if (!starts.length) throw new Error("dealStart: db.starts is empty");
   // The profile as a condition-view: qualifiers read it as flags (flag/noflag/
   // counter). Stats are zeroed — qualifiers gate on the profile, not on stats.
-  const view = { flags: profile, player: { stats: ZERO_STATS } } as unknown as GameState;
+  const view = profileView(profile);
   const eligible = starts.filter((s) => !s.qualifiers || evalCondition(s.qualifiers, view));
   const pool = eligible.length ? eligible : starts.filter((s) => !s.qualifiers);
   // The linter's fallback-totality rule makes this unreachable on linted
@@ -133,6 +147,12 @@ export class CreationRunner {
     this.settle();
   }
 
+  // The accumulated profile so far - what qVariants select against (and what
+  // the deal will read at the phase boundary). Only common answers write it.
+  private profile(): Profile {
+    return buildProfile(this.commonQs, this.commonAnswers);
+  }
+
   // Present the current question; at the common→specialized boundary, deal
   // first; when both phases are exhausted, finish. Option-less BEATS never
   // present - their prose folds forward (across the deal boundary too, so a
@@ -151,7 +171,8 @@ export class CreationRunner {
       const qs = this.phase === "common" ? this.commonQs : this.specQs;
       const question = qs[this.qIndex];
       if (question && question.answers.length === 0) {
-        this.pendingBeat += (this.pendingBeat ? "\n\n" : "") + question.q;
+        // beats retext by profile too (the walking radio) - same fold after
+        this.pendingBeat += (this.pendingBeat ? "\n\n" : "") + questionProse(question, this.profile());
         this.qIndex += 1;
         continue;   // the beat lands and passes - nothing pauses, nothing asks
       }
@@ -164,7 +185,7 @@ export class CreationRunner {
       this.current = {
         step: this.step,
         card: this.phase === "common" ? "__creation_common__" : "__creation_start__",
-        prose: (this.pendingBeat ? this.pendingBeat + "\n\n" : "") + question.q,
+        prose: (this.pendingBeat ? this.pendingBeat + "\n\n" : "") + questionProse(question, this.profile()),
         options: question.answers.map((a, i) => ({ index: i, label: a.label, available: true, showWhenLocked: false })),
       };
       this.pendingBeat = "";

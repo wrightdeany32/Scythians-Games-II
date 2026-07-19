@@ -162,6 +162,24 @@ check("13 · the shipped ride: 7 presented screens, the radio beat folds above t
     && rideScreens.every((p) => p !== radioQ),
   `screens=${rideScreens.length} · start=${ride.result!.startId}`);
 
+// ---- 14 · qVariants: the walking mode retexts the rain and the radio ----------
+// The cutover batch's one mechanism: profile-keyed creation prose variants.
+// The frame's walking pick writes mode_walking; the rain presents its walking
+// setup line; the radio's walking variant folds above the Explorer fork; the
+// car text never appears; answers and the deal are untouched (the disposition
+// a scene reads is identical in every mode — only the dressing changes).
+const walkScreens: string[] = [];
+const walk = new CreationRunner(explorerDb, { seed: 91008 }, { onScreen: (s) => walkScreens.push(s.prose) });
+walk.pick(2);                          // the frame: "You're walking" (writes mode_walking)
+const rainWalking = walk.current.prose.includes("soaked through the shoulders of your coat");
+let wGuard = 0;
+while (!walk.done && wGuard++ < 20) { if (!walk.pick(0).ok) break; }
+const radioWalking = walkScreens.some((p) => p.includes("the open door of a bar you pass") && p.includes("It occurs to you"));
+const noCarText = walkScreens.every((p) => !p.includes("wipers keep their patient time"));
+check("14 · qVariants: walking retexts the rain + the radio (folded), car text absent, the deal unchanged",
+  walk.done && rainWalking && radioWalking && noCarText && walk.result!.startId === "start_explorer_reunion",
+  `rainWalking=${rainWalking} radioWalking=${radioWalking}`);
+
 // ---- report ----------------------------------------------------------------
 console.log(`\n=== Start-deck acceptance ===\n`);
 let allOk = true;
