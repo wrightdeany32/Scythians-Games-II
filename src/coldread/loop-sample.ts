@@ -24,11 +24,10 @@ const TERMINALS = new Set(["run_end_whites_return", "run_end_never_returned", "r
 const baseOpts = (mode: "read" | "bot"): LoopSessionOpts => ({
   contentId: EXPLORER_CONTENT_ID, seed: SEED, buildTag: BUILD_TAG,
   tier: "outer", townId: "town_edge", mode,
-  // [ARMATURE'S RE-BASELINE HALF — the cutover split, 2026-07-19]: pinned
-  // legacy so this harness stays green while the crit/determinism half lands
-  // (regenerated expectations under creation-on + crit 11 promoted to the
-  // shipped-default path). Remove this pin in that pass.
-  startDeck: false,
+  // The cutover (2026-07-19): startDeck defaults ON — this harness reads the
+  // SHIPPED opening (the creation ride), the same door a real reader gets.
+  // Legacy is the explicit opt-out below (crit 11's cross-check, crit 7's
+  // pass-through), kept for historical replay validity.
 });
 
 // The scripted policy: in a scene take the first available option; on the day
@@ -131,11 +130,14 @@ check("6 · bot run yields a valid trace-only stream",
   botRecs.length > 0 && botRecs.every((r) => r.type === "trace"));
 
 // Crit 7 — §3: a cross-run store injects into a new vessel — the collision's
-// substrate. (Full two-vessel read rides harvestInto once a route to the
-// pursuit terminal is scripted; this proves the pass-through the tool relies on.)
+// substrate. Under the cutover the seed injects at newGame, which the deck path
+// reaches only AFTER the creation ride — so drive past the ride, then read the
+// flag. This proves finishCreation carries crossRun through (the shipped path,
+// not just the legacy opt-out).
 const store = newCrossRunStore();
 store.seeds = { went_after_dale: true };
 const v2 = new LoopSession(explorerDb, { ...baseOpts("read"), crossRun: store });
+drive(v2, false);
 check("7 · cross-run harvest injects into a new vessel (Denise→Dale collision substrate)",
   v2.flag("went_after_dale") === true);
 
@@ -192,13 +194,16 @@ check("10 · vessel B: the collision surfaces on the porch, reader-facing and na
   vesselB.flag("went_after_dale") === true,
   porch ? `porch reached day ${porch.day}` : "porch never reached");
 
-// ---- Crit 11: the start-deck creation phase, through the console -------------
-// Opt-in only (Azimuth's cutover ruling: legacy stays the read program's
-// baseline until Loom's questions land) — this proves the machinery: creation
-// screens surface first, the deal is invisible, the monotonic step line runs
-// unbroken from the first question to the terminal, and the dealt run drives
-// to a designed end exactly like a legacy run.
-const deckRun = new LoopSession(explorerDb, { ...baseOpts("read"), startDeck: true });
+// ---- Crit 11: the SHIPPED opening is creation, and the deal reproduces legacy -
+// The cutover (2026-07-19): startDeck defaults ON, so run1 above IS a deck run —
+// this promotes the old opt-in check to the shipped-default path and keeps its
+// one cross-check honest by comparing the deck run to an EXPLICIT legacy opt-out
+// (not run1, which is now itself deck). Proves: creation screens surface first,
+// the deal is invisible, the monotonic step line runs unbroken to the terminal,
+// and the dealt run reproduces the legacy run's terminal-on-the-same-day (the
+// reunion is the deck's one start; gameplay RNG untouched by the creation
+// prepend — so historical legacy replays stay valid). Legacy is now the opt-out.
+const deckRun = new LoopSession(explorerDb, baseOpts("read"));   // default = the shipped creation ride
 const sawCreation = deckRun.current.kind === "creation" && deckRun.current.day === 0;
 drive(deckRun, false);
 const deckPres = presentations(deckRun.recorder.stream().records);
@@ -206,14 +211,13 @@ const creationScreens = deckPres.filter((p) => p.card.startsWith("__creation_"))
 const dealLeak = deckPres.find((p) =>
   p.prose.includes("start_") || p.options.some((o) => o.label.includes("start_")));
 const monotonic = deckPres.every((p, i) => i === 0 || p.step > deckPres[i - 1].step);
-check("11 · start-deck: creation surfaces first, deal invisible, one step line, and the dealt run IS the legacy run",
+const legacyRun = new LoopSession(explorerDb, { ...baseOpts("read"), startDeck: false });   // the explicit opt-out
+drive(legacyRun, false);
+check("11 · shipped opening is creation: surfaces first, deal invisible, one step line, and it reproduces the legacy run",
   sawCreation && creationScreens.length > 0 && !dealLeak && monotonic &&
   deckRun.done && TERMINALS.has(deckRun.current.terminal ?? "") &&
-  // The creation-scoped deal stream, visible at console level: same seed +
-  // same policy ⇒ the dealt run and the legacy run land the same terminal on
-  // the same day (the reunion is the deck's one start; gameplay RNG untouched).
-  deckRun.current.terminal === run1.current.terminal && deckRun.current.day === run1.current.day,
-  `creation screens=${creationScreens.length} · terminal=${deckRun.current.terminal} · day=${deckRun.current.day} (matches legacy)`);
+  deckRun.current.terminal === legacyRun.current.terminal && deckRun.current.day === legacyRun.current.day,
+  `creation screens=${creationScreens.length} · terminal=${deckRun.current.terminal} · day=${deckRun.current.day} (matches legacy opt-out)`);
 
 // ---- Crit 12: the LIVE reader sees every resolution (the wave's bug 2) -------
 // Armature's stronger form of this criterion, ported from the parallel fix
