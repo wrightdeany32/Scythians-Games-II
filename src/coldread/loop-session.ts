@@ -45,14 +45,15 @@ export interface LoopSessionOpts {
   crossRun?: CrossRunStore;    // a prior vessel's harvest — §3 (the cross-run collision, readable)
   showJournal?: boolean;       // fold journalLines into the day screen — a DESIGN call, default OFF
   playerName?: string;
-  // THE START-DECK CUTOVER FLAG (Azimuth's ruling: deck-start creation changes
-  // what a reader sees at minute one, so the cutover is a re-baseline event
-  // that happens ONCE, deliberately, when Loom's real questions land). OFF
-  // (default): the legacy opening — shakedowns and the first silent Run Reads
-  // run here, and `tier`/`townId` above seat the run. ON: the session starts
-  // at creation — CreationRunner screens through this same surface, the deal
-  // invisible (no-catalog: the reader answers and a life begins), and the
-  // dealt start seats the run (`tier`/`townId` above are overridden).
+  // THE START-DECK CUTOVER FLAG. THE DECK IS THE SHIPPED DEFAULT (the cutover
+  // milestone, 2026-07-19: the BR set of four closed on the legacy opening;
+  // this flip is the named re-baseline event Azimuth's ruling required). ON
+  // (default): the session starts at creation — CreationRunner screens
+  // through this same surface, the deal invisible (no-catalog: the reader
+  // answers and a life begins), and the dealt start seats the run
+  // (`tier`/`townId` below are overridden). Pass FALSE explicitly for the
+  // legacy opening — historical replays (the BR-1..4 transcripts predate the
+  // deck) and any harness whose baseline hasn't re-baselined yet.
   startDeck?: boolean;
 }
 
@@ -104,6 +105,11 @@ export class LoopSession {
     this.opts = opts;
     this.mode = opts.mode ?? "read";
     this.showJournal = opts.showJournal ?? false;
+    // THE CUTOVER: deck-on is the shipped default (re-baseline 2026-07-19) —
+    // for any db that HAS a deck. A pack with no `starts` is a legacy pack by
+    // definition (synthetic fixtures, loopworld), so it opens legacy without
+    // every harness having to pin the flag.
+    const deckOn = (opts.startDeck ?? true) && !!db.starts?.length;
     this.recorder = new Recorder({
       contentId: opts.contentId, buildTag: opts.buildTag, seed: opts.seed,
       // Vessel B stamps what it was born carrying (v0.3: a chained read is
@@ -111,6 +117,10 @@ export class LoopSession {
       // vessel stamps stay byte-identical to before.
       ...(opts.crossRun?.seeds && Object.keys(opts.crossRun.seeds).length
         ? { crossRunSeeds: { ...opts.crossRun.seeds } } : {}),
+      // The opening era, stamped (self-describing replay): deck-era streams
+      // say so; legacy streams omit the field, so every pre-cutover stamp
+      // (BR-1..4) stays byte-identical.
+      ...(deckOn ? { openingEra: "deck" as const } : {}),
     });
     this.hooks = {
       onScreen: (s) => {
@@ -131,10 +141,11 @@ export class LoopSession {
         });
       },
     };
-    if (opts.startDeck) {
-      // The deck path: the run starts at creation. Screens present through the
-      // one surface; presentations record (read mode); the deal is silent at
-      // the phase boundary. newGame waits until creation completes.
+    if (deckOn) {
+      // The deck path (the shipped default): the run starts at creation.
+      // Screens present through the one surface; presentations record (read
+      // mode); the deal is silent at the phase boundary. newGame waits until
+      // creation completes.
       this.creation = new CreationRunner(db, { seed: opts.seed }, {
         onScreen: (s) => {
           if (s.card === "__creation_done__") return;   // internal boundary marker, never a reader screen
@@ -145,8 +156,9 @@ export class LoopSession {
       if (this.creation.done) this.finishCreation();   // a deck with zero questions deals immediately
       else this.syncCreation();
     } else {
-      // The legacy path (the shipped default until the cutover milestone):
-      // opts seat the run; morning of day 1 drains the opening queue.
+      // The legacy path (explicit opt-out post-cutover: historical replays
+      // and un-re-baselined harnesses): opts seat the run; morning of day 1
+      // drains the opening queue.
       this.g = newGame(
         {
           seed: opts.seed, name: opts.playerName ?? "You", age: 25,

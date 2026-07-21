@@ -793,33 +793,11 @@ const harvestU = harvestCrossRun(gU, explorerDb, newCrossRunStore());
 check("explorer: held_truth persists across vessels; denied_knife does not (not chosen)",
   harvestU.seeds?.held_truth === true && harvestU.seeds?.denied_knife === undefined);
 
-// THE TERMINAL FENCE, asserted automatically (Armature's belt-and-suspenders,
-// endorsed four seats): ux_return_end's certainty clause must follow the route
-// actually taken — and a stray path that never touched the fork must read the
-// route-neutral base, never a contradiction. Guards the fence's route selection
-// the way crit 13 guards the empty screen: a future edit to the card can't
-// silently re-open BR-2's seam.
-line(`\n-- the terminal fence (ux_return_end route selection) --`);
-const fireReturnEnd = (flags: Record<string, boolean>): string => {
-  const g = newExplorer(48);
-  driveScene(startQueuedScene(g, explorerDb)!);   // clear the opening (the mis-probe lesson: a seeded queue reads the wrong card)
-  Object.assign(g.flags, flags);
-  g.queue.push("ux_return_end");
-  const r = startQueuedScene(g, explorerDb)!;
-  const prose = r.current.prose;
-  driveScene(r);
-  return prose;
-};
-const deepEnd = fireReturnEnd({ return_went_deep: true });
-const backEnd = fireReturnEnd({ return_turned_back: true });
-const strayEnd = fireReturnEnd({});
-check("fence: the went-deep run earns the deep clause",
-  deepEnd.includes("came anyway and didn't turn back"));
-check("fence: the turned-back run reads its own certainty, never the deep clause (BR-2's seam)",
-  backEnd.includes("turning around bought you nothing") && !backEnd.includes("didn't turn back"));
-check("fence: a stray path that never touched the fork reads the route-neutral base",
-  strayEnd.includes("that it meant to. Certainty and proof") &&
-  !strayEnd.includes("didn't turn back") && !strayEnd.includes("turning around bought you nothing"));
+// THE TERMINAL FENCE — now asserted through assertRouteNeutral (the reusable
+// helper; see the end of this file). The concrete crits that lived here (mine)
+// and at the file's end (Armature's, PR #46) proved the pattern on the
+// instance that bit us; the helper generalizes it for the seam the delayed-
+// callback family will industrialize — one line per future instance.
 
 // SCHEDULER RECURRENCE, verified by driving (the ledger's open engine
 // question — Static's deep arc and the long-Run-Read loop-back depend on it):
@@ -976,34 +954,75 @@ check("linter: a journal intent-note leak is an error",
 check("linter: the explorer db carries zero errors",
   lintContent(explorerDb, "explorer").every((i) => i.level !== "error"));
 
-// ── the route-neutral-base regression crit (BR-2's recurring seam class) ──────
-// A terminal/summary beat that references a route-specific choice gets a
-// route-neutral BASE + bodyVariants, so a path reaching it WITHOUT passing the
-// fork reads a true line, never a contradiction — the seam that has bitten
-// three times (Marie's mouth-words, the Nora→dinner braid, this return
-// terminal). This pins ux_return_end: fired under each route flag it renders
-// that route's certainty; fired under NEITHER it must fall to the neutral base
-// and carry NO route-specific "that it knows you…" clause. Locks the fix so a
-// future edit that folds a route assumption back into the base fails here.
-function returnEndBody(route: Record<string, boolean>): string {
-  const g = newGame({ seed: 99, name: "N", age: 25, body: { height: 0.5, build: 0.5 }, townId: "town_edge", tier: "outer" }, explorerDb);
-  applyOutcome(g, explorerDb, { setFlags: route });
-  g.queue.length = 0;                 // drop newGame's opening seed; fire only the terminal
-  g.queue.push("ux_return_end");
-  const r = new SceneRunner(g, explorerDb);
-  r.begin();
-  return r.current.prose;
+// ── assertRouteNeutral: the reusable route-neutral fence (the cutover batch) ──
+// Generalizes the two concrete ux_return_end crits (mine + Armature's #46,
+// now its first caller) into the one-line-per-instance fence the delayed-
+// callback family needs — that system references past decisions BY DESIGN,
+// which industrializes the seam class that has bitten three times (Marie's
+// mouth-words, the Nora→dinner braid, the return terminal). Contract: fired
+// under each route flag the event renders that route's distinctive clause
+// and no other route's; fired under NO route flag it renders the neutral
+// marker and no route clause at all; all renders distinct.
+function assertRouteNeutral(
+  name: string,
+  eventId: string,
+  routes: Record<string, string>,   // route flag → that route's distinctive substring
+  neutralMarker: string,            // must render on the bare (no-route) path
+  routeClauseOpener: string,        // the clause opener that must NEVER reach the bare path
+): void {
+  const fire = (flags: Record<string, boolean>): string => {
+    const g = newGame({ seed: 99, name: "N", age: 25, body: { height: 0.5, build: 0.5 }, townId: "town_edge", tier: "outer" }, explorerDb);
+    applyOutcome(g, explorerDb, { setFlags: flags });
+    g.queue.length = 0;             // the mis-probe lesson: drop the opening seed, fire only the target
+    g.queue.push(eventId);
+    const r = new SceneRunner(g, explorerDb);
+    r.begin();
+    return r.current.prose;
+  };
+  const base = fire({});
+  check(`${name}: the bare path reads the neutral base, no route clause`,
+    base.includes(neutralMarker) && !base.includes(routeClauseOpener),
+    base.includes(routeClauseOpener) ? "LEAK: a route clause reached the neutral base" : "base reads route-neutral");
+  const rendered: string[] = [base];
+  for (const flag in routes) {
+    const p = fire({ [flag]: true });
+    rendered.push(p);
+    const others = Object.keys(routes).filter((f) => f !== flag).map((f) => routes[f]);
+    check(`${name}: ${flag} renders its own clause and no other route's`,
+      p.includes(routes[flag]) && others.every((m) => !p.includes(m)));
+  }
+  check(`${name}: every render distinct`, new Set(rendered).size === rendered.length);
 }
-const rnBase = returnEndBody({});
-const rnDeep = returnEndBody({ return_went_deep: true });
-const rnBack = returnEndBody({ return_turned_back: true });
-const ROUTE_CLAUSE = "that it knows you";   // the opener of every route-specific certainty clause
-check("route-neutral base: ux_return_end neutral base carries no route-specific clause",
-  rnBase.includes("that it meant to. Certainty") && !rnBase.includes(ROUTE_CLAUSE),
-  rnBase.includes(ROUTE_CLAUSE) ? "LEAK: a route clause reached the neutral base" : "base reads route-neutral");
-check("route-neutral base: each route selects its own variant, all three distinct",
-  rnDeep.includes("didn't turn back") && rnBack.includes("kept to the shallows") &&
-  rnDeep !== rnBase && rnBack !== rnBase && rnDeep !== rnBack);
+assertRouteNeutral("route-neutral (ux_return_end)", "ux_return_end",
+  { return_went_deep: "didn't turn back", return_turned_back: "kept to the shallows" },
+  "that it meant to. Certainty", "that it knows you");
+
+// ── the Dale acknowledgment (the cutover batch: Loom's beat, Dean's design) ───
+// After Denise's confession, the porch action twins into the acknowledgment
+// visit (same label — the player sees ONE "drive out to Dale's" either way).
+// Deflection (either kind) returns the porch as the last event; accusation
+// expels and closes the thread for good.
+line(`\n-- the Dale acknowledgment --`);
+const gAck = newExplorer(52);
+driveScene(startQueuedScene(gAck, explorerDb)!);
+applyOutcome(gAck, explorerDb, { setFlags: { pointed_to_dale: true, dale_met: true, dale_bond: true, denise_broke: true } });
+const menuAck = dayMenu(gAck, explorerDb);
+check("dale: post-confession, the reckoning twin replaces the porch (one label, never both)",
+  menuAck.actions.some((a) => a.id === "ux_act_dale_reckon") && !menuAck.actions.some((a) => a.id === "ux_act_dale_porch"));
+const ackCards = driveScene(runAction(gAck, explorerDb, "ux_act_dale_reckon").runner!, { ux_dale_acknowledgment: 0 });
+check("dale: the offered acknowledgment meets the deflection; the relationship continues",
+  ackCards.join(">") === "ux_dale_acknowledgment>ux_dale_ack_believed" && gAck.flags.dale_acknowledged === true);
+const menuAfterAck = dayMenu(gAck, explorerDb);
+check("dale: the porch returns as the last event after the deflection",
+  menuAfterAck.actions.some((a) => a.id === "ux_act_dale_porch") && !menuAfterAck.actions.some((a) => a.id === "ux_act_dale_reckon"));
+const gExp = newExplorer(53);
+driveScene(startQueuedScene(gExp, explorerDb)!);
+applyOutcome(gExp, explorerDb, { setFlags: { pointed_to_dale: true, dale_met: true, dale_bond: true, denise_broke: true } });
+driveScene(runAction(gExp, explorerDb, "ux_act_dale_reckon").runner!, { ux_dale_acknowledgment: 2 });
+const menuAfterExp = dayMenu(gExp, explorerDb);
+check("dale: the accusation expels — no porch, no reckoning, the door does not reopen",
+  gExp.flags.dale_expelled === true &&
+  !menuAfterExp.actions.some((a) => a.id === "ux_act_dale_porch" || a.id === "ux_act_dale_reckon"));
 
 line(`\n${failed ? "SOME LOOP CRITERIA FAILED" : "ALL LOOP CRITERIA PASS"}\n`);
 if (failed) process.exit(1);

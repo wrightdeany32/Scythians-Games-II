@@ -44,13 +44,54 @@ export const daleActions: LocationAction[] = [
     name: "Drive out to Dale's porch",
     sub: "About the only house in this county nobody's watching.",
     cost: 1,
-    requires: { kind: "flag", flag: "dale_bond" },
+    // The acknowledgment ruling (Loom, 2026-07-17): the small-talk beat stays
+    // the LAST event — but never for the player who accused him
+    // (dale_expelled), and not until the acknowledgment visit has happened
+    // once Denise has confessed (the twin action below owns that visit).
+    requires: {
+      kind: "all",
+      of: [
+        { kind: "flag", flag: "dale_bond" },
+        { kind: "noflag", flag: "dale_expelled" },
+        { kind: "any", of: [{ kind: "noflag", flag: "denise_broke" }, { kind: "flag", flag: "dale_acknowledged" }] },
+      ],
+    },
     outcome: {
       log: "You drive out to the end of the dead-end road, and the porch light is on, the way he leaves it.",
       tone: "g",
       stats: { grip: 1 },
       statsMax: { grip: 7 },
       queueEvent: "ux_dale_porch",
+    },
+  },
+  // THE ACKNOWLEDGMENT VISIT (ux_dale_acknowledgment, Loom 2026-07-17,
+  // Dean's playthrough-driven design): the first drive out after Denise's
+  // confession. A TWIN of the porch action — same name, same sub, same cost,
+  // mutually exclusive by requires (the player sees ONE "drive out to
+  // Dale's" either way; the day never shows both). Fires once; the porch
+  // small-talk resumes after (or never, for the accuser).
+  // [LOOM: the beat assumes the porch relationship ("you find Dale where you
+  // always find him") — a player who cracked Denise but never bonded Dale
+  // has no surface for it; flagged as authored scope, not a gap.]
+  {
+    id: "ux_act_dale_reckon",
+    tiredText: "Not today. You haven't got the face for people right now.",
+    name: "Drive out to Dale's porch",
+    sub: "About the only house in this county nobody's watching.",
+    cost: 1,
+    requires: {
+      kind: "all",
+      of: [
+        { kind: "flag", flag: "dale_bond" },
+        { kind: "flag", flag: "denise_broke" },
+        { kind: "noflag", flag: "dale_acknowledged" },
+        { kind: "noflag", flag: "dale_expelled" },
+      ],
+    },
+    outcome: {
+      log: "You drive out to the end of the dead-end road with something sitting in your chest the whole way.",
+      tone: "n",
+      queueEvent: "ux_dale_acknowledgment",
     },
   },
 ];
@@ -275,6 +316,79 @@ He doesn't come apart like the others. He doesn't get taken back or lost in the 
         label: `Drive back toward town.`,
         outcome: { setFlags: { dale_met: true } },
       },
+    ],
+  },
+
+  // -- the acknowledgment (Loom's story pass, 2026-07-17; Dean's design) ----------
+  // The moment readers kept reaching for: the chance to tell Dale they know
+  // he isn't the monster the town made him — and the truer thing the moment
+  // does with it: Dale, who made his peace, DEFLECTS it. The anti-noun holds
+  // to the last line: Dale never says whether he did it; the event measures
+  // only what the player brought to the porch. Flags are set at the pick;
+  // the closers carry Loom's reply prose (bodies, so the emphasis survives
+  // the log's intent-note fence).
+  ux_dale_acknowledgment: {
+    id: "ux_dale_acknowledgment",
+    once: "dale_ack_seen",
+    title: "The Thing You Came to Say",
+    body:
+`You find Dale where you always find him, and for a while it's the usual — the weather, the porch, the coffee going cold in your hands. But you came out here with something sitting in your chest, and it won't lie still, and finally you just say it.
+
+"I talked to Denise."
+
+He doesn't look up right away. When he does, something's closed in his face that was open a second ago.
+
+"Denise." He says the name like it tastes of something old. "And what — you think I care what she's got to say? Her, or any of the rest of them?"`,
+    choices: [
+      {
+        label: `"I know you didn't do it, Dale."`,
+        outcome: { setFlags: { dale_acknowledged: true }, queueEvent: "ux_dale_ack_believed" },
+      },
+      {
+        label: `"I'd just like to hear what really happened. Back then. From you."`,
+        outcome: { setFlags: { dale_acknowledged: true }, queueEvent: "ux_dale_ack_asked" },
+      },
+      {
+        label: `"What did you do to her, Dale?"`,
+        outcome: { setFlags: { dale_expelled: true }, stats: { standing: -1 }, queueEvent: "ux_dale_ack_expelled" },
+      },
+    ],
+  },
+  ux_dale_ack_believed: {
+    id: "ux_dale_ack_believed",
+    title: "Especially Not That",
+    body:
+`Something moves behind his eyes — quick, there and gone, like he almost let himself feel it and thought better of it. For a second he looks like a man who might say something he'd regret. Then he just shakes his head, slow.
+
+"Look." His voice is tired in a way that's older than this conversation, older than you. "Let's drop it. I don't care what Denise says about me. I don't care what any of them say. I spent — *God.*" He stops. "I spent decades with this thing sitting on my chest. Forty years of being the man everybody knew did it, whether they said it out loud or not. And I got out from under it. Took me most of a life, but I got my head up above it, and I can breathe out here. I am not climbing back down into that hole. Not even to hear somebody sit on my porch and tell me they believe me." He looks at you, and it's almost gentle. "*Especially* not that. You understand? I'd take it as a real kindness if we just went back to how it was. The quiet. The nothing. And we never say her name out here again."`,
+    choices: [
+      { label: `Let it be how it was.`, outcome: {} },
+    ],
+  },
+  ux_dale_ack_asked: {
+    id: "ux_dale_ack_asked",
+    title: "Nothing to Tell",
+    body:
+`He's quiet a long moment, turning his cup on the arm of the chair.
+
+"What really happened." Not a question the way you asked it — more like he's weighing whether the words still have any power to cost him anything. "Everybody wanted the story. Forty years, everybody who ever came out here wanted the story. And I'll tell you what I told all of them: there's nothing to tell that anybody ever actually wanted to hear." The fight goes out of him all at once, and he just looks old. "Let's drop it. I don't care what Denise says now, or what happened then, or who's finally decided they want to know. I did my time under it and I got myself out. I'm not stepping back in — not for you, not for anybody. Let's go back to how it was, and leave the rest of it buried where it's been keeping fine without us."`,
+    choices: [
+      { label: `Let it be how it was.`, outcome: {} },
+    ],
+  },
+  ux_dale_ack_expelled: {
+    id: "ux_dale_ack_expelled",
+    title: "The Door Swings To",
+    body:
+`The word lands, and you watch it land — watch the last open thing in him close like a door swinging to.
+
+For a moment he says nothing at all. Then he stands, slow. He's not a big man, but he fills the porch.
+
+"Get out." Quiet. Almost calm, which is worse. "You're just like the rest of them. Forty years of you people, and you sat right there in that chair and drank my coffee and you're no different than a single one of them." His hand is shaking at his side. "Get off my porch. Get the hell away from my house. And don't you ever come back."
+
+You go. Behind you the door shuts, and you know — the way you know some things without being told — that it will not open for you again.`,
+    choices: [
+      { label: `Go.`, outcome: {} },
     ],
   },
 };

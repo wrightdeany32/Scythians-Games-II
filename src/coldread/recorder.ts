@@ -25,6 +25,11 @@ export interface StreamStamp {
   // B's stream stamps what it was born carrying (v0.3 rider; additive within
   // schema v1 — absent means a first vessel).
   crossRunSeeds?: Record<string, boolean | number | string>;
+  // The opening era (the cutover re-baseline, 2026-07-19): "deck" = the run
+  // starts at creation (the shipped default from the cutover on). Absent =
+  // the legacy opening — every pre-cutover stamp (BR-1..4) stays
+  // byte-identical, and a replayer knows which door the run came in through.
+  openingEra?: "deck";
 }
 
 // Engine-side truth for one resolved step.

@@ -1,7 +1,98 @@
 # Cold read — explorer · build `explorer-loop-v1` · seed 70499
 *schema v1 · reader-facing prose + numbered options; `> trace` lines are analyst-only (never shown to the reader)*
 
-## Step 1 — `ux_explorer_opening`
+## Step 1 — `__creation_common__`
+
+Rain, and a while yet to go. It's been coming down since you set out — steady, the kind that settles in for the night — and the world's gone soft and smeared at the edges of it. There's somewhere behind you and somewhere ahead, and in between there's only this: the wet dark, the going, and the particular honesty of a mind with nothing to do but drift.
+
+Options:
+1. You're driving — your hands on the wheel, the wipers keeping their patient time.
+2. You're riding — a back seat, someone else's hands on the wheel, your forehead near the cold glass.
+3. You're walking — hood up, the long way home on foot, the streetlights smearing in the wet.
+
+**Reader:** [reader think-aloud for __creation_common__]
+**Picked:** 1. You're driving — your hands on the wheel, the wipers keeping their patient time.
+
+## Step 2 — `__creation_common__`
+
+The rain hasn't let up since you started out. It blurs the lights ahead into long smears, and the wipers keep their patient time, and there's a while yet to go.
+
+Options:
+1. You've never minded the gray. There's a kind of comfort in it.
+2. It'll be nicer tomorrow. It usually is.
+3. You're just ready to be home.
+4. You're barely watching it. Your mind's a long way from the road.
+
+**Reader:** [reader think-aloud for __creation_common__]
+**Picked:** 1. You've never minded the gray. There's a kind of comfort in it.
+
+## Step 3 — `__creation_common__`
+
+Some people need the sun. You've always been easiest in weather like this — the world turned down low, softened, kept at arm's length. It suits you. You don't examine why.
+
+Coming through the edge of town, you pass a house with every window lit — a whole family's worth of warm gold against the dark and the wet, moving behind the glass.
+
+Options:
+1. Hm. You wonder what the story is in there.
+2. It looks like where you're headed. More or less.
+3. You clock it and go back to the problem you were chewing on.
+4. Just a house on a wet night.
+
+**Reader:** [reader think-aloud for __creation_common__]
+**Picked:** 1. Hm. You wonder what the story is in there.
+
+## Step 4 — `__creation_common__`
+
+The radio's been on low the whole drive — some call-in show you stopped listening to a while ago, just voices under the rain. And then the host says a thing. An ordinary thing. Something about how the ones who go looking are never the ones who find, or how some doors only open the once — you couldn't say exactly, after. Because for half a second it didn't land like a voice on the radio. It landed like it was meant for *you*. Specifically. And then it's just the radio again, some ad, the wipers, the road, and you couldn't repeat the line if someone asked.
+
+It occurs to you, somewhere on the long wet straightaway, that you haven't gone *out* anywhere in a long while. Not town-to-town. Out. You used to. There was a version of you that was always about to be somewhere with no cell signal.
+
+Options:
+1. You could put a pack together this weekend and have everything you need.
+2. You've come to like the known streets. The city fits you now.
+
+**Reader:** [reader think-aloud for __creation_common__]
+**Picked:** 1. You could put a pack together this weekend and have everything you need.
+
+## Step 5 — `__creation_common__`
+
+The thought lands with a small pull you weren't expecting — boots, a bag, a place on the map you've never put a boot on. You could. You actually could.
+
+At a long light you thumb your phone awake, and a video's queued — a channel you half-follow, paused on what's plainly a crime scene: tape, cones, the flat particular light of it.
+
+Options:
+1. You're reading it before you've hit play — the angle of the tape, what's missing from the frame, what got walked through.
+2. You thumb past it. The police never learn anything anyway.
+
+**Reader:** [reader think-aloud for __creation_common__]
+**Picked:** 1. You're reading it before you've hit play — the angle of the tape, what's missing from the frame, what got walked through.
+
+## Step 6 — `__creation_common__`
+
+A flash from earlier today rides along with you: the doctor's office, the paper on the table, the specific way she'd said it — "Everything appears to be in order. Did you have any questions you wanted to ask me?"
+
+Options:
+1. You'd said no. You always say no. But there was a thing you didn't say.
+2. You'd said no, and you'd meant it. Nothing to tell.
+
+**Reader:** [reader think-aloud for __creation_common__]
+**Picked:** 1. You'd said no. You always say no. But there was a thing you didn't say.
+
+## Step 7 — `__creation_common__`
+
+The things you've been noticing. That you haven't told anyone. That you didn't have a word for and didn't want to say out loud in a doctor's office.
+
+It's late, and there's light moving on your ceiling that shouldn't be — red and blue, sliding, the color of a bad night. You go to the window. Police, down your street or the next one over, hard to say, a car or two, somebody's night coming apart in a way you can't quite make out from here. You stand a moment in the dark of your own front room, watching the light slide over the walls.
+
+Options:
+1. Huh — wonder what that's about. Maybe you'll step out, see if anybody knows.
+2. It's fine. They're not here for you. …They're not, are they?
+3. Probably a neighbor thing. You let the blind fall and go back to what you were doing.
+
+**Reader:** [reader think-aloud for __creation_common__]
+**Picked:** 1. Huh — wonder what that's about. Maybe you'll step out, see if anybody knows.
+
+## Step 8 — `ux_explorer_opening`
 
 They throw you a thing the first weekend, because that's what this family does — any excuse, and you moving back is a good one. It's at Aunt Marie's, which means the good folding chairs and three times too much food and the cooler Doug always brings, and it spills off the back deck into a yard that runs right up to the treeline. Half the town filters through at some point. You'd forgotten how that goes out here — how everyone turns out to be somebody's cousin or somebody's old coach, how a place this size holds onto you.
 
@@ -24,7 +115,7 @@ Options:
 
 > trace: day 1 · stats — · flags arrived_town=true, thread_doug=true, origin_fresh_start=true
 
-## Step 2 — `__day__`
+## Step 9 — `__day__`
 
 That's the version you'd say out loud — new chapter, clean slate, the whole line — and it's even mostly true. You mean to stay this time.
 
@@ -47,7 +138,7 @@ Options:
 **Reader:** [reader think-aloud for __day__]
 **Picked:** 1. Go caving with Reese — He's been texting about the White's Hall Cave System, off the old fire road.
 
-## Step 3 — `ux_cave_enter`
+## Step 10 — `ux_cave_enter`
 
 He's been texting about the White's Hall Cave System, off the old fire road.
 
@@ -68,7 +159,7 @@ Options:
 
 > trace: day 1 · stats — · flags cave_lead=self
 
-## Step 4 — `ux_cave_descend`
+## Step 11 — `ux_cave_descend`
 
 You take point.
 
@@ -87,7 +178,7 @@ Options:
 
 > trace: day 1 · stats — · flags —
 
-## Step 5 — `ux_cave_heard`
+## Step 12 — `ux_cave_heard`
 
 You press on.
 
@@ -106,7 +197,7 @@ Options:
 
 > trace: day 1 · stats — · flags —
 
-## Step 6 — `ux_cave_squeeze`
+## Step 13 — `ux_cave_squeeze`
 
 You give it a name — a bat, this deep, sure — and Reese takes it, and you both agree to be men who heard a bat.
 
@@ -127,7 +218,7 @@ Options:
 
 > trace: day 1 · stats — · flags —
 
-## Step 7 — `ux_cave_squeeze_through`
+## Step 14 — `ux_cave_squeeze_through`
 
 You don't love it; you don't say so.
 
@@ -141,7 +232,7 @@ Options:
 
 > trace: day 1 · stats grip -1 · flags cave_squeeze_done=true, cave_scare=true · roll squeeze d20 4+0=4 vs 10 → LOSE
 
-## Step 8 — `ux_cave_deep`
+## Step 15 — `ux_cave_deep`
 
 For one long moment you are genuinely stuck, the panic a white animal behind your eyes — then Reese has your wrists and hauls, and the rock lets go with a scrape you'll feel for a week.
 
@@ -159,7 +250,7 @@ Options:
 
 > trace: day 1 · stats — · flags cave_notrace=true
 
-## Step 9 — `ux_cave_etchings`
+## Step 16 — `ux_cave_etchings`
 
 You follow the beam to the wall.
 
@@ -181,7 +272,7 @@ Options:
 
 > trace: day 1 · stats grip +1 · flags cave_etchings_seen=true
 
-## Step 10 — `ux_cave_return`
+## Step 17 — `ux_cave_return`
 
 You take the version you can live with — teenagers, idiots with rope. You almost sell it to yourself.
 
@@ -199,7 +290,7 @@ Options:
 
 > trace: day 1 · stats — · flags cave_done=true, cave_deep_seen=true
 
-## Step 11 — `__day__`
+## Step 18 — `__day__`
 
 You shove the pack ahead of you through the pinch and come out with nothing on your back. It costs you a good kit and the last of your pride — cheap, tonight.
 
@@ -224,7 +315,7 @@ Options:
 **Reader:** [reader think-aloud for __day__]
 **Picked:** 12. Call it a day.
 
-## Step 12 — `__day__`
+## Step 19 — `__day__`
 
 Week 1 · Tue
 
@@ -247,7 +338,7 @@ Options:
 **Reader:** [reader think-aloud for __day__]
 **Picked:** 11. Go back to White's Hall — Neither of you has said out loud that you can't stop thinking about it.
 
-## Step 13 — `ux_return_enter`
+## Step 20 — `ux_return_enter`
 
 Neither of you has said out loud that you can't stop thinking about it.
 
@@ -271,7 +362,7 @@ Options:
 
 > trace: day 2 · stats — · flags return_committed=true
 
-## Step 14 — `ux_return_descend`
+## Step 21 — `ux_return_descend`
 
 The squeeze you fought through the first time takes you first try. You tell yourself you've done it once, your body remembers the shape of it. That's probably true.
 
@@ -288,7 +379,7 @@ Options:
 
 > trace: day 2 · stats — · flags —
 
-## Step 15 — `ux_return_erased`
+## Step 22 — `ux_return_erased`
 
 You come to the chamber. The wide one, where the marks are.
 
@@ -305,7 +396,7 @@ Options:
 
 > trace: day 2 · stats — · flags —
 
-## Step 16 — `ux_return_fork`
+## Step 23 — `ux_return_fork`
 
 You say it, and neither of you moves toward the way out.
 
@@ -322,7 +413,7 @@ Options:
 
 > trace: day 2 · stats — · flags return_went_deep=true
 
-## Step 17 — `ux_return_deep`
+## Step 24 — `ux_return_deep`
 
 You go down, and the throat fights you the way rock fights meat, and you come out the bottom scraped and breathing hard and *certain*, in the animal part of you, that you should not be here. You come anyway. Reese comes because you came.
 
@@ -338,7 +429,7 @@ Options:
 
 > trace: day 2 · stats — · flags —
 
-## Step 18 — `ux_return_knife_deep`
+## Step 25 — `ux_return_knife_deep`
 
 It's a pocketknife, and it takes you a long, cold second to place it, and when you place it your stomach drops: it's *like* your grandfather's. The same make, the same bone handle. Not the chip in the bolster — you'd swear his had a chip — but close enough that you can't breathe for a moment, close enough that Reese's "so it's a knife, somebody lost a knife down here" lands and *almost* holds. Almost.
 
@@ -353,7 +444,7 @@ Options:
 
 > trace: day 2 · stats — · flags —
 
-## Step 19 — `ux_return_end`
+## Step 26 — `ux_return_end`
 
 You sit with it, and the doubt lodges where you can't reach it.
 
@@ -369,7 +460,7 @@ Options:
 
 > trace: day 2 · stats — · flags run_end_whites_return=true
 
-## Step 20 — `__run_over__`
+## Step 27 — `__run_over__`
 
 The run is over.
 
