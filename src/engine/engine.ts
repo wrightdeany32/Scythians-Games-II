@@ -196,7 +196,10 @@ export function setTier(g: GameState, db: ContentDB, tier: Tier): void {
 // ---- the resolver ------------------------------------------------------------
 // Applies all non-roll effects immediately. If the outcome has a roll, returns
 // the resolved roll for the caller to surface (show dice), then continue.
-export function applyOutcome(g: GameState, db: ContentDB, o: Outcome): { roll?: ResolvedRoll } {
+// `origin` (Tier-1, optional): the cause-side stamp a scheduleEvent promise
+// carries — "eventId#choiceIndex" from resolveChoice, the action id from
+// takeAction. Telemetry-only; omitting it changes nothing.
+export function applyOutcome(g: GameState, db: ContentDB, o: Outcome, origin?: string): { roll?: ResolvedRoll } {
   if (o.stats) {
     for (const k in o.stats) {
       const key = k as StatKey;
@@ -236,7 +239,13 @@ export function applyOutcome(g: GameState, db: ContentDB, o: Outcome): { roll?: 
   if (o.removeFromCircle) removeFromCircle(g, o.removeFromCircle);
   if (o.grantItems) for (const it of o.grantItems) if (!g.player.items.includes(it)) g.player.items.push(it);
   if (o.removeItems) g.player.items = g.player.items.filter((it) => !o.removeItems!.includes(it));
-  if (o.scheduleEvent) (g.scheduled ||= []).push({ onDay: g.day + o.scheduleEvent.inDays, eventId: o.scheduleEvent.eventId });
+  if (o.scheduleEvent) {
+    (g.scheduled ||= []).push({
+      onDay: g.day + o.scheduleEvent.inDays,
+      eventId: o.scheduleEvent.eventId,
+      ...(origin ? { origin } : {}),   // absent stays absent — pre-stamp saves serialize byte-identically
+    });
+  }
   if (o.cancelScheduled && g.scheduled) g.scheduled = g.scheduled.filter((s) => s.eventId !== o.cancelScheduled);
   if (o.advanceClock) {
     const a = o.advanceClock;
@@ -301,9 +310,14 @@ export function takeAction(g: GameState, db: ContentDB, a: LocationAction): { ro
     g.log.unshift({ text: "Too tired for that right now.", tone: "n" });
     return {};
   }
+  if (a.moneyCost != null && g.player.stats.money < a.moneyCost) {
+    g.log.unshift({ text: "Can't afford that right now.", tone: "n" });
+    return {};
+  }
   g.player.stats.energy = Math.max(0, g.player.stats.energy - a.cost);
+  if (a.moneyCost != null) g.player.stats.money -= a.moneyCost;
   recordResolution(g, a);   // research actions are ordinary card-resolutions — same log, no special case
-  return applyOutcome(g, db, a.outcome);
+  return applyOutcome(g, db, a.outcome, a.id);
   // Caller checks a.isClear after resolving (and continuing any roll) to detect a clear.
 }
 
@@ -370,6 +384,11 @@ export function antiRepeatTuning(db: ContentDB): { enabled: boolean; factor: num
   return { enabled: t?.enabled ?? false, factor: t?.factor ?? 0.5, memory: t?.memory ?? 5 };
 }
 
+export function gripBiasTuning(db: ContentDB): { enabled: boolean; strength: number } {
+  const t = db.tuning?.gripBias;
+  return { enabled: t?.enabled ?? false, strength: t?.strength ?? 0.3 };
+}
+
 // The centroids are invariant across a single draw, so they are derived ONCE
 // per draw here and handed into the weight step (Armature's review note on
 // PR #6) — and only derived at all when their switch is on. A null field means
@@ -423,6 +442,24 @@ function antiRepeatFactor(g: GameState, db: ContentDB, ev: GameEvent): number {
   return (g.recentDraws ?? []).includes(ev.id) ? antiRepeatTuning(db).factor : 1;
 }
 
+// gripBias (Tier-1 — the drip's rail): the RULED EXCEPTION to this chokepoint's
+// X-fence. The player's grip BAND (never the number) may bias draw FLAVOR:
+// the frayed player's mundane action surfaces the unsettling clue a little
+// more often; the grounded player's, the clean one. Sign-aligned boost only —
+// grounded (band lean −1) boosts grounded-leaning cards, frayed (+1) boosts
+// frayed-leaning ones, worn (0) is flat, unleaned cards are flat — floor 1.0,
+// never a gate, no down-weighting: every eligible card stays drawable at every
+// band. Ships OFF; the bots' spiral A/B prices the dose before it ever ships on
+// (a frayed-lean card that also costs grip is the death-spiral shape the fence
+// existed to catch — this factor makes that risk a measured dial, not a leak).
+function gripBiasFactor(g: GameState, db: ContentDB, ev: GameEvent): number {
+  if (ev.gripLean == null) return 1;
+  const band = bandOf(g.player.stats.grip);
+  const playerLean = band === "grounded" ? -1 : band === "frayed" ? 1 : 0;
+  const aligned = Math.max(0, ev.gripLean * playerLean);
+  return 1 + gripBiasTuning(db).strength * aligned;
+}
+
 function noteDraw(g: GameState, db: ContentDB, id: string): void {
   const mem = antiRepeatTuning(db).memory;
   const r = (g.recentDraws ??= []);
@@ -439,6 +476,7 @@ function drawWeight(g: GameState, db: ContentDB, ev: GameEvent, ctx: WeightConte
   if (ctx.diamond) w *= proximityDiamond(db, ctx.diamond, ev);
   if (ctx.lens) w *= proximityLens(db, ctx.lens, ev);
   if (antiRepeatTuning(db).enabled) w *= antiRepeatFactor(g, db, ev);
+  if (gripBiasTuning(db).enabled) w *= gripBiasFactor(g, db, ev);
   return w;
 }
 
@@ -559,7 +597,7 @@ export function choiceAvailable(g: GameState, c: { requires?: Condition }): bool
 
 export function resolveChoice(g: GameState, db: ContentDB, ev: GameEvent, idx: number): { roll?: ResolvedRoll } {
   recordResolution(g, ev, ev.choices[idx]);   // once per resolved card, at BRANCH granularity (the wiring gate)
-  return applyOutcome(g, db, ev.choices[idx].outcome);
+  return applyOutcome(g, db, ev.choices[idx].outcome, `${ev.id}#${idx}`);
 }
 
 // ---- the resolved-coordinate log (WO-1c; invariant #3's mechanism) -------------

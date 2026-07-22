@@ -28,7 +28,7 @@
 import type { ContentDB, GameState, CrossRunStore, LocationAction } from "../engine/types";
 import { newGame, harvestCrossRun } from "../engine/engine";
 import { CreationRunner } from "../engine/creation";
-import { dayMenu, runAction, startQueuedScene, advanceDay } from "../engine/loop";
+import { dayMenu, runAction, startQueuedScene, advanceDay, actionSub } from "../engine/loop";
 import { runStatus } from "../engine/loop";
 import { journalLines } from "../engine/journal";
 import { SceneRunner } from "../engine/scene";
@@ -66,7 +66,7 @@ export interface LoopScreen {
   step: number;
   card: string;                // scene card id, or "__day__", or "__run_over__"
   prose: string;
-  options: { index: number; label: string; available: boolean; lockedReason?: string; cost?: number }[];
+  options: { index: number; label: string; available: boolean; lockedReason?: string; cost?: number; moneyCost?: number }[];
   day: number;
   dateLabel?: string;
   energy?: number;             // day screens only — the visible currency (also in the prose line)
@@ -80,6 +80,9 @@ const END_LABEL = "Call it a day.";
 // tiredText of its own - same precedent as DEFAULT_OPENING_LOG: an engine
 // fallback for unauthored content, overridden per action in the pack.
 const TIRED_DEFAULT = "Not today — there's nothing left in you for it.";
+// The money sibling (born-visible discipline): the felt line when a price
+// gates a day action — same fallback pattern, overridden per action (brokeText).
+const BROKE_DEFAULT = "Not this week — the money just isn't there.";
 
 export class LoopSession {
   readonly recorder: Recorder;
@@ -284,7 +287,8 @@ export class LoopSession {
 
     const action = menu.actions[idx];
     if (this.g.player.stats.energy < action.cost) return { ok: false, reason: "too tired" };   // greyed — no state touched
-    if (this.mode === "read") this.recorder.pushReader({ step: this.screen.step, card: "__day__", note, pick: idx, pickLabel: dayLabel(action) });
+    if (action.moneyCost != null && this.g.player.stats.money < action.moneyCost) return { ok: false, reason: "can't afford" };   // greyed — no state touched
+    if (this.mode === "read") this.recorder.pushReader({ step: this.screen.step, card: "__day__", note, pick: idx, pickLabel: dayLabel(this.g, action) });
     this.stepBase = this.stepSeq;
     const res = runAction(this.g, this.db, action.id, this.hooks);
     if (!res.ok) return { ok: false, reason: res.reason };
@@ -348,19 +352,33 @@ export class LoopSession {
     // a person knows a 6am run costs more than an evening at the laptop, so
     // hiding the price kills immersion. Consoles render it beside the option;
     // the label stays name-only, the leak-checks stay honest.
-    const options: LoopScreen["options"] = menu.actions.map((a, i) => ({
-      index: i, label: dayLabel(a), available: a.cost <= menu.energy, cost: a.cost,
-      ...(a.cost <= menu.energy ? {} : { lockedReason: a.tiredText ?? TIRED_DEFAULT }),
-    }));
+    const options: LoopScreen["options"] = menu.actions.map((a, i) => {
+      const tired = a.cost > menu.energy;
+      const broke = !tired && a.moneyCost != null && a.moneyCost > menu.money;
+      return {
+        index: i, label: dayLabel(this.g, a), available: !tired && !broke, cost: a.cost,
+        ...(a.moneyCost != null ? { moneyCost: a.moneyCost } : {}),
+        // Greying carries its felt reason (never a bare "unavailable"): energy
+        // first (the primary currency), else money (born-visible discipline —
+        // the price gates, so the refusal speaks).
+        ...(tired ? { lockedReason: a.tiredText ?? TIRED_DEFAULT }
+          : broke ? { lockedReason: a.brokeText ?? BROKE_DEFAULT } : {}),
+      };
+    });
     options.push({ index: menu.actions.length, label: END_LABEL, available: true });
     const closing = this.takeEndProse();
     // The finished scene's payoff, then the diegetic date, then the day's
     // CURRENCY. Energy is visible by ruling (Dean, 2026-07-17): the player
     // spends it to decide, so they see it — hiding it was over-applied
-    // concealment. What stays sealed is what was always sealed: the grip
-    // number (band/felt word only), exposure, and every trajectory.
+    // concealment. Money joins the line the moment any menu action carries a
+    // price (born visible: level and price ship together; menus with no
+    // money-gated action stay byte-identical to before). What stays sealed is
+    // what was always sealed: the grip number (band/felt word only), exposure,
+    // and every trajectory.
+    const anyMoneyCost = menu.actions.some((a) => a.moneyCost != null);
     let prose = (closing ? closing + "\n\n" : "") + menu.dateLabel
-      + `\n\nEnergy: ${menu.energy} of ${menu.energyMax}.`;
+      + `\n\nEnergy: ${menu.energy} of ${menu.energyMax}.`
+      + (anyMoneyCost ? ` Money: $${menu.money}.` : "");
     if (this.showJournal) {
       const known = journalLines(this.g, this.db);
       if (known.length) prose += "\n\nWhat you know:\n" + known.map((l) => `· ${l}`).join("\n");
@@ -370,7 +388,7 @@ export class LoopSession {
     if (this.mode === "read") {
       this.recorder.pushPresentation({
         step: this.stepSeq, card: "__day__", prose,
-        options: options.map((o) => ({ index: o.index, label: o.label, available: o.available, showWhenLocked: !o.available, ...(o.lockedReason ? { lockedReason: o.lockedReason } : {}), ...(o.cost != null ? { cost: o.cost } : {}) })),
+        options: options.map((o) => ({ index: o.index, label: o.label, available: o.available, showWhenLocked: !o.available, ...(o.lockedReason ? { lockedReason: o.lockedReason } : {}), ...(o.cost != null ? { cost: o.cost } : {}), ...(o.moneyCost != null ? { moneyCost: o.moneyCost } : {}) })),
       });
     }
   }
@@ -387,7 +405,10 @@ export class LoopSession {
 }
 
 // The reader-facing label for a menu action: its diegetic name, plus the sub as
-// flavor when present. Never ids/costs — those live in the engine, not the eye.
-function dayLabel(a: LocationAction): string {
-  return a.sub ? `${a.name} — ${a.sub}` : a.name;
+// flavor when present (subVariants drift the sub by state — the case-file /
+// White's Hall device, resolved through the one engine function). Never
+// ids/costs — those live in the engine, not the eye.
+function dayLabel(g: GameState, a: LocationAction): string {
+  const sub = actionSub(g, a);
+  return sub ? `${a.name} — ${sub}` : a.name;
 }

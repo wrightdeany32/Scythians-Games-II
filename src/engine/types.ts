@@ -181,9 +181,19 @@ export interface LocationAction {
   // Vigil-blessed): what an energy-greyed day option SAYS instead of a bare
   // "(unavailable)" - the felt reason, never the count. Authored per action in
   // Loom's register set (physical/social/focus/generic); surfaces fall back to
-  // the generic line when absent. Day-menu greying is only ever energy, so
-  // this string is always the honest one.
+  // the generic line when absent.
   tiredText?: string;
+  // subVariants (Tier-1 convenience): flag-gated drift of the action's `sub`
+  // line — the FIRST matching variant replaces `sub` (the case-file/White's
+  // Hall drift device without the twin-action tax). Evaluated at menu build
+  // against game state; the label stays diegetic prose, never mechanics.
+  subVariants?: { when: Condition; text: string }[];
+  // moneyCost (Tier-1, BORN VISIBLE per the standing rule): a money price on
+  // the action — gate + deduction, and the moment any menu action carries one,
+  // the day surface shows the $ level and the price beside the option. Energy
+  // remains the primary currency; greying for money carries its own felt line.
+  moneyCost?: number;
+  brokeText?: string;    // the felt reason when money gates this action (fallback: the generic line)
   // -- coordinates (WO-1c): research actions are ordinary card-resolutions —
   // resolving a coordinated action appends to the same log as a card. No special case.
   diamondCoord?: DiamondCoord;
@@ -210,6 +220,9 @@ export interface GameEvent {
   diamondCoord?: DiamondCoord; // (Y, Z) — where resolving this card pulls the player's derived position. Omit = neutral/ubiquitous.
   lensFlavor?: string;   // the card's dominant interpretive register (tag sparingly — register, not topic)
   attune?: number;       // X-volition, −1…+1 (see CoordLogEntry) — recorded, never read by the draw
+  gripLean?: number;     // the card's REGISTER lean on the grip axis, −1 grounded … +1 frayed (the drip's
+                         // darker-clue marker). Read ONLY by the gripBias draw factor (OFF by default);
+                         // never a gate, never player-facing, omit = neutral. Lint-range-checked.
   // -- band-select (Batch-3 Contract 2): AUTHORED variants of the body, selected
   // by the resolved grip band at card-fire and frozen on the fired-card record.
   // Selection only — bands never generate text and never gate a choice. A band
@@ -375,6 +388,15 @@ export interface EngineTuning {
                                // tuned against research content as it lands
     strength?: number;         // boost at full affinity: multiplier = 1 + strength × mass; default 0.3 ⇒ [1.0, 1.3]
   };
+  gripBias?: {
+    enabled?: boolean;         // Tier-1 (the drip's rail): OFF by default. THE RULED EXCEPTION to the
+                               // X-fence at the chokepoint: grip may bias the FLAVOR of random draws
+                               // (frayed players draw frayed-leaning cards) — never eligibility, never
+                               // a gate, floor 1.0. Ships OFF until the bots' spiral check prices the
+                               // dose (a frayed-lean card that also costs grip is the death-spiral
+                               // shape; the A/B isolates it before anything ships on).
+    strength?: number;         // boost at full alignment: multiplier = 1 + strength; default 0.3
+  };
   bandNoise?: {
     enabled?: boolean;         // Contract 2's NOISE switch, ships OFF. Off ⇒ resolvedBand === trueBand:
                                // banded cards still select their authored variant deterministically;
@@ -500,7 +522,12 @@ export interface GameState {
 export interface Clock { label: string; value: number; max: number; onFull?: string }
 
 // A promise of an event on a future absolute day; endDay sweeps due ones to the queue.
-export interface ScheduledEvent { onDay: number; eventId: string }
+// The ORIGIN STAMP (Tier-1, Azimuth's rider — "watch the run remember"): a
+// promise records what made it, cause-side only ("card#choiceIndex" or an
+// action id). Telemetry joins promise→fire; NO SURFACE EVER RENDERS `origin`
+// or the schedule itself (the callback family's hardest guard: the player
+// sees commitments they accepted, never consequences they incurred).
+export interface ScheduledEvent { onDay: number; eventId: string; origin?: string }
 
 export interface ResolvedRoll {
   tag: string; die: number; mod: number; total: number; target: number; success: boolean;

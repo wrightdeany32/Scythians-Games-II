@@ -73,7 +73,7 @@ if (picks.length === 0) { out.push(FRAMING_SCRIPT, "", "---", ""); }   // first 
 out.push(s.current.prose);
 if (s.current.options.length) {
   out.push("");
-  s.current.options.forEach((o, pos) => out.push(`${pos + 1}. ${o.label}${o.cost != null ? `  (${o.cost} energy)` : ""}${o.available ? "" : o.lockedReason ? `  — ${o.lockedReason}` : "  (unavailable)"}`));
+  s.current.options.forEach((o, pos) => out.push(`${pos + 1}. ${o.label}${o.cost != null ? `  (${o.cost} energy)` : ""}${o.moneyCost != null ? `  ($${o.moneyCost})` : ""}${o.available ? "" : o.lockedReason ? `  — ${o.lockedReason}` : "  (unavailable)"}`));
 }
 process.stdout.write(out.join("\n") + "\n");
 

@@ -30,7 +30,7 @@
 // ============================================================================
 
 import type { ContentDB, GameState, LocationAction } from "./types";
-import { availableActions, endDay, terminalTuning } from "./engine";
+import { availableActions, endDay, terminalTuning, evalCondition } from "./engine";
 import { SceneRunner } from "./scene";
 import type { SceneHooks } from "./scene";
 import { dateOf } from "./calendar";
@@ -61,6 +61,8 @@ export interface DayMenu {
   dateLabel: string;
   energy: number;
   energyMax: number;   // energy is the day's VISIBLE currency (Dean's ruling 2026-07-17) — surfaces show "N of M"
+  money: number;       // the other currency, BORN VISIBLE (the standing rule): surfaces show the $ level
+                       // whenever any menu action carries a moneyCost — level and price together, from day one
   status: RunStatus;                           // the terminal check, surfaced where every driver already looks
   pendingScene: boolean;                       // something queued wants to run before the errands (see startQueuedScene)
   actions: LocationAction[];                   // every action available right now (tier ∧ town ∧ requires)
@@ -78,6 +80,7 @@ export function dayMenu(g: GameState, db: ContentDB): DayMenu {
     dateLabel: dateOf(g.day).label,
     energy: g.player.stats.energy,
     energyMax: g.player.stats.energyMax,
+    money: g.player.stats.money,
     status: runStatus(g, db),
     pendingScene: g.queue.length > 0,
     actions,
@@ -88,8 +91,17 @@ export function dayMenu(g: GameState, db: ContentDB): DayMenu {
 // ---- running an action -------------------------------------------------------------
 export interface RunActionResult {
   ok: boolean;
-  reason?: "unknown action" | "unavailable" | "too tired" | "scene pending";
+  reason?: "unknown action" | "unavailable" | "too tired" | "can't afford" | "scene pending";
   runner?: SceneRunner;   // present when ok — already begun; drive it to done, then return to the day
+}
+
+// The action's sub line, with the Tier-1 drift device applied: the FIRST
+// matching subVariant replaces `sub` (the case-file / White's Hall drift
+// without the twin-action tax). Pure presentation — evaluated at menu build,
+// never stored, and every console labels through this one function.
+export function actionSub(g: GameState, a: LocationAction): string {
+  const v = a.subVariants?.find((x) => evalCondition(x.when, g));
+  return v ? v.text : a.sub;
 }
 
 // Take an action by id, through the one scene path. Polite refusals (no state
@@ -108,6 +120,7 @@ export function runAction(g: GameState, db: ContentDB, actionId: string, hooks?:
     return { ok: false, reason: exists ? "unavailable" : "unknown action" };
   }
   if (g.player.stats.energy < action.cost) return { ok: false, reason: "too tired" };
+  if (action.moneyCost != null && g.player.stats.money < action.moneyCost) return { ok: false, reason: "can't afford" };
   const runner = new SceneRunner(g, db, hooks);
   runner.beginWithAction(action);
   return { ok: true, runner };
