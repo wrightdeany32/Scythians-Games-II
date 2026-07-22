@@ -11,7 +11,7 @@
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { checkImports, isRendererFile } from "./import-boundary";
+import { checkImports, isRendererFile, checkSurfaceTelemetry } from "./import-boundary";
 
 // ---- 1 · self-test ---------------------------------------------------------
 interface Case { name: string; file: string; text: string; expectViolations: number }
@@ -40,6 +40,31 @@ for (const c of CASES) {
   console.log(`  ${ok ? "OK  " : "FAIL"} self-test: ${c.name}${ok ? "" : ` (expected ${c.expectViolations}, got ${got})`}`);
 }
 
+// The telemetry fence self-test: the surface module may never read a
+// telemetry/trajectory field (the fence that keeps "log the cause, never the
+// effect" true on the render side as the trace grows).
+interface SCase { name: string; file: string; text: string; expect: number }
+const SURFACE_CASES: SCase[] = [
+  { name: "surface reading rngState → blocked", file: "src/engine/surface.ts",
+    text: `const s = { entropy: g.rngState };`, expect: 1 },
+  { name: "surface reading a sub-stream → blocked", file: "src/engine/surface.ts",
+    text: `if (g.subStreams?.drip) show();`, expect: 1 },
+  { name: "surface deriving the centroid → blocked", file: "src/engine/surface.ts",
+    text: `const c = dispositionCentroid(g, db);`, expect: 1 },
+  { name: "surface header prose naming what it omits → allowed", file: "src/engine/surface.ts",
+    text: `// deliberately OMITS the trajectory (coordLog, the centroids, rngState)`, expect: 0 },
+  { name: "surface projecting player-legal state → allowed", file: "src/engine/surface.ts",
+    text: `const grip = bandOf(g.player.stats.grip);`, expect: 0 },
+  { name: "a non-surface file reading rngState → unconstrained", file: "src/engine/loop.ts",
+    text: `const r = g.rngState;`, expect: 0 },
+];
+for (const c of SURFACE_CASES) {
+  const got = checkSurfaceTelemetry(c.file, c.text).length;
+  const ok = got === c.expect;
+  if (!ok) selfFail++;
+  console.log(`  ${ok ? "OK  " : "FAIL"} self-test: ${c.name}${ok ? "" : ` (expected ${c.expect}, got ${got})`}`);
+}
+
 // ---- 2 · scan the tree -----------------------------------------------------
 function walk(dir: string): string[] {
   const out: string[] = [];
@@ -56,11 +81,11 @@ let rendererFiles = 0;
 for (const file of walk("src")) {
   const text = readFileSync(file, "utf8");
   if (isRendererFile(file, text)) rendererFiles++;
-  for (const v of checkImports(file, text)) {
+  for (const v of [...checkImports(file, text), ...checkSurfaceTelemetry(file, text)]) {
     scanViolations++;
-    console.log(`  VIOLATION ${v.file}:${v.line} — imports "${v.specifier}": ${v.reason}`);
+    console.log(`  VIOLATION ${v.file}:${v.line} — "${v.specifier}": ${v.reason}`);
   }
 }
 
-console.log(`\nlint:imports — self-test ${selfFail ? `${selfFail} FAILED` : "passed"} · scanned ${rendererFiles} renderer file(s) · ${scanViolations} violation(s)`);
+console.log(`\nlint:imports — self-test ${selfFail ? `${selfFail} FAILED` : "passed"} · scanned ${rendererFiles} renderer file(s) + the surface telemetry fence · ${scanViolations} violation(s)`);
 if (selfFail || scanViolations) process.exit(1);

@@ -239,6 +239,11 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
     checkCoord(issues, `event ${id}`, ev.diamondCoord);
     checkFlavor(`event ${id}`, ev.lensFlavor);
     checkAttune(issues, `event ${id}`, ev.attune);
+    // gripLean (Tier-1): the drip's register lean, read only by the OFF-by-default
+    // gripBias factor - range-fenced like attune/coords.
+    if (ev.gripLean != null && (Math.abs(ev.gripLean) > 1 || Number.isNaN(ev.gripLean))) {
+      err(`event ${id}`, `gripLean out of range [-1, 1]: ${ev.gripLean}`);
+    }
     ev.choices.forEach((c, i) => {
       checkCoord(issues, `event ${id} choice[${i}]`, c.diamondCoord);
       checkFlavor(`event ${id} choice[${i}]`, c.lensFlavor);
@@ -267,6 +272,10 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
   }
   for (const a of db.actions) {
     checkCoord(issues, `action ${a.id}`, a.diamondCoord);
+    // moneyCost (Tier-1, born-visible): a negative price is an authoring accident.
+    if (a.moneyCost != null && (a.moneyCost < 0 || Number.isNaN(a.moneyCost))) {
+      err(`action ${a.id}`, `moneyCost must be >= 0 (got ${a.moneyCost})`);
+    }
     checkFlavor(`action ${a.id}`, a.lensFlavor);
     checkAttune(issues, `action ${a.id}`, a.attune);
   }
@@ -378,7 +387,12 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
     ev.choices.forEach((c) => conditionFlagReads(c.requires, flagReads));
     for (const v of [...(ev.bodyVariants ?? []), ...(ev.bodyExtras ?? [])]) conditionFlagReads(v.when, flagReads);
   }
-  for (const a of db.actions) conditionFlagReads(a.requires, flagReads);
+  for (const a of db.actions) {
+    conditionFlagReads(a.requires, flagReads);
+    // subVariants (Tier-1): the drift device's gates are reads like any other -
+    // a variant keyed on a flag nothing writes can never render.
+    for (const v of a.subVariants ?? []) conditionFlagReads(v.when, flagReads);
+  }
   for (const d of db.doors ?? []) conditionFlagReads(d.when, flagReads);
   for (const e of db.endings ?? []) conditionFlagReads(e.when, flagReads);
   for (const j of db.journal ?? []) conditionFlagReads(j.when, flagReads);   // journal lines read flags too

@@ -25,13 +25,14 @@ import {
   newGame, serialize, deserialize, applyOutcome, simulateClash,
   drawFromMounted, mountedDecks, harvestCrossRun, newCrossRunStore, bandOf,
 } from "../engine/engine";
-import { dayMenu, runAction, startQueuedScene, advanceDay, runStatus } from "../engine/loop";
+import { dayMenu, runAction, startQueuedScene, advanceDay, runStatus, actionSub } from "../engine/loop";
+import { LoopSession } from "../coldread/loop-session";
 import { lintContent } from "../tools/lint";
 import { dispositionCentroid, lensCentroid } from "../engine/centroid";
 import { journalLines } from "../engine/journal";
 import { SceneRunner } from "../engine/scene";
-import { seedToState } from "../engine/rng";
-import type { ContentDB, GameState } from "../engine/types";
+import { seedToState, randFloat, subFloat } from "../engine/rng";
+import type { ContentDB, GameState, LocationAction } from "../engine/types";
 
 const SEED = 20260707;
 
@@ -827,6 +828,91 @@ advanceDay(gRec2, miniDb);
 check("recurrence: the `once` flag is the one fence — a re-scheduled once-event queues but its scene ends immediately",
   (() => { const r = startQueuedScene(gRec2, miniDb); return !!r && r.done; })());
 
+// ══ TIER-1 (the non-rails half): gripBias · subVariants · moneyCost · origin ══
+line(`\n-- Tier-1: gripBias (the ruled X-fence exception, OFF by default) --`);
+const dbGripPool: ContentDB = {
+  ...loopDb,
+  events: {
+    ...loopDb.events,
+    lw_dark: { id: "lw_dark", tags: ["deck:street"], gripLean: 1, title: "Dark", body: "…", choices: [{ label: "ok", outcome: {} }] },
+  },
+};
+const dbGripOn: ContentDB = { ...dbGripPool, tuning: { ...loopDb.tuning, gripBias: { enabled: true, strength: 9 } } };
+const countDark = (db: ContentDB, grip: number): number => {
+  let wins = 0;
+  for (let i = 0; i < 30; i++) {
+    const gi = clone(gA);
+    gi.player.stats.grip = grip;
+    gi.rngState = seedToState(11000 + i);
+    if (drawFromMounted(gi, db, 1)?.id === "lw_dark") wins++;
+  }
+  return wins;
+};
+const darkOffFrayed = countDark(dbGripPool, 2);
+const darkOnFrayed = countDark(dbGripOn, 2);
+check("gripBias OFF: a leaned card draws flat (switch honors the guardrail)", darkOffFrayed >= 2 && darkOffFrayed <= 14, `${darkOffFrayed}/30`);
+check("gripBias ON: the frayed player draws the frayed-leaning card more", darkOnFrayed > darkOffFrayed && darkOnFrayed >= 15, `${darkOnFrayed}/30`);
+check("gripBias ON: the grounded player is EXACTLY untouched by a frayed lean (sign-aligned boost only, floor 1.0)",
+  countDark(dbGripOn, 10) === countDark(dbGripPool, 10));
+check("gripBias ON: worn sits at the pivot, exactly flat", countDark(dbGripOn, 5) === countDark(dbGripPool, 5));
+
+line(`\n-- Tier-1: subVariants (the case-file drift, no twin-action tax) --`);
+const driftAction: LocationAction = {
+  id: "x_file", name: "Review the Kellerman file", sub: "Routine.", cost: 1, outcome: {},
+  subVariants: [
+    { when: { kind: "flag", flag: "case_deep" }, text: "It was closed when you left." },
+    { when: { kind: "flag", flag: "case_open" }, text: "Something in the witness statements." },
+  ],
+};
+const gSub = clone(gA);
+const subBase = actionSub(gSub, driftAction);
+applyOutcome(gSub, loopDb, { setFlags: { case_open: true } });
+const subMid = actionSub(gSub, driftAction);
+applyOutcome(gSub, loopDb, { setFlags: { case_deep: true } });
+const subLate = actionSub(gSub, driftAction);
+check("subVariants: base → first matching variant, in authored order (first match wins as the state deepens)",
+  subBase === "Routine." && subMid === "Something in the witness statements." && subLate === "It was closed when you left.");
+
+line(`\n-- Tier-1: moneyCost (born visible: gate + price + felt reason together) --`);
+const buyAction: LocationAction = {
+  id: "m_buy", name: "Order the part", sub: "The carburetor kit from the county catalog.", cost: 1, moneyCost: 5,
+  brokeText: "Not this month. You've done the math twice and it doesn't change.",
+  outcome: { log: "You put the order in.", tone: "n" },
+};
+const moneyDb: ContentDB = { ...miniDb, openingQueue: [], actions: [...miniDb.actions, buyAction] };
+const gPoor = newGame({ seed: 60, name: "M", age: 25, body: { height: 0.5, build: 0.5 }, townId: "region_one", tier: "outer" }, moneyDb);
+check("moneyCost: the engine refuses politely below the price (no state touched)",
+  runAction(gPoor, moneyDb, "m_buy").reason === "can't afford" && gPoor.player.stats.money === 0);
+applyOutcome(gPoor, moneyDb, { stats: { money: 12 } });
+driveScene(runAction(gPoor, moneyDb, "m_buy").runner!);
+check("moneyCost: the price deducts on the buy (12 - 5, energy spent separately)",
+  gPoor.player.stats.money === 7 && gPoor.player.stats.energy === 2);
+// The SURFACE half (the born-visible rule): the day screen shows the $ level
+// the moment any menu action carries a price, the priced option carries its
+// structured moneyCost, and a broke player's greying speaks its felt line.
+const moneySession = new LoopSession(moneyDb, {
+  contentId: "m", seed: 61, buildTag: "t1", tier: "outer", townId: "region_one", mode: "read",
+});
+const mDay = moneySession.current;
+const mOpt = mDay.options.find((o) => o.label.startsWith("Order the part"))!;
+check("moneyCost surface: the day prose shows the $ level; the option carries the price and the felt reason",
+  mDay.kind === "day" && mDay.prose.includes("Money: $0.") && mOpt.moneyCost === 5 &&
+  mOpt.available === false && mOpt.lockedReason === "Not this month. You've done the math twice and it doesn't change.");
+
+line(`\n-- Tier-1: the schedule origin stamp (cause-side; "watch the run remember") --`);
+const gOrig = newExplorer(62);
+driveScene(startQueuedScene(gOrig, explorerDb)!);   // the welcome schedules Marie's warning
+const marieEntry = (gOrig.scheduled ?? []).find((s) => s.eventId === "ux_marie_warning");
+check("origin stamp: a choice-made promise records its maker (eventId#choiceIndex)",
+  typeof marieEntry?.origin === "string" && /^ux_[a-z_]+#\d+$/.test(marieEntry!.origin!));
+
+check("linter: gripLean out of range is an error",
+  lintContent({ ...loopDb, events: { ...loopDb.events, bad_lean: { id: "bad_lean", title: "x", body: "…", gripLean: 2, choices: [{ label: "a", outcome: {} }] } } }, "gl")
+    .some((i) => i.level === "error" && i.message.includes("gripLean out of range")));
+check("linter: a negative moneyCost is an error",
+  lintContent({ ...loopDb, actions: [...loopDb.actions, { id: "bad_buy", name: "x", sub: "", cost: 1, moneyCost: -2, outcome: {} }] }, "mc")
+    .some((i) => i.level === "error" && i.message.includes("moneyCost")));
+
 // The never-returned run: dismiss Marie, never go back, reach the calendar's end.
 const gV = newExplorer(42);
 driveScene(startQueuedScene(gV, explorerDb)!);
@@ -1023,6 +1109,72 @@ const menuAfterExp = dayMenu(gExp, explorerDb);
 check("dale: the accusation expels — no porch, no reckoning, the door does not reopen",
   gExp.flags.dale_expelled === true &&
   !menuAfterExp.actions.some((a) => a.id === "ux_act_dale_porch" || a.id === "ux_act_dale_reckon"));
+
+// ── the Tier-1 rails: isolated RNG sub-streams ───────────────────────────────
+// A sub-stream keeps a roll-system's draws OFF the gameplay stream, so adding a
+// drip/fortune roll never perturbs a band or clash draw — the property the whole
+// cold-read program's byte-identity rests on as stochastic content grows. Four
+// guarantees: deterministic, isolated per-name, the gameplay stream untouched,
+// and stable across serialize/deserialize.
+{
+  const seq = () => { const g: { seed: number } = { seed: 4242 }; return [subFloat(g, "drip"), subFloat(g, "drip"), subFloat(g, "drip")]; };
+  const deterministic = JSON.stringify(seq()) === JSON.stringify(seq());
+
+  const gIso: { seed: number } = { seed: 4242 };
+  const dripSeq = [subFloat(gIso, "drip"), subFloat(gIso, "drip")];
+  const fortuneSeq = [subFloat(gIso, "fortune"), subFloat(gIso, "fortune")];
+  const isolated = JSON.stringify(dripSeq) !== JSON.stringify(fortuneSeq);   // distinct names ⇒ distinct sequences
+
+  // THE KEY PROPERTY: the gameplay stream is byte-identical whether or not
+  // sub-stream draws are interleaved against the same holder.
+  const plainG = { seed: 7, rngState: seedToState(7) };
+  const plain = [randFloat(plainG), randFloat(plainG), randFloat(plainG)];
+  const mixG = { seed: 7, rngState: seedToState(7) };
+  const mixed = [randFloat(mixG)];
+  subFloat(mixG, "drip");            // a sub-draw between gameplay draws...
+  mixed.push(randFloat(mixG));
+  subFloat(mixG, "fortune");
+  mixed.push(randFloat(mixG));
+  const gameplayUntouched = JSON.stringify(plain) === JSON.stringify(mixed);
+
+  // save/load round-trip preserves sub-stream state (JSON, like GameState serialize)
+  const gSave: { seed: number } = { seed: 99 };
+  subFloat(gSave, "drip"); subFloat(gSave, "drip");
+  const restored = JSON.parse(JSON.stringify(gSave)) as { seed: number };
+  const roundTrips = subFloat(gSave, "drip") === subFloat(restored, "drip");
+
+  check("Tier-1 rails: sub-streams deterministic · isolated per-name · gameplay stream untouched · save/load-stable",
+    deterministic && isolated && gameplayUntouched && roundTrips);
+}
+
+// ── the governor's measure: endDay stamps the morning's unbidden-arrival count ─
+// The specialness meter (instrument-first): how many things arrived AT the
+// player this morning — doors, scheduled sweeps, stages — the column the
+// slot-machine failure mode lives in. Measured now as a derived, fence-guarded
+// field; the cap that reads it is a later sitting, built only if the data warrants.
+{
+  const uDb: ContentDB = {
+    events: {
+      u_door: { id: "u_door", title: "t", body: "a door greets the morning", choices: [{ label: "ok", outcome: {} }] },
+      u_sched: { id: "u_sched", title: "t", body: "a promise comes due", choices: [{ label: "ok", outcome: {} }] },
+    },
+    actions: [],
+    towns: { u_t: { id: "u_t", name: "T", tiersOffered: ["outer"], amenities: [], reachable: true, fixtures: [] } },
+    factions: {}, traits: {}, items: {}, npcs: {},
+    doors: [{ eventId: "u_door", when: { kind: "flag", flag: "door_on" } }],   // no `once` → recurs
+    names: { first: ["P"], last: ["Q"] },
+  };
+  const gu = newGame({ seed: 3, name: "N", age: 25, body: { height: 0.5, build: 0.5 }, tier: "outer", townId: "u_t" }, uDb);
+  advanceDay(gu, uDb);                                   // quiet morning: door disarmed, nothing due
+  const quiet = gu.lastMorningUnbidden;
+  gu.flags.door_on = true;                               // arm the recurring door...
+  (gu.scheduled ||= []).push({ onDay: gu.day + 1, eventId: "u_sched" });   // ...and a promise due next morning
+  gu.queue.length = 0;
+  advanceDay(gu, uDb);                                   // busy morning: door + scheduled = 2 unbidden
+  const busy = gu.lastMorningUnbidden;
+  check("governor's measure: endDay stamps the morning's unbidden-arrival count",
+    quiet === 0 && busy === 2, `quiet=${quiet} busy=${busy}`);
+}
 
 line(`\n${failed ? "SOME LOOP CRITERIA FAILED" : "ALL LOOP CRITERIA PASS"}\n`);
 if (failed) process.exit(1);

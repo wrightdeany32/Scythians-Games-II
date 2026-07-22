@@ -62,7 +62,7 @@ export interface PresentationRecord {
   // lockedReason (additive, day screens): the diegetic fatigue line the reader
   // actually saw on an energy-greyed option - presentation truth, so the
   // transcript can render exactly what was shown.
-  options: { index: number; label: string; available: boolean; showWhenLocked: boolean; lockedReason?: string; cost?: number }[];
+  options: { index: number; label: string; available: boolean; showWhenLocked: boolean; lockedReason?: string; cost?: number; moneyCost?: number }[];
 }
 
 // Operator-entered: the reader's think-aloud for the step, and the pick.
