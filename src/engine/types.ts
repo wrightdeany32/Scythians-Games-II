@@ -92,6 +92,16 @@ export interface Outcome {
   grantItems?: string[];                        // item ids to give the player (gear, a bus card, a car)
   removeItems?: string[];                       // item ids to take away
   scheduleEvent?: { eventId: string; inDays: number };  // promise an event on a FUTURE day, not the next draw
+  // THE DRIP (Tier-1 rails, cashed): draw ONE card from the named deck at this
+  // outcome's resolution — the mundane action that sometimes surfaces a clue-
+  // percept. Rides the "drip" SUB-STREAM (adding drip content never perturbs
+  // gameplay RNG or frozen transcripts), honors eligibility + the full Weight
+  // chokepoint (incl. gripBias), notes anti-repeat memory, and queues the
+  // drawn card BEHIND any explicit queueEvent/queueEvents (the authored chain
+  // wins; the drip surfaces after). An empty/exhausted pool draws NOTHING —
+  // honest silence; the action's own log line is the empty-day's felt content
+  // ("a failed roll is content, never a wall").
+  drawFrom?: string;
   cancelScheduled?: string;                     // event id — drop a pending scheduled beat ("the meeting falls through")
   advanceClock?: { id: string; by: number; label?: string; max?: number; onFull?: string }; // tick a progress clock; created on first touch, queues onFull (an event id) when it fills
   clearClock?: string;                          // clock id — abandon a clock WITHOUT firing its onFull ("a lead goes cold")
@@ -223,6 +233,15 @@ export interface GameEvent {
   gripLean?: number;     // the card's REGISTER lean on the grip axis, −1 grounded … +1 frayed (the drip's
                          // darker-clue marker). Read ONLY by the gripBias draw factor (OFF by default);
                          // never a gate, never player-facing, omit = neutral. Lint-range-checked.
+  // THE CLUE TYPE (the drip's provability authoring, Slate's rule: author by
+  // TYPE, the lens decides the TIER). `anchor` = the lens flavor whose mode of
+  // proof this percept speaks (∈ the declared vocabulary, lint-checked);
+  // `antidoted` = ships with its mundane escape. The LANDED tier is derived at
+  // fire (never authored, never stored): antidoted → 1 (free) · cross-type to
+  // the player's dominant lens → 2 (creaks) · matching → 3 (crowns). Stamped
+  // on the fire record cause-side only ("log the cause, never the effect") —
+  // the reader's move lives in the debrief, never in state.
+  clue?: { anchor: string; antidoted?: boolean };
   // -- band-select (Batch-3 Contract 2): AUTHORED variants of the body, selected
   // by the resolved grip band at card-fire and frozen on the fired-card record.
   // Selection only — bands never generate text and never gate a choice. A band

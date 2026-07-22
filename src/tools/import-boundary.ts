@@ -100,7 +100,7 @@ export function checkImports(filePath: string, fileText: string): ImportViolatio
 // imports), because the leak here is reading `g.rngState`, not importing a type.
 const SURFACE_FILE_RE = /(^|\/)engine\/surface\.ts$/;
 // The derived/telemetry/trajectory state the render surface must never carry.
-const TELEMETRY_IDENT = /\b(rngState|subStreams|recentDraws|coordLog|resolveCount|lastMorningUnbidden|dispositionCentroid|lensCentroid)\b/;
+const TELEMETRY_IDENT = /\b(rngState|subStreams|recentDraws|coordLog|resolveCount|lastMorningUnbidden|tierLanded|centroidAtFire|dispositionCentroid|lensCentroid)\b/;
 const COMMENT_LINE = /^\s*(\/\/|\*|\/\*)/;   // header prose NAMES what it omits — that's documentation, not a leak
 
 export function isSurfaceFile(filePath: string): boolean {

@@ -17,6 +17,10 @@
 //     mechanical rule)
 //   · once-flag advice for doors/stages/endings events ("fires once" reads
 //     the once flag)
+//   · clue.anchor ∈ the declared vocabulary (the drip's provability stamp —
+//     an out-of-vocabulary anchor could never crown)
+//   · drawFrom decks matched against the tag universe (a deck no card
+//     carries is permanent silence — warning)
 //   · unreachable events (no tags to draw by, referenced by nothing) and
 //     tags matching no registered deck — warnings, not errors
 //   · dead terminal flags (listed in tuning.terminal.flags, set by nothing)
@@ -128,10 +132,12 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
   // -- outcome-level refs, coords on sources, the intent-note leak ---------------
   const setFlags = new Set<string>();
   const addedFlags = new Set<string>();
+  const dripDecks: { where: string; deck: string }[] = [];   // drawFrom refs, checked against the tag universe below
   for (const { where, outcome: o } of outcomes) {
     refEvent(where, o.queueEvent, "queueEvent");
     for (const id of o.queueEvents ?? []) refEvent(where, id, "queueEvents");
     refEvent(where, o.scheduleEvent?.eventId, "scheduleEvent");
+    if (o.drawFrom) dripDecks.push({ where, deck: o.drawFrom });
     refEvent(where, o.advanceClock?.onFull, "advanceClock.onFull");
     for (const t of [...(o.grantTraits ?? []), ...(o.removeTraits ?? [])]) {
       if (!db.traits[t]) err(where, `references unknown trait "${t}"`);
@@ -244,6 +250,12 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
     if (ev.gripLean != null && (Math.abs(ev.gripLean) > 1 || Number.isNaN(ev.gripLean))) {
       err(`event ${id}`, `gripLean out of range [-1, 1]: ${ev.gripLean}`);
     }
+    // clue (the drip's provability stamp): the anchor must live in the lens
+    // vocabulary — the tier law compares it against the centroid's flavor keys,
+    // so an out-of-vocabulary anchor can never crown (a silent authoring miss).
+    if (ev.clue && vocab && !vocab.includes(ev.clue.anchor)) {
+      err(`event ${id}`, `clue.anchor "${ev.clue.anchor}" is not in the declared vocabulary [${vocab.join(", ")}]`);
+    }
     ev.choices.forEach((c, i) => {
       checkCoord(issues, `event ${id} choice[${i}]`, c.diamondCoord);
       checkFlavor(`event ${id} choice[${i}]`, c.lensFlavor);
@@ -299,6 +311,17 @@ export function lintContent(db: ContentDB, label: string): LintIssue[] {
       if ((db.decks ?? []).length && !deckIds.has(t)) {
         warn(`event ${id}`, `tag "${t}" matches no registered deck (deck-scoped drawEvent can still reach it)`);
       }
+    }
+  }
+
+  // -- the drip: a drawFrom deck no card carries as a tag is permanent silence ------
+  // Honest silence is the drip's legal empty-pool contract, but a deck NOTHING
+  // in the db can ever land in is almost always a typo or missing content.
+  {
+    const allTags = new Set<string>();
+    for (const id in db.events) for (const t of db.events[id].tags ?? []) allTags.add(t);
+    for (const { where, deck } of dripDecks) {
+      if (!allTags.has(deck)) warn(where, `drawFrom deck "${deck}" matches no event tag — this drip can only ever draw silence`);
     }
   }
 

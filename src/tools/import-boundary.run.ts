@@ -51,6 +51,8 @@ const SURFACE_CASES: SCase[] = [
     text: `if (g.subStreams?.drip) show();`, expect: 1 },
   { name: "surface deriving the centroid → blocked", file: "src/engine/surface.ts",
     text: `const c = dispositionCentroid(g, db);`, expect: 1 },
+  { name: "surface exposing the clue tier → blocked", file: "src/engine/surface.ts",
+    text: `return { ...s, tier: res.clue.tierLanded };`, expect: 1 },
   { name: "surface header prose naming what it omits → allowed", file: "src/engine/surface.ts",
     text: `// deliberately OMITS the trajectory (coordLog, the centroids, rngState)`, expect: 0 },
   { name: "surface projecting player-legal state → allowed", file: "src/engine/surface.ts",

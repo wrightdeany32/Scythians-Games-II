@@ -51,6 +51,17 @@ export interface TraceRecord {
   // v1 — readers tolerate its absence on pre-Phase-2 streams; the transcript
   // renderer does not print it, so frozen transcripts are unchanged.
   exposure: number;
+  // The clue-tier stamp (the drip's provability model), derived at fire —
+  // PRESENT only on resolutions of clue-carrying cards, so every pre-drip
+  // stream and every clueless resolution stays byte-identical. Cause-side
+  // telemetry only: no renderer prints any of this ("log the cause, never
+  // the effect" — the fence-lint guards the renderer side).
+  clue?: {
+    anchor: string;
+    antidoted: boolean;
+    centroidAtFire: Record<string, number>;
+    tierLanded: 1 | 2 | 3;
+  };
 }
 
 // What the reader actually SAW for one screen — prose + ALL options (incl. greyed).

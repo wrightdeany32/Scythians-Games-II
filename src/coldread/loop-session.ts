@@ -141,6 +141,7 @@ export class LoopSession {
           step: this.stepBase + r.step, day: r.day, card: r.card, choiceIndex: r.choiceIndex, choiceLabel: r.choiceLabel,
           statDeltas: r.statDeltas, flagsChanged: r.flagsChanged, roll: r.roll,
           band: r.band ?? { trueBand: null, resolvedBand: null }, exposure: r.exposure,
+          ...(r.clue ? { clue: r.clue } : {}),   // absent stays absent — clueless streams byte-identical
         });
       },
     };
