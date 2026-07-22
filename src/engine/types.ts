@@ -513,6 +513,20 @@ export interface GameState {
   resolveCount?: number;                              // total card/action resolutions this run (default 0)
   coordLog?: CoordLogEntry[];                         // append-only; only coordinated resolutions append (default [])
   recentDraws?: string[];                             // last few RANDOM-draw winners (anti-repeat memory; default [])
+  // Isolated RNG sub-streams (the Tier-1 rails): each roll-system (drip,
+  // fortune, …) draws from its own seed-derived stream, so adding a roll to
+  // one NEVER perturbs the gameplay stream's draws (bands/clashes) or another
+  // system's — frozen transcripts survive content growth. Lazy: absent until a
+  // sub-stream is first drawn, so a run that uses none serializes exactly as
+  // before. Keyed by stream name → mulberry32 state.
+  subStreams?: Record<string, number>;
+  // The governor's measure (the specialness meter, instrument-first): how many
+  // UNBIDDEN arrivals — things that arrived AT the player (the exposure
+  // consequence, scheduled sweeps, met-doors, stages), never content they chose
+  // — endDay queued this morning. Derived, never-shown (fence-guarded: it may
+  // not appear in the render surface). The slot-machine failure mode lives
+  // entirely in this column; measured now, capped only if the data warrants it.
+  lastMorningUnbidden?: number;
   log: { text: string; tone: "g" | "b" | "n" }[];
 }
 

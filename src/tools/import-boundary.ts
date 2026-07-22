@@ -28,9 +28,12 @@ export interface ImportViolation {
 const SURFACE_RE = /(^|\/)engine\/surface(\.js|\.ts)?$/;
 // Any engine module (the wall is: only `surface` of these is allowed).
 const ENGINE_RE = /(^|\/)engine\//;
-// Belt-and-suspenders: the trajectory readers must never appear in a renderer
-// import, even if a future reshuffle moved them out of engine/.
-const ALWAYS_FORBIDDEN = /centroid|coordLog/i;
+// Belt-and-suspenders: the trajectory readers AND the trace/telemetry channel
+// must never appear in a renderer import, even if a future reshuffle moved them
+// out of engine/. The recorder carries the trace (the derived-never-shown
+// stream — landed tiers, origins, sub-stream draws); a renderer reaching it is
+// the "log the cause, never the effect" fence breaking at the import.
+const ALWAYS_FORBIDDEN = /centroid|coordLog|recorder|telemetry/i;
 
 // A DIRECTIVE line only — `// @renderer` / `// @surface-only` as its own comment,
 // not prose that merely mentions the word (this file, and the docs, talk about
@@ -73,7 +76,7 @@ export function checkImports(filePath: string, fileText: string): ImportViolatio
   for (const imp of extractImports(fileText)) {
     const spec = imp.specifier;
     if (ALWAYS_FORBIDDEN.test(spec)) {
-      violations.push({ file: filePath, specifier: spec, line: imp.line, reason: "renderer imports the trajectory (centroid/coordLog) — the exact leak the wall exists to stop" });
+      violations.push({ file: filePath, specifier: spec, line: imp.line, reason: "renderer imports the trajectory or the trace channel (centroid/coordLog/recorder) — the exact leak the wall exists to stop" });
       continue;
     }
     if (imp.typeOnly) continue;
@@ -83,4 +86,34 @@ export function checkImports(filePath: string, fileText: string): ImportViolatio
     }
   }
   return violations;
+}
+
+// ---- the telemetry fence at the render boundary -----------------------------
+// The WO-4 wall (above) constrains RENDERER files. But the render surface
+// itself (engine/surface.ts) is the one door renderers walk through — so if a
+// telemetry/trajectory field ever appeared IN the surface projection, every
+// renderer would legally receive it and the "log the cause, never the effect"
+// fence would break on the far side of the wall. As telemetry grows (the RNG
+// sub-streams, the landed-tier stamps, the unbidden counter — all derived,
+// never-shown), this makes that fence mechanical: the surface module may never
+// reference a telemetry/trajectory field. A source-scan (field reads, not just
+// imports), because the leak here is reading `g.rngState`, not importing a type.
+const SURFACE_FILE_RE = /(^|\/)engine\/surface\.ts$/;
+// The derived/telemetry/trajectory state the render surface must never carry.
+const TELEMETRY_IDENT = /\b(rngState|subStreams|recentDraws|coordLog|resolveCount|lastMorningUnbidden|dispositionCentroid|lensCentroid)\b/;
+const COMMENT_LINE = /^\s*(\/\/|\*|\/\*)/;   // header prose NAMES what it omits — that's documentation, not a leak
+
+export function isSurfaceFile(filePath: string): boolean {
+  return SURFACE_FILE_RE.test(filePath.replace(/\\/g, "/"));
+}
+
+export function checkSurfaceTelemetry(filePath: string, fileText: string): ImportViolation[] {
+  if (!isSurfaceFile(filePath)) return [];
+  const out: ImportViolation[] = [];
+  fileText.split("\n").forEach((ln, i) => {
+    if (COMMENT_LINE.test(ln)) return;
+    const m = TELEMETRY_IDENT.exec(ln);
+    if (m) out.push({ file: filePath, specifier: m[1], line: i + 1, reason: "the render surface references a telemetry/trajectory field — it must project player-legal state only (log the cause, never the effect)" });
+  });
+  return out;
 }

@@ -31,7 +31,7 @@ import { lintContent } from "../tools/lint";
 import { dispositionCentroid, lensCentroid } from "../engine/centroid";
 import { journalLines } from "../engine/journal";
 import { SceneRunner } from "../engine/scene";
-import { seedToState } from "../engine/rng";
+import { seedToState, randFloat, subFloat } from "../engine/rng";
 import type { ContentDB, GameState, LocationAction } from "../engine/types";
 
 const SEED = 20260707;
@@ -1109,6 +1109,72 @@ const menuAfterExp = dayMenu(gExp, explorerDb);
 check("dale: the accusation expels — no porch, no reckoning, the door does not reopen",
   gExp.flags.dale_expelled === true &&
   !menuAfterExp.actions.some((a) => a.id === "ux_act_dale_porch" || a.id === "ux_act_dale_reckon"));
+
+// ── the Tier-1 rails: isolated RNG sub-streams ───────────────────────────────
+// A sub-stream keeps a roll-system's draws OFF the gameplay stream, so adding a
+// drip/fortune roll never perturbs a band or clash draw — the property the whole
+// cold-read program's byte-identity rests on as stochastic content grows. Four
+// guarantees: deterministic, isolated per-name, the gameplay stream untouched,
+// and stable across serialize/deserialize.
+{
+  const seq = () => { const g: { seed: number } = { seed: 4242 }; return [subFloat(g, "drip"), subFloat(g, "drip"), subFloat(g, "drip")]; };
+  const deterministic = JSON.stringify(seq()) === JSON.stringify(seq());
+
+  const gIso: { seed: number } = { seed: 4242 };
+  const dripSeq = [subFloat(gIso, "drip"), subFloat(gIso, "drip")];
+  const fortuneSeq = [subFloat(gIso, "fortune"), subFloat(gIso, "fortune")];
+  const isolated = JSON.stringify(dripSeq) !== JSON.stringify(fortuneSeq);   // distinct names ⇒ distinct sequences
+
+  // THE KEY PROPERTY: the gameplay stream is byte-identical whether or not
+  // sub-stream draws are interleaved against the same holder.
+  const plainG = { seed: 7, rngState: seedToState(7) };
+  const plain = [randFloat(plainG), randFloat(plainG), randFloat(plainG)];
+  const mixG = { seed: 7, rngState: seedToState(7) };
+  const mixed = [randFloat(mixG)];
+  subFloat(mixG, "drip");            // a sub-draw between gameplay draws...
+  mixed.push(randFloat(mixG));
+  subFloat(mixG, "fortune");
+  mixed.push(randFloat(mixG));
+  const gameplayUntouched = JSON.stringify(plain) === JSON.stringify(mixed);
+
+  // save/load round-trip preserves sub-stream state (JSON, like GameState serialize)
+  const gSave: { seed: number } = { seed: 99 };
+  subFloat(gSave, "drip"); subFloat(gSave, "drip");
+  const restored = JSON.parse(JSON.stringify(gSave)) as { seed: number };
+  const roundTrips = subFloat(gSave, "drip") === subFloat(restored, "drip");
+
+  check("Tier-1 rails: sub-streams deterministic · isolated per-name · gameplay stream untouched · save/load-stable",
+    deterministic && isolated && gameplayUntouched && roundTrips);
+}
+
+// ── the governor's measure: endDay stamps the morning's unbidden-arrival count ─
+// The specialness meter (instrument-first): how many things arrived AT the
+// player this morning — doors, scheduled sweeps, stages — the column the
+// slot-machine failure mode lives in. Measured now as a derived, fence-guarded
+// field; the cap that reads it is a later sitting, built only if the data warrants.
+{
+  const uDb: ContentDB = {
+    events: {
+      u_door: { id: "u_door", title: "t", body: "a door greets the morning", choices: [{ label: "ok", outcome: {} }] },
+      u_sched: { id: "u_sched", title: "t", body: "a promise comes due", choices: [{ label: "ok", outcome: {} }] },
+    },
+    actions: [],
+    towns: { u_t: { id: "u_t", name: "T", tiersOffered: ["outer"], amenities: [], reachable: true, fixtures: [] } },
+    factions: {}, traits: {}, items: {}, npcs: {},
+    doors: [{ eventId: "u_door", when: { kind: "flag", flag: "door_on" } }],   // no `once` → recurs
+    names: { first: ["P"], last: ["Q"] },
+  };
+  const gu = newGame({ seed: 3, name: "N", age: 25, body: { height: 0.5, build: 0.5 }, tier: "outer", townId: "u_t" }, uDb);
+  advanceDay(gu, uDb);                                   // quiet morning: door disarmed, nothing due
+  const quiet = gu.lastMorningUnbidden;
+  gu.flags.door_on = true;                               // arm the recurring door...
+  (gu.scheduled ||= []).push({ onDay: gu.day + 1, eventId: "u_sched" });   // ...and a promise due next morning
+  gu.queue.length = 0;
+  advanceDay(gu, uDb);                                   // busy morning: door + scheduled = 2 unbidden
+  const busy = gu.lastMorningUnbidden;
+  check("governor's measure: endDay stamps the morning's unbidden-arrival count",
+    quiet === 0 && busy === 2, `quiet=${quiet} busy=${busy}`);
+}
 
 line(`\n${failed ? "SOME LOOP CRITERIA FAILED" : "ALL LOOP CRITERIA PASS"}\n`);
 if (failed) process.exit(1);

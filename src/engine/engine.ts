@@ -665,6 +665,12 @@ export function endDay(g: GameState, db: ContentDB): void {
   // The run is over the moment control returns to the day (loop.ts's terminal
   // contract); the substrate above still runs so the boundary stays uniform.
   if (terminalHolds(g, db)) return;
+  // The governor's measure (instrument-first): the unbidden arrivals below —
+  // the exposure consequence, scheduled sweeps, met-doors, stages — are things
+  // that arrive AT the player, the column the slot-machine failure lives in.
+  // Count what this morning queues from them (the terminal selector after is
+  // excluded — it's the run ending, not pacing content).
+  const unbiddenBefore = g.queue.length;
   // the exposure consequence — at most ONE pending copy (matching the door
   // guard below; N stacked identical discharge scenes was never a design)
   if (g.player.stats.exposure >= exp.threshold && db.events[exp.consequenceEvent] && !g.queue.includes(exp.consequenceEvent)) {
@@ -701,6 +707,8 @@ export function endDay(g: GameState, db: ContentDB): void {
     if (g.queue.includes(s.eventId)) continue;
     if (g.player.stats.exposure >= s.at) { g.queue.push(s.eventId); break; }
   }
+  // Stamp the morning's unbidden-arrival count (derived, never-shown telemetry).
+  g.lastMorningUnbidden = g.queue.length - unbiddenBefore;
   // the calendar end + the ending-selector (THE NARROW DOOR — see types.ts):
   // past the last day, the FIRST ending whose condition holds greets the
   // morning as a scene; its exit flag is the terminal. Flags-only in v1.
