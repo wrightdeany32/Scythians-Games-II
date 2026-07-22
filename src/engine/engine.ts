@@ -36,7 +36,7 @@
 // ============================================================================
 
 import {
-  randFloat, randInt, d20, pick, chance, seedToState,
+  randFloat, randInt, d20, pick, chance, seedToState, subFloat,
 } from "./rng";
 import type {
   ContentDB, GameState, Stats, StatKey, Modifier, Outcome, ResolvedRoll,
@@ -271,6 +271,18 @@ export function applyOutcome(g: GameState, db: ContentDB, o: Outcome, origin?: s
   if (o.queueEvent || o.queueEvents) {
     g.queue.unshift(...(o.queueEvent ? [o.queueEvent] : []), ...(o.queueEvents ?? []));
   }
+  // THE DRIP: one draw from the named deck, on its OWN sub-stream (the rails —
+  // gameplay RNG is never touched, so drip content can grow forever without
+  // desyncing a frozen transcript). The drawn card queues BEHIND the authored
+  // chain above; an undrawable pool is honest silence.
+  if (o.drawFrom) {
+    const drawn = dripDraw(g, db, o.drawFrom);
+    if (drawn) {
+      const chainLen = (o.queueEvent ? 1 : 0) + (o.queueEvents?.length ?? 0);
+      g.queue.splice(chainLen, 0, drawn.id);
+      noteDraw(g, db, drawn.id);
+    }
+  }
   if (o.log) g.log.unshift({ text: o.log, tone: o.tone ?? "n" });
 
   if (o.roll) {
@@ -494,6 +506,30 @@ function weightedPick(g: GameState, db: ContentDB, pool: GameEvent[]): GameEvent
   let r = randFloat(g) * total;
   for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r < 0) return pool[i]; }
   return pool[pool.length - 1];   // float-edge fallback (r landed exactly on total)
+}
+
+// THE DRIP's draw — weightedPick's exact ritual, but on the "drip" SUB-STREAM
+// (Armature's rails), never the gameplay stream: an outcome-time draw consumes
+// zero gameplay RNG, so drip tables can grow forever without desyncing a
+// frozen transcript. Same Filter (isEligible scoped to the deck tag), same
+// Weight chokepoint (drawWeight — gripBias and its siblings apply here too).
+// Empty or fully zero-weighted pool returns undefined WITHOUT touching the
+// sub-stream: honest silence costs nothing, and an undrawable pool leaves the
+// stream where it was. The drawn card is NOT once-fired here — it QUEUES
+// (applyOutcome splices it behind the authored chain), and nextQueuedEvent
+// fires it at play like every queued card; firing at draw would make the
+// queue skip it.
+function dripDraw(g: GameState, db: ContentDB, deck: string): GameEvent | undefined {
+  const decks = new Set([deck]);
+  const pool = Object.values(db.events).filter((ev) => isEligible(g, ev, decks));
+  if (!pool.length) return undefined;
+  const ctx = weightContext(g, db);
+  const weights = pool.map((e) => drawWeight(g, db, e, ctx));
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  if (total <= 0) return undefined;
+  let r = subFloat(g, "drip") * total;
+  for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r < 0) return pool[i]; }
+  return pool[pool.length - 1];   // float-edge fallback, mirroring weightedPick
 }
 
 // ---- band-select — Contract 2 (Batch-3 v0.2), the Resolve-noise-once step ------

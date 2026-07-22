@@ -31,6 +31,8 @@ import { lintContent } from "../tools/lint";
 import { dispositionCentroid, lensCentroid } from "../engine/centroid";
 import { journalLines } from "../engine/journal";
 import { SceneRunner } from "../engine/scene";
+import type { SceneResolution } from "../engine/scene";
+import type { TraceRecord } from "../coldread/recorder";
 import { seedToState, randFloat, subFloat } from "../engine/rng";
 import type { ContentDB, GameState, LocationAction } from "../engine/types";
 
@@ -1146,6 +1148,131 @@ check("dale: the accusation expels — no porch, no reckoning, the door does not
   check("Tier-1 rails: sub-streams deterministic · isolated per-name · gameplay stream untouched · save/load-stable",
     deterministic && isolated && gameplayUntouched && roundTrips);
 }
+
+// ══ THE DRIP: draw-at-outcome on its own rail + the clue-tier stamp ══════════
+// The mechanism Loom's clue tables author against: an outcome names a deck,
+// the engine draws ONE card on the "drip" sub-stream (never the gameplay
+// stream), the card queues BEHIND the authored chain, and — for clue-carrying
+// cards — the provability tier is DERIVED at fire and stamped cause-side on
+// the trace, never authored, never stored, never rendered.
+line(`\n-- the drip: drawFrom (one card, its own rail, behind the chain) --`);
+const dripDb: ContentDB = {
+  ...miniDb,
+  events: {
+    ...miniDb.events,
+    d_one: { id: "d_one", tags: ["drip:test"], title: "One", body: "a page in the first register", clue: { anchor: "lens_one" }, choices: [{ label: "ok", outcome: {} }] },
+    d_two: { id: "d_two", tags: ["drip:test"], title: "Two", body: "a page in the second register", clue: { anchor: "lens_two" }, choices: [{ label: "ok", outcome: {} }] },
+    d_free: { id: "d_free", tags: ["drip:test"], title: "Free", body: "it fits without being forced", clue: { anchor: "lens_two", antidoted: true }, choices: [{ label: "ok", outcome: {} }] },
+  },
+};
+const DRIP_IDS = ["d_one", "d_two", "d_free"];
+
+const gDripChain = newMini(70);
+applyOutcome(gDripChain, dripDb, { queueEvent: "m_after", drawFrom: "drip:test" });
+check("drip: draws exactly ONE card and queues it BEHIND the authored chain",
+  gDripChain.queue.length === 2 && gDripChain.queue[0] === "m_after" && DRIP_IDS.includes(gDripChain.queue[1]),
+  gDripChain.queue.join(">"));
+check("drip: the drawn card enters the anti-repeat memory at draw",
+  (gDripChain.recentDraws ?? []).includes(gDripChain.queue[1]));
+
+const gDripIso = newMini(71);
+const rngBeforeDrip = gDripIso.rngState;
+applyOutcome(gDripIso, dripDb, { drawFrom: "drip:test" });
+check("drip: the gameplay stream is UNTOUCHED — the draw rides the \"drip\" rail",
+  gDripIso.rngState === rngBeforeDrip && typeof gDripIso.subStreams?.drip === "number");
+
+check("drip: seed-deterministic (same seed ⇒ same card, every run)", (() => {
+  const a = newMini(72), b = newMini(72);
+  applyOutcome(a, dripDb, { drawFrom: "drip:test" });
+  applyOutcome(b, dripDb, { drawFrom: "drip:test" });
+  return a.queue.length === 1 && a.queue.join() === b.queue.join();
+})());
+
+const gDripSil = newMini(73);
+applyOutcome(gDripSil, dripDb, { drawFrom: "drip:empty" });
+check("drip: an undrawable deck is honest silence — nothing queued, the rail not even seeded",
+  gDripSil.queue.length === 0 && gDripSil.subStreams?.drip === undefined);
+
+// The drip honors the FULL Weight chokepoint — gripBias included — with the
+// same sign-aligned fence: seed-matched draws, so grounded is exactly equal.
+const dripLeanDb: ContentDB = {
+  ...dripDb,
+  events: { ...dripDb.events, d_lean: { id: "d_lean", tags: ["drip:test"], gripLean: 1, title: "Lean", body: "…", choices: [{ label: "ok", outcome: {} }] } },
+};
+const dripLeanOn: ContentDB = { ...dripLeanDb, tuning: { ...miniDb.tuning, gripBias: { enabled: true, strength: 9 } } };
+const countDripLean = (db: ContentDB, grip: number): number => {
+  let wins = 0;
+  for (let i = 0; i < 30; i++) {
+    const gi = newMini(12000 + i);
+    gi.player.stats.grip = grip;
+    applyOutcome(gi, db, { drawFrom: "drip:test" });
+    if (gi.queue[0] === "d_lean") wins++;
+  }
+  return wins;
+};
+const dripLeanOff = countDripLean(dripLeanDb, 2);
+const dripLeanBoost = countDripLean(dripLeanOn, 2);
+check("drip: the draw honors the full Weight chokepoint (gripBias ON reaches the rail)",
+  dripLeanBoost > dripLeanOff, `${dripLeanOff}/30 → ${dripLeanBoost}/30`);
+check("drip: the grounded player stays EXACTLY untouched by a frayed lean, on the rail too",
+  countDripLean(dripLeanOn, 10) === countDripLean(dripLeanDb, 10));
+
+line(`\n-- the drip: the clue-tier stamp (derived at fire, stored nowhere) --`);
+const clueOf = (g: GameState, db: ContentDB, id: string): SceneResolution["clue"] => {
+  const out: SceneResolution["clue"][] = [];
+  g.queue.push(id);
+  driveScene(startQueuedScene(g, db, { onResolve: (r) => { if (r.card === id) out.push(r.clue); } })!);
+  return out[0] ?? null;
+};
+
+const gClueFresh = newMini(75);
+const clueFresh = clueOf(gClueFresh, dripDb, "d_one");
+check("clue: no lens history yet → the clue creaks (tier 2, the empty centroid on the stamp)",
+  clueFresh !== null && clueFresh.tierLanded === 2 && Object.keys(clueFresh.centroidAtFire).length === 0);
+
+const gClueLens = newMini(76);
+gClueLens.queue.push("m_fork");
+driveScene(startQueuedScene(gClueLens, dripDb)!);   // choice a carries lensFlavor lens_one → the dominant lens
+const clueCrown = clueOf(gClueLens, dripDb, "d_one");
+const clueCross = clueOf(gClueLens, dripDb, "d_two");
+const clueFree = clueOf(gClueLens, dripDb, "d_free");
+check("clue: an anchor MATCHING the dominant lens crowns (tier 3)",
+  clueCrown?.tierLanded === 3 && clueCrown?.anchor === "lens_one" && (clueCrown?.centroidAtFire.lens_one ?? 0) > 0);
+check("clue: a cross-type anchor creaks (tier 2 — the lens taxes what it doesn't love)",
+  clueCross?.tierLanded === 2 && clueCross?.anchor === "lens_two");
+check("clue: an authored antidote lands free (tier 1), whatever the lens says",
+  clueFree?.tierLanded === 1 && clueFree?.antidoted === true);
+check("clue: clueless cards keep a null slot (like band — the resolver never runs)", (() => {
+  const g = newMini(77);
+  const out: SceneResolution["clue"][] = [];
+  g.queue.push("m_after");
+  driveScene(startQueuedScene(g, dripDb, { onResolve: (r) => out.push(r.clue) })!);
+  return out.length === 1 && out[0] === null;
+})());
+check("clue: derived at fire, stored NOWHERE (the save carries no tier, no centroid snapshot)",
+  !serialize(gClueLens).includes("tierLanded") && !serialize(gClueLens).includes("centroidAtFire"));
+
+// The stamp rides the TRACE (analyst-side) and only the trace: present on
+// clue-card records, ABSENT (not null) everywhere else, invisible to screens.
+const dripSession = new LoopSession({ ...dripDb, openingQueue: ["d_one"] }, {
+  contentId: "drip", seed: 80, buildTag: "drip", tier: "outer", townId: "region_one", mode: "read",
+});
+dripSession.pick(0);
+const dripTraces = dripSession.recorder.stream().records.filter((r): r is TraceRecord => r.type === "trace");
+const dOneTrace = dripTraces.find((t) => t.card === "d_one");
+check("clue: the stamp reaches the trace record (tier + anchor + centroid, cause-side)",
+  dOneTrace?.clue?.tierLanded === 2 && dOneTrace?.clue?.anchor === "lens_one");
+check("clue: clueless trace records carry NO clue key (absent stays absent — pre-drip streams byte-identical)",
+  dripTraces.filter((t) => t.card !== "d_one").every((t) => !("clue" in t)));
+check("clue: no presentation record ever carries tier language",
+  !JSON.stringify(dripSession.recorder.stream().records.filter((r) => r.type === "presentation")).includes("tierLanded"));
+
+check("linter: an out-of-vocabulary clue.anchor is an error",
+  lintContent({ ...miniDb, events: { ...miniDb.events, bad_clue: { id: "bad_clue", title: "x", body: "…", clue: { anchor: "lens_nine" }, choices: [{ label: "a", outcome: {} }] } } }, "ca")
+    .some((i) => i.level === "error" && i.message.includes("clue.anchor")));
+check("linter: a drawFrom deck no card carries is flagged (permanent silence warns)",
+  lintContent({ ...miniDb, events: { ...miniDb.events, dry_drip: { id: "dry_drip", title: "x", body: "…", choices: [{ label: "a", outcome: { drawFrom: "drip:nowhere" } }] } } }, "df")
+    .some((i) => i.level === "warning" && i.message.includes("drawFrom")));
 
 // ── the governor's measure: endDay stamps the morning's unbidden-arrival count ─
 // The specialness meter (instrument-first): how many things arrived AT the

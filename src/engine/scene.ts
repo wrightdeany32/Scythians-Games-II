@@ -29,6 +29,7 @@ import {
   takeAction, nextQueuedEvent, resolveChoice, continueRoll, choiceAvailable,
   resolveBand, evalCondition,
 } from "./engine";
+import { lensCentroid } from "./centroid";
 
 // What the player (or reader) sees for one step of a scene.
 export interface SceneScreen {
@@ -56,6 +57,19 @@ export interface SceneResolution {
   // On every resolution — a stage-fire record reads its trigger value here,
   // and statDeltas already carries what the resolution then did to the meter.
   exposure: number;
+  // The clue-tier stamp (the provability model), DERIVED at fire from the
+  // card's authored anchor × the player's lens centroid — null for clueless
+  // cards. NEVER stored on GameState and NEVER rendered: this is cause-side
+  // telemetry ("log the cause, never the effect"), frozen at fire like band
+  // and exposure. The tier law: an authored antidote lands free (1); an
+  // anchor matching the player's dominant lens crowns (3); cross-type — or a
+  // player with no lens history yet — creaks (2).
+  clue: {
+    anchor: string;
+    antidoted: boolean;
+    centroidAtFire: Record<string, number>;
+    tierLanded: 1 | 2 | 3;
+  } | null;
 }
 
 export interface SceneHooks {
@@ -78,6 +92,33 @@ function diffFlags(before: Record<string, unknown>, after: Record<string, unknow
   return out;
 }
 
+// The dominant lens: the flavor carrying strictly the most affinity mass —
+// keys walked in sorted order so a dead tie lands deterministically (first
+// alphabetically). Null for an empty centroid (no lens history yet).
+function dominantLens(centroid: Record<string, number>): string | null {
+  let best: string | null = null;
+  let bestW = 0;
+  for (const k of Object.keys(centroid).sort()) {
+    if (centroid[k] > bestW) { best = k; bestW = centroid[k]; }
+  }
+  return best;
+}
+
+// The provability stamp, derived ONCE at card fire (exported for the crits).
+// Pure derivation — no RNG, nothing written to GameState, nothing rendered.
+// Tier law (ratified in the drip design round): authored antidote → 1 (lands
+// free); anchor === the player's dominant lens → 3 (crowns — the lens that
+// loves this clue-type most makes the player hold it hardest); cross-type or
+// no lens history → 2 (creaks). The centroid snapshot rides along so the
+// analyst can audit the landing without reconstructing state.
+export function landClue(g: GameState, db: ContentDB, ev: GameEvent): SceneResolution["clue"] {
+  if (!ev.clue) return null;
+  const centroidAtFire = lensCentroid(g, db);
+  const dominant = dominantLens(centroidAtFire);
+  const tierLanded: 1 | 2 | 3 = ev.clue.antidoted ? 1 : dominant === ev.clue.anchor ? 3 : 2;
+  return { anchor: ev.clue.anchor, antidoted: !!ev.clue.antidoted, centroidAtFire, tierLanded };
+}
+
 export class SceneRunner {
   current: SceneScreen = { step: 0, card: "", prose: "", options: [] };
   done = false;
@@ -85,6 +126,7 @@ export class SceneRunner {
   private currentEvent: GameEvent | null = null;
   private currentBand: { trueBand: GripBand; resolvedBand: GripBand } | null = null;
   private currentExposure = 0;   // frozen at card fire, like currentBand
+  private currentClue: SceneResolution["clue"] = null;   // likewise frozen at fire
   private pendingNarration = "";
 
   constructor(
@@ -168,6 +210,7 @@ export class SceneRunner {
       roll,
       band: this.currentBand,   // frozen at fire — never re-rolled between fire and resolve
       exposure: this.currentExposure,   // likewise frozen at fire (the stage-pacing snapshot)
+      clue: this.currentClue,   // likewise frozen at fire (the provability stamp)
     });
 
     this.advance();
@@ -181,6 +224,7 @@ export class SceneRunner {
       this.done = true;
       this.currentEvent = null;
       this.currentBand = null;
+      this.currentClue = null;
       const prose = this.pendingNarration.trim();
       this.current = { step: this.stepCounter, card: "__end__", prose, options: [] };
       this.hooks.onScreen?.(this.current);
@@ -193,6 +237,7 @@ export class SceneRunner {
     // body. Unbanded cards never touch the resolver (and consume no RNG).
     this.currentBand = ev.bandText ? resolveBand(this.g, this.db, this.g.player.stats.grip, ev.noiseProfile) : null;
     this.currentExposure = this.g.player.stats.exposure;   // fire-time snapshot for the resolution record
+    this.currentClue = landClue(this.g, this.db, ev);      // derived at fire, never authored, never stored
     // Conditional card text, evaluated once at fire and frozen: the base is the
     // band variant (banded cards) or the first matching bodyVariant (the
     // charge-gate pattern), else `body`; every matching bodyExtra appends in
