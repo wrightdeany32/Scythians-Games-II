@@ -1,0 +1,48 @@
+# Plumb — round 2: the pack is complete, and what I'd reach for next
+### inventory confirmed whole · four things worth having before the Run Reads · what neighboring games teach us (and one they teach us not to do) · small catches from the last three files
+*From: Plumb (engine coding agent) · carried by Dean · 2026-07-08 · for Dean, Loom, Armature, Azimuth, Vigil, Slate, Concordance · companion to the Phase-1 build report*
+
+**Status: the folder is whole.** All thirteen content files, the ledger v3.0, every ruling the manifest cites. Dean traced the last three (Marie's opening, Doug's break, Nora's day-trip) and they landed — and they're the connective tissue: Marie is the hub half the web hangs off, Doug's break is the finest thing in the pack, and Nora's day-trip is the institutional register standing on its own legs. Nothing else is missing. The one open *decision* is still the X-lean ruling (my plan §4); the ledger v3.0 re-confirms X = grip and doesn't address it, so it remains Vigil's.
+
+This note is the "good ponder" Dean asked for: with the whole game readable in one sitting for the first time, what's worth building, adopting, or guarding next.
+
+---
+
+## §1 — Four things worth having BEFORE the Run Reads
+
+The sequence ahead is wire → shakedowns → Run Reads: the game read whole, over twenty-plus in-fiction days. Reading the complete pack end-to-end surfaces four things that scale-of-run needs and scene-scale never did:
+
+**1.1 · The journal — a what-you-know surface (the no-catalog way).** A Run Reader will meet Ellen Fields on day 3, the signet ring on day 9, and the vault on day 15 — across sessions, possibly across real days. Human memory will drop threads the design didn't intend to drop. The fix that *fits our walls* is a diegetic journal: entries appended by the player's own resolutions — names heard, places been, marks seen, exactly the qualitative knowledge the flags already record — **derived from the flag log by a content-authored flag→line mapping, stored nowhere** (the centroid discipline applied to memory). It shows what you know and *only* what you know: no empty slots, no "???", no counts — where Outer Wilds' ship log (the genre's gold standard for knowledge-tracking) marks "there's more here," ours deliberately never does, because that marker is a truth-state for structure. This is WO-4's first real surface, it's cheap (a renderer over flags + a declarative mapping the linter can check), and I'd argue it's a *prerequisite* for fair Run Reads — otherwise we're testing reader recall, not the game. **→ Vigil/Loom to bless the shape; mine to build.**
+
+**1.2 · Grip renders as its band, never its number — ratify this before any surface exists.** Darkest Dungeon is the cautionary tale within reach: a visible stress meter with dramatic breakpoints turned dread into a spreadsheet — players optimized the number and stopped feeling the thing the number stood for. We already have the right abstraction: the bands. I propose the surface rule now, while there are zero surfaces to retrofit: **no surface ever renders grip (or exposure) as a number — qualitative band-words only** ("steady / worn / fraying"), same one-boundary system as Contract 2. Clean feedback (energy, money) stays numeric; the felt meters stay felt. One sentence in the ledger's conventions, and the WO-4 import-allowlist enforces the rest. **→ Vigil to ratify; Concordance to ledger.**
+
+**1.3 · The linter learns the flag web.** The pack roughly doubled the flag registry, and the likeliest wiring-bug class in a thirteen-file web is now a *silent* one: a condition reading `marie_dismised` where an outcome wrote `marie_dismissed` — both "valid," never connected, no error anywhere. The linter already catches ghost counters; the general version is one pass: **flags read (conditions, gates, bodyVariants/extras, doors, endings) cross-referenced against flags written (setFlags/addFlags/once)** — read-never-written is a warning with teeth, written-never-read is quiet inventory for Loom. I'll build this into the linter during Phase 2 wiring, where it'll earn its keep immediately. **→ mine; no blessing needed, it's a check, not a rule.**
+
+**1.4 · The bot driver's moment has arrived.** I offered it in round 1 as a someday-instrument; the pack makes it current: the **quiet-to-thread draw ratio** (Loom's flagged knob — if thread-content dominates, no week is quiet and the snap never arms) and **exposure pacing** (Azimuth: "if none of the six shakedown readers sees stage 1, that's a finding") are both measurable by seed-matched bots in an afternoon, *before* we spend shakedown readers discovering a mis-paced week. Bots first, then shakedowns arrive pre-tuned. **→ Azimuth's requirements; mine to build; sequence it between wiring and the shakedowns.**
+
+## §2 — From neighboring games: two adoptions, one naming, one anti-model
+
+Dean asked what's within reach from other games. Reading widely against our walls, most of what the genre offers we either already have (seeded determinism, storylets-on-qualities, menace meters — Sunless Sea and the StoryNexus lineage arrive at our flags/exposure independently, which is validation) or must refuse. The distillate:
+
+- **Adopt: the ship-log pattern, subtracted** (§1.1) — Outer Wilds minus the completion markers. The subtraction *is* the design.
+- **Adopt: session-scale saves as a testing convention.** Run Reads won't happen in one sitting. The engine's save/load is already byte-exact mid-run (harness-proven); what's missing is only the *convention* — the Run-Read protocol should specify suspend/resume checkpoints so a twenty-day read can span real days without contaminating anything. One paragraph in Azimuth's v0.3. **→ Azimuth.**
+- **Name the convention we already practice: "a failed roll is content, never a wall."** Disco Elysium's deepest mechanical lesson is that failed checks producing *story* (not blockage) is what makes players stop save-scumming and start living with outcomes. Loom already writes this way — every cave/return roll-lose branch is authored narrative. I propose we *name it* in the conventions so it stays deliberate when content velocity rises and a future pass is tempted to write "you fail; try again tomorrow." **→ Concordance, one line.**
+- **The anti-model, for the record: the deduction-verifier.** Obra Dinn and Pentiment are magnificent and exactly what we must never build — mechanics that ask the player to *submit* their theory and be graded. The moment this game verifies a deduction, the anti-noun dies at the mechanical layer no prose can save. This will someday arrive as a well-meaning suggestion ("let the player log their theory!") — worth a pre-emptive line in the ledger: **theories live in the player, never in a form the game marks.** (A journal per §1.1 records what you *know*, never what you *conclude* — that distinction is the wall.)
+
+## §3 — Small catches from the last three files (for Loom, none blocking)
+
+1. **`mausoleum_known` vs the grave web** — Doug's opening and Marie's woods gate an introspective on `cave_heard_voice OR mausoleum_known`, but the current Marie thread writes `grave_suspicion`/`knows_ellen` and nothing writes `mausoleum_known` (it reads like the bible-era name for what became the grave thread). I'll wire the gates as `… OR grave_suspicion` alongside the legacy name unless Loom says otherwise — flagging so the rename is deliberate, not drift.
+2. **`arrived_town`** — Marie's met-door gates on it; nothing in the pack sets it. It's plainly the Explorer start's flag; the creation/opening stub will set it at wiring. Confirming that's the intent.
+3. **Marie's scheduled door needs a scheduler** — `ux_marie_warning` fires "+1–2 days after the Reese opening"; at wiring, the opening beat's resolution will carry the `scheduleEvent`. Same for Doug's message off the workout (already authored that way — just noting Marie's needs a host).
+4. **Doug's break routing** — the three plea-routes wire as the conditional-insert pattern (queue all three, complementary lean conditions — Phase 1's `queueEvents` handles it exactly). No content change needed; noting the mechanism so the file's structure translates transparently.
+
+## §4 — Two knobs to hold with both hands
+
+- **The calendar length is now a real design parameter.** `lastDay` decides how much life a run holds — too short and threads guillotine, too long and the second week goes hollow (the threads currently authored resolve, at a natural pace, around day 10–14; breathers carry the rest). My placeholder instinct: start shakedowns at ~14 and let the fork-uptake table argue for more. **→ Loom + Armature at tuning; the bots (§1.4) can measure thread-exhaustion day directly.**
+- **The X-lean ruling, still.** Everything else in the pack wires; the grounded/attuned introspective coordinates wait on Vigil. If the ruling lands before Phase 2 finishes, they wire in the same pass; if not, the prose ships and the coordinates follow — the manifest's own split, no drama either way.
+
+## §5 — Ready state
+
+Phase 1 (the engine additives + linter) sits in PR #12 awaiting Armature. The moment it merges, Phase 2 wires the complete pack — with Dean's line-edit mandate in effect: mechanical fixes inline, anything meaning-adjacent logged per file for Loom's review, the ratified disciplines (conviction-voice, percept-never-cause, neutral labels, the load-bearing self-undercuts) as the editing law. The web is whole, the walls are holding, and for the first time the thing on the table is not a scene or a system but a *game*. It reads like one. Let's wire it so someone can play it.
+
+— Plumb
