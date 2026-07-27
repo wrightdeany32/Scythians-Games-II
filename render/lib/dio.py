@@ -12,6 +12,7 @@ Nothing here knows about the game. Scenes pass in plain numbers; the engine is
 never imported. (An asset pipeline that could read GameState would be a way
 around the WO-4 wall, so it simply cannot — see render/README.md.)
 """
+import json
 import math
 import os
 
@@ -103,6 +104,30 @@ def mottle(name, hex_a, hex_b, rough=0.93, scale_lo=0.9, scale_hi=26.0):
 ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets")
 
 
+_MANIFEST_CACHE = None
+
+def _color_mean(slot):
+    """The substrate's scene-linear mean, measured at download time by
+    render/tools/measure_means.py. None when it hasn't been measured — in which
+    case the blend falls back to a plain multiply rather than guessing, because
+    a wrong normalisation is worse than none."""
+    global _MANIFEST_CACHE
+    if _MANIFEST_CACHE is None:
+        path = os.path.join(ASSETS, "manifest.json")
+        try:
+            with open(path) as f:
+                man = json.load(f)
+            _MANIFEST_CACHE = {}
+            for e in man.get("materials", []):
+                v = e.get("colorMean")
+                if isinstance(v, (int, float)):     # legacy scalar -> grey triple
+                    v = [float(v)] * 3
+                _MANIFEST_CACHE[e["slot"]] = v
+        except (OSError, ValueError):
+            _MANIFEST_CACHE = {}
+    return _MANIFEST_CACHE.get(slot)
+
+
 def _maps(slot):
     """Find a downloaded PBR set by slot name, or return {} if it isn't there."""
     d = os.path.join(ASSETS, "materials", slot)
@@ -118,16 +143,18 @@ def _maps(slot):
     return found
 
 
-def textured(name, slot, fallback_hex, scale=1.0, rough=0.70, grain=0.0, tint=None):
+def textured(name, slot, fallback_hex, scale=1.0, rough=0.70, grain=0.0,
+              tint=None, grain_strength=0.45):
     """A scanned PBR material if its set has been downloaded, the procedural
     `paint` recipe if not. Every surface in every scene goes through here, so
     the pipeline renders identically-structured frames with or without assets —
     the textures are an upgrade, never a dependency.
 
-    `tint` multiplies the scanned colour, which is how one scanned wood serves
-    as seven different painted finishes: real grain and wear underneath, our
-    palette on top. That is the whole trick for painted wood, and it is why one
-    downloaded material is worth more than seven authored colours.
+    `tint` turns one scanned wood into seven painted finishes: the paint gives
+    the colour, the scan gives the grain. See the blend below for why the
+    substrate is normalised first and why the mean has to be a linear one.
+    `grain_strength` dials how much substrate shows through without moving the
+    surface's mean brightness.
     """
     if name in _MATS:
         return _MATS[name]
@@ -155,13 +182,60 @@ def textured(name, slot, fallback_hex, scale=1.0, rough=0.70, grain=0.0, tint=No
 
     col = image(maps["color"], False)
     if tint:
+        # THE PAINT BLEND. A straight multiply of tint x substrate returns the
+        # palette colour DARKENED by the substrate's own brightness, so the
+        # textured path lands well under the procedural one (this is what put
+        # the town's walls ~7.5x under their intended value). Paint on wood
+        # should take its COLOUR from the paint and only its GRAIN from the
+        # wood, so the substrate is first normalised to mean 1.
+        #
+        # The mean must be the SCENE-LINEAR one. An 8-bit map stores sRGB and
+        # Blender converts before Base Color; the two means differ by 1.6x-5.2x
+        # across our set. Normalising by the stored mean under-corrects by
+        # exactly that factor and reads as "the fix partly worked" — which is
+        # how this presented the first time round. render/tools/measure_means.py
+        # writes the right number into the manifest.
+        mean = _color_mean(slot)
+        src = col.outputs["Color"]
+        if mean:
+            # PER-CHANNEL. A single scalar fixes brightness and leaves hue, so a
+            # warm plank scan tinted pale grey still renders as warm planks —
+            # which is exactly what the first version of this did, while passing
+            # a luminance-only parity check. Dividing each channel by its own
+            # mean neutralises the substrate to grey; the tint then owns colour
+            # outright and the scan contributes variation and nothing else.
+            norm = nt.nodes.new("ShaderNodeVectorMath")
+            norm.operation = "MULTIPLY"
+            norm.inputs[1].default_value = tuple(1.0 / max(c, 1e-4) for c in mean)
+            nt.links.new(src, norm.inputs[0])
+            # `grain_strength` dials how much of the wood shows through, and it
+            # is MEAN-PRESERVING by construction: mix(white, normalised, f) has
+            # mean 1 at every f, so this moves texture and never brightness.
+            # Measured across f = 0.00 / 0.15 / 0.30 / 0.45 the parity drift is
+            # identical to the decimal — which is the design working, not the
+            # parameter being inert. It costs nothing against colour fidelity,
+            # so set it for how the surface should look.
+            lerp = nt.nodes.new("ShaderNodeMix")
+            lerp.data_type = "RGBA"
+            lerp.inputs[0].default_value = grain_strength
+            lerp.inputs[6].default_value = (1.0, 1.0, 1.0, 1.0)
+            nt.links.new(norm.outputs[0], lerp.inputs[7])
+            src = lerp.outputs[2]
+
         mix = nt.nodes.new("ShaderNodeMix")
         mix.data_type = "RGBA"
         mix.blend_type = "MULTIPLY"
         mix.inputs[0].default_value = 1.0
-        nt.links.new(col.outputs["Color"], mix.inputs[6])
+        nt.links.new(src, mix.inputs[6])
         mix.inputs[7].default_value = hex_rgb(tint)
-        nt.links.new(mix.outputs[2], b.inputs["Base Color"])
+        # Albedo above 1 is unphysical; a bright fleck of normalised grain can
+        # reach it. Clamp rather than lower `grain` — clamping bites a handful
+        # of pixels, lowering grain costs the whole surface its texture.
+        clamp = nt.nodes.new("ShaderNodeVectorMath")
+        clamp.operation = "MINIMUM"
+        clamp.inputs[1].default_value = (1.0, 1.0, 1.0)
+        nt.links.new(mix.outputs[2], clamp.inputs[0])
+        nt.links.new(clamp.outputs[0], b.inputs["Base Color"])
     else:
         nt.links.new(col.outputs["Color"], b.inputs["Base Color"])
 
@@ -180,9 +254,17 @@ def textured(name, slot, fallback_hex, scale=1.0, rough=0.70, grain=0.0, tint=No
     return m
 
 
-def hdri(slot, strength=1.0, rotation_deg=0.0):
+def hdri(slot, strength=1.0, rotation_deg=0.0, backdrop="#8fa3b8"):
     """Use a downloaded HDRI as the world. Returns False if it isn't there, so
-    a caller can fall back to the analytic sky without branching on files."""
+    a caller can fall back to the analytic sky without branching on files.
+
+    The HDRI lights the scene but is HIDDEN from camera rays, with `backdrop`
+    shown instead. A captured environment is a photograph of somewhere else —
+    left visible it puts that place's skyline behind our ridges, which is both
+    an obvious artifact and a quiet way to import someone else's location into
+    a world we are supposed to be building. We want its light, not its horizon.
+    Pass backdrop=None to show the HDRI itself.
+    """
     d = os.path.join(ASSETS, "hdris", slot)
     if not os.path.isdir(d):
         return False
@@ -200,8 +282,21 @@ def hdri(slot, strength=1.0, rotation_deg=0.0):
     coords = nt.nodes.new("ShaderNodeTexCoord")
     nt.links.new(coords.outputs["Generated"], mapping.inputs["Vector"])
     nt.links.new(mapping.outputs["Vector"], env.inputs["Vector"])
-    nt.links.new(env.outputs["Color"], nt.nodes["Background"].inputs["Color"])
-    nt.nodes["Background"].inputs["Strength"].default_value = strength
+    bg = nt.nodes["Background"]
+    nt.links.new(env.outputs["Color"], bg.inputs["Color"])
+    bg.inputs["Strength"].default_value = strength
+
+    if backdrop is not None:
+        plain = nt.nodes.new("ShaderNodeBackground")
+        plain.inputs["Color"].default_value = hex_rgb(backdrop)
+        plain.inputs["Strength"].default_value = strength * 0.55
+        lp = nt.nodes.new("ShaderNodeLightPath")
+        mix = nt.nodes.new("ShaderNodeMixShader")
+        nt.links.new(lp.outputs["Is Camera Ray"], mix.inputs[0])
+        nt.links.new(bg.outputs["Background"], mix.inputs[1])    # lighting path
+        nt.links.new(plain.outputs["Background"], mix.inputs[2])  # what the camera sees
+        out = nt.nodes["World Output"]
+        nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
     return True
 
 

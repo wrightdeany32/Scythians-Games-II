@@ -1,10 +1,22 @@
 """The player-vessel figurine — the strongest case for this pipeline.
 
-The ledger's presentation ruling is "PAINT the player-vessel (a blank figurine
-morphs)". That is not one asset; with ~100 starts in the deck it is ~100
-variants of one object, and it has to stay recognisably the same carving each
-time. No image generator can hold an object identical across a hundred images.
-A parametric mesh does it by construction.
+One vessel per start, each recognisably the same carving. No image generator
+can hold an object identical across that many images; a parametric mesh does it
+by construction.
+
+Two corrections from Gesso, both verified, both worth carrying here because an
+earlier version of this header got them wrong:
+
+  * The deck ships ONE start today (`src/content/explorer/index.ts`), not ~100.
+    Every character created currently gets the same figurine — `portrait` is
+    hardcoded and every `newGame` call site passes an identical `body`. So the
+    real job now is one figurine plus the airlock that makes the rest free, not
+    a hundred sprites nothing asks for.
+  * The ledger's "PAINT the player-vessel (a blank figurine morphs)" is NOT a
+    request for a morphing figurine. "Morphs" names a diffusion defect — a blank
+    figure gives an image model nothing to hold, so it drifts; painting fixes
+    it. For a parametric mesh the finding is moot: this figurine cannot drift.
+    Paint it because Direction A says painted wood, not because of that note.
 
 And the parameters are not invented. src/engine/types.ts already carries:
 

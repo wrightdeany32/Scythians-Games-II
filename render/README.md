@@ -41,7 +41,7 @@ list, that line falls cleanly:
 
 | Asset | Count | Tool | Why |
 |---|---|---|---|
-| **Player-vessel figurines** | ~100 (one per start) | **3D** | The ledger wants a blank figurine that *morphs*. A hundred variants of one carving is the case no generator can hold. |
+| **Player-vessel figurines** | one per start (**1 today**, ~100 planned) | **3D** | Many variants of one carving, each staying recognisably the same object. That is the case no generator can hold — and the only one where the count is the whole argument. |
 | **Town master, day/dusk/night** | 1 × 3 | **3D** | Palette variants must be the same town. Also the parallax layers, which need real depth separation. |
 | **Location tokens** | 12–14 | **3D** | Same town model, different cameras — each automatically consistent with the master. |
 | **Character portraits + emotes** | ~20–40 fixtures | **generation** | Carved faces, chisel marks, burlap weave. Generation is genuinely better here and the existing Dale/Marie plates prove it. |
@@ -50,6 +50,34 @@ list, that line falls cleanly:
 
 The honest form of the recommendation: generation was being pointed at the
 hardest thing it does (consistent structure) instead of the easiest (surface).
+
+**Two corrections to an earlier version of this table, both caught by Gesso and
+both verified against the repo:**
+
+*The count.* `src/content/explorer/index.ts` ships **one** start
+(`start_explorer_reunion`, "the deck's fallback"). The ~100 in the ledger is the
+plan, not the state, and every character created today gets an identical
+figurine — `portrait` is hardcoded at `engine.ts:863` and all 24 `newGame` call
+sites pass `body: {height: 0.5, build: 0.5}`. So the honest size of the vessel
+job right now is **one figurine**, and the thing to build is the airlock that
+lets it scale with the content rather than a hundred sprites nothing asks for.
+
+*The warrant.* This table used to cite the ledger's "PAINT the player-vessel (a
+blank figurine morphs)" as a request for a figurine that morphs. **It is the
+opposite.** Static's original
+(`notes2/2026-07-11_static-to-team_paranormal-corner-and-round-takes.md`) reads:
+*"instructing the generator to keep a figurine blank makes it morph the shape
+(chess-piece drift) — a blank figure gives the model nothing to hold — while a
+painted figure stays stable. So paint them."* "Morphs" names a **diffusion
+defect**; painting is the **fix**. Ledger v3_4 recorded it in full and v3.5/v3.6
+compressed it to the parenthetical this pipeline then misread.
+
+The consequence is worth stating because it cuts against this folder's own
+case: for a parametric mesh the finding is **moot**. A blank 3D figurine cannot
+drift — there is no model to give nothing to hold. The ratified look still says
+paint the vessel, on Direction A grounds (painted wood, macro photography), and
+those grounds are good. They are simply not this one, and `render/` should not
+have been leaning on it.
 
 ## Layout
 

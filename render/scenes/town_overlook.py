@@ -63,10 +63,10 @@ def build(variant="dusk"):
     # hasn't. The frame's STRUCTURE is identical either way — textures are an
     # upgrade, never a dependency, so this scene runs on a clean checkout.
     T = dio.textured
-    GROUND  = T("ground", "ground_grass", "#54672a", scale=0.06, rough=0.93, grain=0.08)
-    ASPHALT = T("asphalt", "road", "#4a4744", scale=0.10, rough=0.82, grain=0.06)
-    POLE    = T("pole", "painted_wood", "#6b5a46", scale=0.8, rough=0.85, grain=0.05, tint="#8a7458")
-    BRICK   = T("brick", "brick", "#96604a", scale=0.25, rough=0.85, grain=0.05)
+    GROUND  = T("ground", "ground_grass", "#54672a", scale=1.4, rough=0.93, grain=0.08)
+    ASPHALT = T("asphalt", "road", "#4a4744", scale=1.2, rough=0.82, grain=0.06)
+    POLE    = T("pole", "painted_wood", "#6b5a46", scale=9.0, rough=0.85, grain=0.05, tint="#8a7458")
+    BRICK   = T("brick", "brick", "#96604a", scale=2.2, rough=0.85, grain=0.05)
     ROOF_D  = dio.paint("roofd", "#4b4642", 0.80)
     ROOF_R  = dio.paint("roofr", "#7a4038", 0.78)
     WIRE    = dio.paint("wire", "#2b2a28", 0.60)
@@ -74,7 +74,7 @@ def build(variant="dusk"):
     # The painted-wood trick: ONE scanned wood, tinted seven ways. Real grain
     # and wear underneath, our palette on top — which is why a single download
     # is worth more here than seven authored colours.
-    WALLS = [T(f"w{i}", "painted_wood", c, scale=0.5, rough=0.74, grain=0.04, tint=c)
+    WALLS = [T(f"w{i}", "painted_wood", c, scale=2.6, rough=0.74, grain=0.04, tint=c)
              for i, c in enumerate(
         ["#a89d86", "#94825e", "#b3a892", "#7f7259", "#a48b52", "#918676", "#b9ac93"])]
     FOLIAGE = [dio.paint(f"f{i}", c, 0.93, grain=0.12) for i, c in enumerate(
@@ -270,7 +270,7 @@ def build(variant="dusk"):
     # A captured sky, if we have one, replaces the analytic dome: believable
     # soft fill is the thing two lamps cannot fake, and it is the other half of
     # the free quality jump the manifest is for.
-    if dio.hdri(sky_slot, strength=0.9):
+    if dio.hdri(sky_slot, strength=2.2):
         print(f"  hdri: {sky_slot}")
     dio.camera(OVERLOOK, (7.0, 22.0, 0.6), lens=42, fstop=0.32, focus_bias=0.58,
                max_height=CEILING,
