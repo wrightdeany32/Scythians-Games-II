@@ -16,25 +16,34 @@
     "travel through git. Bump res to 2K-JPG / 2k here if a hero still ever needs",
     "it; nothing else changes.",
     "",
-    "ID ACCURACY: the numeric ids below are best-effort. ambientCG numbers its",
-    "materials (Wood067, Ground037) and the exact number for a given look is not",
-    "something to take on trust — `search` on each entry is what actually matters.",
-    "fetch_assets.py verifies what it got and names anything that 404s, so a",
-    "wrong id fails loudly instead of silently substituting the wrong surface."
+    "ID ACCURACY: the ids below were written from memory and have since been",
+    "verified against the ambientCG and Poly Haven APIs, and against each",
+    "asset's preview image. Six changed; each carries a `note` saying what it",
+    "was and why it moved. Two of the originals did not exist at all; four",
+    "resolved but contradicted their own `search` line. `search` remains what",
+    "actually matters — the ids are just how we found them.",
+    "",
+    "Anything edited here should be re-checked the same way: the id is not",
+    "evidence, the preview is. fetch_assets.py names anything that 404s, so a",
+    "wrong id fails loudly instead of silently substituting the wrong surface —",
+    "but an id that resolves to the WRONG SURFACE fails silently, and four of",
+    "those were the actual problem here."
   ],
 
   "materials": [
     {
-      "id": "Planks011", "slot": "figurine_wood", "source": "ambientcg",
+      "id": "Wood022", "slot": "figurine_wood", "source": "ambientcg",
       "search": "planks / wood — smooth, pale, tight grain",
       "why": "The turned figurine's base and any bare carved wood. Wants FINE grain: coarse planking at figurine scale reads as a floor, not a carving.",
-      "res": "1K-JPG"
+      "res": "1K-JPG",
+      "note": "was Planks011 — id resolved, but the preview is nailed deck planking with visible nail heads and gaps, i.e. exactly the 'reads as a floor, not a carving' failure the why-line warns about. Wood022 is pale, fine, tight straight grain, no knots and no seams."
     },
     {
-      "id": "Wood067", "slot": "painted_wood", "source": "ambientcg",
-      "search": "wood — visible grain under a finish",
+      "id": "Planks007", "slot": "painted_wood", "source": "ambientcg",
+      "search": "wood — visible grain under a finish, PALE (see note: tint is a multiply)",
       "why": "The paint recipe's substrate. Grain showing THROUGH colour is the single detail that separates 'painted wood' from 'plastic'.",
-      "res": "1K-JPG"
+      "res": "1K-JPG",
+      "note": "was Wood067 — id resolved and matches the search line literally, but dio.textured(tint=) is a MULTIPLY over the colour map, and Wood067 is dark walnut: measured mean luminance 0.137 against Planks007's 0.483, i.e. 3.5x darker. Multiplying 0.137 by a pale palette colour cannot return a pale painted finish, so Wood067 yields seven dark muddy variants rather than seven paints. Planks007 is pale weathered clapboard with pronounced grain and plank seams — it tints to the palette and it is literally siding. Flip the id back if the substrate is meant to read as dark stained wood."
     },
     {
       "id": "Ground037", "slot": "ground_grass", "source": "ambientcg",
@@ -49,10 +58,11 @@
       "res": "1K-JPG"
     },
     {
-      "id": "Asphalt026", "slot": "road", "source": "ambientcg",
+      "id": "Road015B", "slot": "road", "source": "ambientcg",
       "search": "asphalt — worn, patched, rural",
       "why": "The road. Wants to look maintained-by-a-county, not resurfaced last week.",
-      "res": "1K-JPG"
+      "res": "1K-JPG",
+      "note": "was Asphalt026 — no such asset (only Asphalt026C exists, 'cracked/damaged'). Road015B is the one asphalt in the library tagged 'rural', and the preview is dark patched blacktop with cut-and-fill repair squares: county maintenance, exactly the why-line."
     },
     {
       "id": "Gravel022", "slot": "gravel", "source": "ambientcg",
@@ -67,16 +77,18 @@
       "res": "1K-JPG"
     },
     {
-      "id": "Bricks075", "slot": "brick", "source": "ambientcg",
+      "id": "Bricks085", "slot": "brick", "source": "ambientcg",
       "search": "brick — municipal, mid-century, unglamorous",
       "why": "The civic block, the one larger mass in the town.",
-      "res": "1K-JPG"
+      "res": "1K-JPG",
+      "note": "was Bricks075 — no such asset. Bricks075A exists but is irregular fieldstone rubble, not brick at all. Bricks085 is plain aged red running-bond with even mortar: institutional and unglamorous."
     },
     {
-      "id": "Concrete034", "slot": "concrete", "source": "ambientcg",
+      "id": "Concrete037", "slot": "concrete", "source": "ambientcg",
       "search": "concrete — poured, stained",
       "why": "Parking lot, kerbs, the water tower's footings.",
-      "res": "1K-JPG"
+      "res": "1K-JPG",
+      "note": "was Concrete034 — id resolved, but the preview is smooth clean white plaster, i.e. an interior wall rather than anything poured. Concrete037 is rough exposed-aggregate with visible stone. (Concrete047B was the other candidate and is rejected: a rusted drain cover is baked into the map, so it cannot tile.)"
     },
     {
       "id": "Fabric063", "slot": "cloth", "source": "ambientcg",
