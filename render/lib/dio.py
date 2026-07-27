@@ -113,7 +113,7 @@ def obj(prim, material, loc, scale=(1, 1, 1), rot=(0, 0, 0), smooth=False, **kw)
 # ----------------------------------------------------------------- light ----
 
 def daylight(sun_energy=4.4, elevation_deg=38.0, azimuth_deg=-124.0,
-             sky_strength=0.30, warm=(1.0, 0.87, 0.68)):
+             sky_strength=0.30, warm=(1.0, 0.87, 0.68), sky_color=None):
     """One sun, one sky. `elevation_deg` is the sun's height above the horizon.
 
     The three palette variants the art plan asks of the town master (day / dusk
@@ -133,6 +133,13 @@ def daylight(sun_energy=4.4, elevation_deg=38.0, azimuth_deg=-124.0,
     bpy.context.scene.world = world
     world.use_nodes = True
     nt = world.node_tree
+    if sky_color is not None:
+        # A physical sky at any sun elevation is a DAY sky; night needs the
+        # dome replaced, not merely dimmed, or the frame reads as noon with the
+        # lights on. (It did. That is how this parameter came to exist.)
+        nt.nodes["Background"].inputs["Color"].default_value = hex_rgb(sky_color)
+        nt.nodes["Background"].inputs["Strength"].default_value = sky_strength
+        return so
     sky = nt.nodes.new("ShaderNodeTexSky")
     sky.sky_type = "MULTIPLE_SCATTERING"
     sky.sun_elevation = math.radians(elevation_deg)

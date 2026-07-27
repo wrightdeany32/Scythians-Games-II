@@ -33,10 +33,17 @@ SEED = 7
 # Palette variants: identical geometry, three light rigs. This is the art
 # plan's "town master, 3 palette variants" — guaranteed the same town rather
 # than hoped to be.
+# `exposure` rides with each variant: a night lit only by a low moon sits so far
+# down the response curve that a shared exposure renders it black. Found the
+# honest way — the first night render was an empty frame.
 TIME_OF_DAY = {
-    "day":   dict(sun_energy=4.4, elevation_deg=52, sky_strength=0.45, warm=(1.0, 0.95, 0.86)),
-    "dusk":  dict(sun_energy=4.4, elevation_deg=38, sky_strength=0.30, warm=(1.0, 0.87, 0.68)),
-    "night": dict(sun_energy=0.35, elevation_deg=-6, sky_strength=0.09, warm=(0.62, 0.72, 1.0)),
+    "day":   dict(sun_energy=4.4, elevation_deg=52, sky_strength=0.45,
+                  warm=(1.0, 0.95, 0.86), exposure=-1.85),
+    "dusk":  dict(sun_energy=4.4, elevation_deg=38, sky_strength=0.30,
+                  warm=(1.0, 0.87, 0.68), exposure=-1.85),
+    "night": dict(sun_energy=0.30, elevation_deg=58, sky_strength=0.55,
+                  warm=(0.46, 0.60, 1.0), sky_color="#0b1524",
+                  exposure=1.1, practicals=True),
 }
 
 # The overlook vantage. The ledger's camera guard as a coordinate rather than a
@@ -139,7 +146,13 @@ def build(variant="dusk"):
                 o.rotation_euler = d.to_track_quat("Z", "Y").to_euler()
 
     # ---- the built stock ---------------------------------------------------
+    windows = []
+
     def house(x, y, rot, w=2.6, d=3.4, h=2.0):
+        if random.random() < 0.62:      # not every house is awake
+            windows.append(((x + math.cos(rot - math.pi / 2) * (d / 2 + .03),
+                             y + math.sin(rot - math.pi / 2) * (d / 2 + .03), h * 0.55),
+                            (w * 0.30, 0.03, 0.26), (0, 0, rot)))
         dio.obj("primitive_cube_add", random.choice(WALLS), (x, y, h / 2),
                 (w / 2, d / 2, h / 2), rot=(0, 0, rot), size=2)
         dio.obj("primitive_cone_add", random.choice([ROOF_D, ROOF_R]), (x, y, h + 0.62),
@@ -147,6 +160,9 @@ def build(variant="dusk"):
                 vertices=4, radius1=1.0, radius2=0, depth=1.25)
 
     def shop(x, y, rot, w=5.0, d=3.2, h=2.4, material=None):
+        windows.append(((x + math.cos(rot - math.pi / 2) * (d / 2 + .03),
+                         y + math.sin(rot - math.pi / 2) * (d / 2 + .03), h * 0.52),
+                        (w * 0.38, 0.03, 0.34), (0, 0, rot)))
         dio.obj("primitive_cube_add", material or random.choice(WALLS), (x, y, h / 2),
                 (w / 2, d / 2, h / 2), rot=(0, 0, rot), size=2)
         dio.obj("primitive_cube_add", ROOF_D, (x, y, h + 0.10),
@@ -225,7 +241,22 @@ def build(variant="dusk"):
         else:        x, y = random.uniform(-58, 58), random.uniform(56, 70)
         tree(x, y, random.uniform(1.1, 2.3))
 
-    dio.daylight(**TIME_OF_DAY[variant])
+    rig = dict(TIME_OF_DAY[variant])
+    rig.pop("exposure")
+    if rig.pop("practicals", False):
+        # Lit windows. At night the town has to be legible as a town, and warm
+        # points against cool moonlight is the whole read — the geometry is
+        # already there, so this is where a scene file pays for itself.
+        glow = bpy.data.materials.new("window")
+        glow.use_nodes = True
+        gn = glow.node_tree
+        em = gn.nodes.new("ShaderNodeEmission")
+        em.inputs["Color"].default_value = dio.hex_rgb("#ffcf87")
+        em.inputs["Strength"].default_value = 55.0
+        gn.links.new(em.outputs["Emission"], gn.nodes["Material Output"].inputs["Surface"])
+        for w in windows:
+            dio.obj("primitive_cube_add", glow, w[0], w[1], rot=w[2], size=2)
+    dio.daylight(**rig)
     dio.camera(OVERLOOK, (7.0, 22.0, 0.6), lens=42, fstop=0.32, focus_bias=0.58,
                max_height=CEILING,
                guard_note="the town is seen from the valley wall, never from the air")
@@ -237,7 +268,8 @@ def main():
     print(f"town_overlook · {variant} · seed {SEED}")
     build(variant)
     dio.render(os.path.join(OUT, f"town_overlook_{variant}.png"),
-               res=(1024, 576), samples=96)
+               res=(1024, 576), samples=96,
+               exposure=TIME_OF_DAY[variant]["exposure"])
 
 
 if __name__ == "__main__":
