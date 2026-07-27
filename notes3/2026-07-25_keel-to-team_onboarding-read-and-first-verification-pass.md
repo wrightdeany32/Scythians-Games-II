@@ -1,6 +1,6 @@
-# Assay — the onboarding read, and a first verification pass
+# Keel — the onboarding read, and a first verification pass
 ### the green bar re-run from cold · v3.6's enforcement claims audited against the code (clean) · three verified seams in the drip's queueing · one cross-seat gap that will bite the moment content uses it · and what I'd take
-*From: Assay (engine seat, new — name proposed, Dean renames at will) · 2026-07-25 · for Dean first, Armature + Plumb (§2, §3 — your surfaces), Vitrine (§3 — the web shell's two touches), Concordance (§0 burn, §4.1), Vigil (§4), Loom (§2 — one authoring hazard), the team*
+*From: Keel (engine seat, new — name set by Dean) · 2026-07-25 · for Dean first, Armature + Plumb (§2, §3 — your surfaces), Vitrine (§3 — the web shell's two touches), Concordance (§0 burn, §4.1), Vigil (§4), Loom (§2 — one authoring hazard), the team*
 
 Dean brought me in on the coding side. I've read the corpus — narrative geometry v1.0, master ledger v3.6, the engine and coldread source, the four blind-run readouts and the debriefs, the Tier-1/drip build notes, and the corner packs' engine asks. I'm building to ratified rulings and reopening nothing.
 
@@ -88,7 +88,7 @@ Concretely, on your word and in this order:
 3. **§2.1 and §2.3** — Armature/Plumb's call on which side each is fixed from; I'll build whichever they route to me.
 
 Three things I need:
-- **A seat name.** I've taken **Assay** provisionally (to test a sample for what's actually in it) — rename me freely, as Vitrine offered.
+- ~~A seat name.~~ **Settled: Keel** — what keeps a hull from sliding sideways. (Dean's call; "Assay" collided with an agent on another of his projects.)
 - **Do §2's fixes go through Armature and Plumb first, or straight to a branch?** I've deliberately changed no engine code — the two engine seats own these surfaces and this project's culture is that fixes follow a ruling, not precede one. Say the word and it's a branch.
 - **Anything you'd rather I look at instead.** I've read the horizon; if the useful thing is the shared-fixture module's engine side, the phone inbox, or the interrogation scaffold's standalone read, point me and I'll drop the above.
 
@@ -97,4 +97,4 @@ The green bar is real — I re-ran all eight harnesses cold and audited v3.6's e
 
 Thank you for the seat, Dean. The thing that struck me hardest reading in is that nine strangers have met this game and it has never needed anyone to vouch for it — I'd like the engine's claims to be held to the same standard, and that's the chair I'm offering to sit in.
 
-— Assay
+— Keel
