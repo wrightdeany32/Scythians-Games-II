@@ -13,6 +13,8 @@ never imported. (An asset pipeline that could read GameState would be a way
 around the WO-4 wall, so it simply cannot — see render/README.md.)
 """
 import math
+import os
+
 import bpy
 from mathutils import Vector
 
@@ -96,6 +98,111 @@ def mottle(name, hex_a, hex_b, rough=0.93, scale_lo=0.9, scale_hi=26.0):
     nt.links.new(r.outputs["Color"], b.inputs["Base Color"])
     _MATS[name] = m
     return m
+
+
+ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets")
+
+
+def _maps(slot):
+    """Find a downloaded PBR set by slot name, or return {} if it isn't there."""
+    d = os.path.join(ASSETS, "materials", slot)
+    if not os.path.isdir(d):
+        return {}
+    found = {}
+    for name in os.listdir(d):
+        low = name.lower()
+        for key, token in (("color", "_color."), ("rough", "_roughness."),
+                           ("normal", "_normalgl."), ("disp", "_displacement.")):
+            if token in low:
+                found[key] = os.path.join(d, name)
+    return found
+
+
+def textured(name, slot, fallback_hex, scale=1.0, rough=0.70, grain=0.0, tint=None):
+    """A scanned PBR material if its set has been downloaded, the procedural
+    `paint` recipe if not. Every surface in every scene goes through here, so
+    the pipeline renders identically-structured frames with or without assets —
+    the textures are an upgrade, never a dependency.
+
+    `tint` multiplies the scanned colour, which is how one scanned wood serves
+    as seven different painted finishes: real grain and wear underneath, our
+    palette on top. That is the whole trick for painted wood, and it is why one
+    downloaded material is worth more than seven authored colours.
+    """
+    if name in _MATS:
+        return _MATS[name]
+    maps = _maps(slot)
+    if not maps.get("color"):
+        return paint(name, fallback_hex, rough=rough, grain=grain)
+
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    b = nt.nodes["Principled BSDF"]
+
+    coords = nt.nodes.new("ShaderNodeTexCoord")
+    mapping = nt.nodes.new("ShaderNodeMapping")
+    mapping.inputs["Scale"].default_value = (scale, scale, scale)
+    nt.links.new(coords.outputs["Object"], mapping.inputs["Vector"])
+
+    def image(path, non_color):
+        t = nt.nodes.new("ShaderNodeTexImage")
+        t.image = bpy.data.images.load(path, check_existing=True)
+        if non_color:
+            t.image.colorspace_settings.name = "Non-Color"
+        nt.links.new(mapping.outputs["Vector"], t.inputs["Vector"])
+        return t
+
+    col = image(maps["color"], False)
+    if tint:
+        mix = nt.nodes.new("ShaderNodeMix")
+        mix.data_type = "RGBA"
+        mix.blend_type = "MULTIPLY"
+        mix.inputs[0].default_value = 1.0
+        nt.links.new(col.outputs["Color"], mix.inputs[6])
+        mix.inputs[7].default_value = hex_rgb(tint)
+        nt.links.new(mix.outputs[2], b.inputs["Base Color"])
+    else:
+        nt.links.new(col.outputs["Color"], b.inputs["Base Color"])
+
+    if maps.get("rough"):
+        nt.links.new(image(maps["rough"], True).outputs["Color"], b.inputs["Roughness"])
+    else:
+        b.inputs["Roughness"].default_value = rough
+
+    if maps.get("normal"):
+        nrm = nt.nodes.new("ShaderNodeNormalMap")
+        nrm.inputs["Strength"].default_value = 0.8
+        nt.links.new(image(maps["normal"], True).outputs["Color"], nrm.inputs["Color"])
+        nt.links.new(nrm.outputs["Normal"], b.inputs["Normal"])
+
+    _MATS[name] = m
+    return m
+
+
+def hdri(slot, strength=1.0, rotation_deg=0.0):
+    """Use a downloaded HDRI as the world. Returns False if it isn't there, so
+    a caller can fall back to the analytic sky without branching on files."""
+    d = os.path.join(ASSETS, "hdris", slot)
+    if not os.path.isdir(d):
+        return False
+    files = [f for f in os.listdir(d) if f.lower().endswith((".hdr", ".exr"))]
+    if not files:
+        return False
+    world = bpy.data.worlds.new("w")
+    bpy.context.scene.world = world
+    world.use_nodes = True
+    nt = world.node_tree
+    env = nt.nodes.new("ShaderNodeTexEnvironment")
+    env.image = bpy.data.images.load(os.path.join(d, files[0]), check_existing=True)
+    mapping = nt.nodes.new("ShaderNodeMapping")
+    mapping.inputs["Rotation"].default_value = (0, 0, math.radians(rotation_deg))
+    coords = nt.nodes.new("ShaderNodeTexCoord")
+    nt.links.new(coords.outputs["Generated"], mapping.inputs["Vector"])
+    nt.links.new(mapping.outputs["Vector"], env.inputs["Vector"])
+    nt.links.new(env.outputs["Color"], nt.nodes["Background"].inputs["Color"])
+    nt.nodes["Background"].inputs["Strength"].default_value = strength
+    return True
 
 
 def obj(prim, material, loc, scale=(1, 1, 1), rot=(0, 0, 0), smooth=False, **kw):

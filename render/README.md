@@ -87,6 +87,53 @@ and `portrait { skin, hair }` from `src/engine/types.ts` — but they arrive as 
 plain dict from a sheet-generation step, never by importing the engine. The app
 picks a pre-baked sprite; it does not render at play time.
 
+## Assets (textures and skies)
+
+`render/assets/manifest.json` lists the CC0 material and HDRI sets the scenes
+want. **The binaries are not committed** — a 2K PBR set is 5–15MB and ten of
+them would dwarf the repo — so the manifest is the source of truth and
+`render/assets/<kind>/<slot>/` is gitignored.
+
+```bash
+python3 render/fetch_assets.py           # download whatever is missing
+python3 render/fetch_assets.py --list    # print the shopping list instead
+```
+
+Everything is CC0: public domain, no attribution, no licence file to track.
+
+**Nothing here is a prerequisite.** Every surface goes through
+`dio.textured(name, slot, fallback_hex, ...)`, which uses a scanned set when
+one is present and the procedural recipe when it isn't. The scenes render on a
+clean checkout with no assets at all; the textures are an upgrade that switches
+itself on. Same for skies via `dio.hdri(slot)`.
+
+One trick worth knowing: `textured(..., tint=)` multiplies a scanned colour
+map, so **one** scanned wood serves as all seven painted wall finishes — real
+grain and wear underneath, our palette on top. That is why a single download is
+worth more than seven authored colours, and it is the specific thing that makes
+"painted wood" stop reading as plastic.
+
+### If the download is blocked
+
+The asset CDNs may be outside this environment's network policy (they were
+when this was written; `fetch_assets.py` detects it and prints the manual
+list). The hosts to allow are:
+
+```
+ambientcg.com
+acg-download.struffelproductions.com     # where ambientCG's zips actually serve from
+polyhaven.com
+api.polyhaven.com
+dl.polyhaven.org
+```
+
+Network access is an *environment* setting, not a repo one — see
+https://code.claude.com/docs/en/claude-code-on-the-web. A container generally
+has to restart to pick up a policy change.
+
+Failing that, downloading by hand and dropping the folders in place works
+identically; `--list` prints exactly what and where.
+
 ## Current state
 
 Rough. The geometry is primitives and the materials are procedural — no
@@ -97,8 +144,10 @@ that the look is finished.
 The two things that close most of the remaining gap, in order:
 
 1. **Scanned material textures** (CC0, ambientCG / Poly Haven) — real wood
-   grain, paint, gravel, ground cover. The single largest quality jump
-   available, and free. Flat procedural colour is the loudest "CG" tell.
+   grain, paint, gravel, ground cover, plus captured skies. The single largest
+   quality jump available, and free. Flat procedural colour is the loudest "CG"
+   tell. The manifest, the fetcher and the shader support are all in place;
+   only the files are missing.
 2. **A low-poly building/prop pack** — skips modelling fifteen Appalachian
    houses by hand. Materials get overridden with `dio.paint` anyway, so the
    pack's own art style barely matters; what is bought is *geometry*.

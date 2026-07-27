@@ -48,8 +48,12 @@ def figurine(char, at=(0, 0, 0)):
     H, B = char["body"]["height"], char["body"]["build"]
     x, y, z = at
 
-    wood = dio.paint("wood", "#a07a4a", rough=0.68)
-    coat = dio.paint(f"coat_{p['coat']}", p["coat"], rough=0.48)
+    # Scanned sets when present, procedural when not — see dio.textured.
+    # The coat takes a fabric weave tinted to its colour, which is the detail
+    # doing most of the work in the reference plates.
+    wood = dio.textured("wood", "figurine_wood", "#a07a4a", scale=3.0, rough=0.68)
+    coat = dio.textured(f"coat_{p['coat']}", "cloth", p["coat"], scale=6.0,
+                        rough=0.48, tint=p["coat"])
     skin = dio.paint(f"skin_{p['skin']}", p["skin"], rough=0.42, grain=0.03)
     hair = dio.paint(f"hair_{p['hair']}", p["hair"], rough=0.58)
 

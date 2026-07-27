@@ -58,15 +58,24 @@ def build(variant="dusk"):
     random.seed(SEED)
     dio.reset()
 
-    GROUND  = dio.mottle("ground", "#3f5220", "#77883a")
-    ASPHALT = dio.paint("asphalt", "#4a4744", 0.82, grain=0.06)
+    # Every surface goes through dio.textured, which uses a scanned PBR set when
+    # render/fetch_assets.py has pulled one and the procedural recipe when it
+    # hasn't. The frame's STRUCTURE is identical either way — textures are an
+    # upgrade, never a dependency, so this scene runs on a clean checkout.
+    T = dio.textured
+    GROUND  = T("ground", "ground_grass", "#54672a", scale=0.06, rough=0.93, grain=0.08)
+    ASPHALT = T("asphalt", "road", "#4a4744", scale=0.10, rough=0.82, grain=0.06)
+    POLE    = T("pole", "painted_wood", "#6b5a46", scale=0.8, rough=0.85, grain=0.05, tint="#8a7458")
+    BRICK   = T("brick", "brick", "#96604a", scale=0.25, rough=0.85, grain=0.05)
     ROOF_D  = dio.paint("roofd", "#4b4642", 0.80)
     ROOF_R  = dio.paint("roofr", "#7a4038", 0.78)
-    POLE    = dio.paint("pole", "#6b5a46", 0.85, grain=0.05)
     WIRE    = dio.paint("wire", "#2b2a28", 0.60)
     STEEL   = dio.paint("steel", "#b9bcbd", 0.45, sheen=0.2)
-    BRICK   = dio.paint("brick", "#96604a", 0.85, grain=0.05)
-    WALLS = [dio.paint(f"w{i}", c, 0.74, grain=0.04) for i, c in enumerate(
+    # The painted-wood trick: ONE scanned wood, tinted seven ways. Real grain
+    # and wear underneath, our palette on top — which is why a single download
+    # is worth more here than seven authored colours.
+    WALLS = [T(f"w{i}", "painted_wood", c, scale=0.5, rough=0.74, grain=0.04, tint=c)
+             for i, c in enumerate(
         ["#a89d86", "#94825e", "#b3a892", "#7f7259", "#a48b52", "#918676", "#b9ac93"])]
     FOLIAGE = [dio.paint(f"f{i}", c, 0.93, grain=0.12) for i, c in enumerate(
         ["#5c6b22", "#8a6a12", "#a8500f", "#6d3f10", "#455c1c", "#c06a12", "#7d7a18"])]
@@ -243,6 +252,7 @@ def build(variant="dusk"):
 
     rig = dict(TIME_OF_DAY[variant])
     rig.pop("exposure")
+    sky_slot = {"day": "sky_day", "dusk": "sky_dusk", "night": "sky_night"}[variant]
     if rig.pop("practicals", False):
         # Lit windows. At night the town has to be legible as a town, and warm
         # points against cool moonlight is the whole read — the geometry is
@@ -257,6 +267,11 @@ def build(variant="dusk"):
         for w in windows:
             dio.obj("primitive_cube_add", glow, w[0], w[1], rot=w[2], size=2)
     dio.daylight(**rig)
+    # A captured sky, if we have one, replaces the analytic dome: believable
+    # soft fill is the thing two lamps cannot fake, and it is the other half of
+    # the free quality jump the manifest is for.
+    if dio.hdri(sky_slot, strength=0.9):
+        print(f"  hdri: {sky_slot}")
     dio.camera(OVERLOOK, (7.0, 22.0, 0.6), lens=42, fstop=0.32, focus_bias=0.58,
                max_height=CEILING,
                guard_note="the town is seen from the valley wall, never from the air")

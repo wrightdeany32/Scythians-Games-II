@@ -1,0 +1,104 @@
+{
+  "_comment": [
+    "The shopping list, machine-readable. Binaries are NOT committed — a 2K PBR",
+    "set is 5-15MB and ten of them would dwarf the repo. This manifest is the",
+    "source of truth; render/fetch_assets.py downloads against it into",
+    "render/assets/<category>/<id>/ (gitignored), and reports precisely what is",
+    "missing so the list doubles as a manual shopping list.",
+    "",
+    "Everything here is CC0 (public domain, no attribution required) from",
+    "ambientCG and Poly Haven. Nothing is conditioned on a living artist's work,",
+    "per the art direction's standing rule.",
+    "",
+    "ID ACCURACY: the numeric ids below are best-effort. ambientCG numbers its",
+    "materials (Wood067, Ground037) and the exact number for a given look is not",
+    "something to take on trust — `search` on each entry is what actually matters.",
+    "fetch_assets.py verifies what it got and names anything that 404s, so a",
+    "wrong id fails loudly instead of silently substituting the wrong surface."
+  ],
+
+  "materials": [
+    {
+      "id": "Planks011", "slot": "figurine_wood", "source": "ambientcg",
+      "search": "planks / wood — smooth, pale, tight grain",
+      "why": "The turned figurine's base and any bare carved wood. Wants FINE grain: coarse planking at figurine scale reads as a floor, not a carving.",
+      "res": "2K-JPG"
+    },
+    {
+      "id": "Wood067", "slot": "painted_wood", "source": "ambientcg",
+      "search": "wood — visible grain under a finish",
+      "why": "The paint recipe's substrate. Grain showing THROUGH colour is the single detail that separates 'painted wood' from 'plastic'.",
+      "res": "2K-JPG"
+    },
+    {
+      "id": "Ground037", "slot": "ground_grass", "source": "ambientcg",
+      "search": "ground / grass — patchy, dry, not a manicured lawn",
+      "why": "Replaces the procedural mottle on the valley floor. Biggest single upgrade in the town frame — flat green is the loudest CG tell we have.",
+      "res": "2K-JPG"
+    },
+    {
+      "id": "Grass004", "slot": "ground_meadow", "source": "ambientcg",
+      "search": "grass — coarser, tussocky",
+      "why": "Second ground tone so the valley isn't one surface repeated. Two grounds blended kills visible tiling at overlook distance.",
+      "res": "2K-JPG"
+    },
+    {
+      "id": "Asphalt026", "slot": "road", "source": "ambientcg",
+      "search": "asphalt — worn, patched, rural",
+      "why": "The road. Wants to look maintained-by-a-county, not resurfaced last week.",
+      "res": "2K-JPG"
+    },
+    {
+      "id": "Gravel022", "slot": "gravel", "source": "ambientcg",
+      "search": "gravel — loose driveway stone",
+      "why": "Driveways and shoulders. The Dale reference plate has a gravel path doing a lot of quiet work.",
+      "res": "2K-JPG"
+    },
+    {
+      "id": "Rock030", "slot": "rock", "source": "ambientcg",
+      "search": "rock / cliff — layered sedimentary",
+      "why": "The overlook ledge when the watchers return to frame.",
+      "res": "2K-JPG"
+    },
+    {
+      "id": "Bricks075", "slot": "brick", "source": "ambientcg",
+      "search": "brick — municipal, mid-century, unglamorous",
+      "why": "The civic block, the one larger mass in the town.",
+      "res": "2K-JPG"
+    },
+    {
+      "id": "Concrete034", "slot": "concrete", "source": "ambientcg",
+      "search": "concrete — poured, stained",
+      "why": "Parking lot, kerbs, the water tower's footings.",
+      "res": "2K-JPG"
+    },
+    {
+      "id": "Fabric063", "slot": "cloth", "source": "ambientcg",
+      "search": "fabric / burlap — coarse weave, visible thread",
+      "why": "Figurine coats. The Dale plate's jacket weave is exactly this, and it is most of why that plate reads as carved-and-dressed.",
+      "res": "2K-JPG"
+    }
+  ],
+
+  "hdris": [
+    {
+      "id": "kloofendal_48d_partly_cloudy_puresky", "slot": "sky_day",
+      "source": "polyhaven",
+      "search": "partly cloudy day sky, sun fairly high",
+      "why": "The day palette variant. A captured sky gives believable soft fill for free — the thing two lamps cannot fake.",
+      "res": "2k"
+    },
+    {
+      "id": "venice_sunset", "slot": "sky_dusk", "source": "polyhaven",
+      "search": "low warm sun, long light, autumn-adjacent",
+      "why": "The dusk variant — the reference plates' hour.",
+      "res": "2k"
+    },
+    {
+      "id": "dikhololo_night", "slot": "sky_night", "source": "polyhaven",
+      "search": "clear night sky with moon",
+      "why": "The night variant, replacing the flat dark dome currently standing in for one.",
+      "res": "2k"
+    }
+  ]
+}
