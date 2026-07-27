@@ -131,7 +131,32 @@ Network access is an *environment* setting, not a repo one — see
 https://code.claude.com/docs/en/claude-code-on-the-web. A container generally
 has to restart to pick up a policy change.
 
-Failing that, downloading by hand and dropping the folders in place works
+Two things worth knowing about that policy:
+
+* It is read when the **container starts**, so changing it does not reach a
+  session already running — open a new one.
+* It has nothing to do with Claude Code's `/permissions`, which govern *tool*
+  calls (Bash, Edit) rather than network egress. Different layer entirely, and
+  the desktop app is only a window onto the same remote container, so switching
+  interfaces changes nothing.
+
+### Fetching from your own machine instead
+
+`fetch_assets.py` has **no dependencies** — pure stdlib, no Blender, no pip
+install — so it runs anywhere Python 3 does. That makes this the fastest
+unblock when the sandbox can't reach the CDNs:
+
+```bash
+python3 render/fetch_assets.py            # on your machine; ~20MB at 1K
+git add -f render/assets/materials render/assets/hdris   # -f: they're gitignored
+git commit -m "render: CC0 asset sets" && git push
+```
+
+`-f` is needed because the directories are deliberately gitignored. At 1K the
+whole set is ~20MB, which is a tolerable one-time commit; strip it back out
+later with `git rm -r --cached` once the environment can fetch them directly.
+
+Failing all that, downloading by hand and dropping the folders in place works
 identically; `--list` prints exactly what and where.
 
 ## Current state
