@@ -1,0 +1,195 @@
+{
+  "_comment": [
+    "The shopping list, machine-readable. Binaries are NOT committed \u2014 a 2K PBR",
+    "set is 5-15MB and ten of them would dwarf the repo. This manifest is the",
+    "source of truth; render/fetch_assets.py downloads against it into",
+    "render/assets/<category>/<id>/ (gitignored), and reports precisely what is",
+    "missing so the list doubles as a manual shopping list.",
+    "",
+    "Everything here is CC0 (public domain, no attribution required) from",
+    "ambientCG and Poly Haven. Nothing is conditioned on a living artist's work,",
+    "per the art direction's standing rule.",
+    "",
+    "RESOLUTION: 1K by default. At the resolutions these scenes render (1024x576",
+    "and smaller) 1K is visually indistinguishable from 2K, and it takes the",
+    "whole set from ~75MB to ~20MB \u2014 which matters when the files may have to",
+    "travel through git. Bump res to 2K-JPG / 2k here if a hero still ever needs",
+    "it; nothing else changes.",
+    "",
+    "ID ACCURACY: the ids below were written from memory and have since been",
+    "verified against the ambientCG and Poly Haven APIs, and against each",
+    "asset's preview image. Six changed; each carries a `note` saying what it",
+    "was and why it moved. Two of the originals did not exist at all; four",
+    "resolved but contradicted their own `search` line. `search` remains what",
+    "actually matters \u2014 the ids are just how we found them.",
+    "",
+    "Anything edited here should be re-checked the same way: the id is not",
+    "evidence, the preview is. fetch_assets.py names anything that 404s, so a",
+    "wrong id fails loudly instead of silently substituting the wrong surface \u2014",
+    "but an id that resolves to the WRONG SURFACE fails silently, and four of",
+    "those were the actual problem here."
+  ],
+  "materials": [
+    {
+      "id": "Wood022",
+      "slot": "figurine_wood",
+      "source": "ambientcg",
+      "search": "planks / wood \u2014 smooth, pale, tight grain",
+      "why": "The turned figurine's base and any bare carved wood. Wants FINE grain: coarse planking at figurine scale reads as a floor, not a carving.",
+      "res": "1K-JPG",
+      "note": "was Planks011 \u2014 id resolved, but the preview is nailed deck planking with visible nail heads and gaps, i.e. exactly the 'reads as a floor, not a carving' failure the why-line warns about. Wood022 is pale, fine, tight straight grain, no knots and no seams.",
+      "colorMean": [
+        0.6223,
+        0.4083,
+        0.1818
+      ]
+    },
+    {
+      "id": "Planks007",
+      "slot": "painted_wood",
+      "source": "ambientcg",
+      "search": "wood \u2014 visible grain under a finish, PALE (see note: tint is a multiply)",
+      "why": "The paint recipe's substrate. Grain showing THROUGH colour is the single detail that separates 'painted wood' from 'plastic'.",
+      "res": "1K-JPG",
+      "note": "was Wood067 \u2014 id resolved and matches the search line literally, but dio.textured(tint=) is a MULTIPLY over the colour map, and Wood067 is dark walnut: measured mean luminance 0.137 against Planks007's 0.483, i.e. 3.5x darker. Multiplying 0.137 by a pale palette colour cannot return a pale painted finish, so Wood067 yields seven dark muddy variants rather than seven paints. Planks007 is pale weathered clapboard with pronounced grain and plank seams \u2014 it tints to the palette and it is literally siding. Flip the id back if the substrate is meant to read as dark stained wood.",
+      "colorMean": [
+        0.2807,
+        0.1846,
+        0.1422
+      ]
+    },
+    {
+      "id": "Ground037",
+      "slot": "ground_grass",
+      "source": "ambientcg",
+      "search": "ground / grass \u2014 patchy, dry, not a manicured lawn",
+      "why": "Replaces the procedural mottle on the valley floor. Biggest single upgrade in the town frame \u2014 flat green is the loudest CG tell we have.",
+      "res": "1K-JPG",
+      "colorMean": [
+        0.3306,
+        0.3062,
+        0.1114
+      ]
+    },
+    {
+      "id": "Grass004",
+      "slot": "ground_meadow",
+      "source": "ambientcg",
+      "search": "grass \u2014 coarser, tussocky",
+      "why": "Second ground tone so the valley isn't one surface repeated. Two grounds blended kills visible tiling at overlook distance.",
+      "res": "1K-JPG",
+      "colorMean": [
+        0.1269,
+        0.1613,
+        0.0343
+      ]
+    },
+    {
+      "id": "Road015B",
+      "slot": "road",
+      "source": "ambientcg",
+      "search": "asphalt \u2014 worn, patched, rural",
+      "why": "The road. Wants to look maintained-by-a-county, not resurfaced last week.",
+      "res": "1K-JPG",
+      "note": "was Asphalt026 \u2014 no such asset (only Asphalt026C exists, 'cracked/damaged'). Road015B is the one asphalt in the library tagged 'rural', and the preview is dark patched blacktop with cut-and-fill repair squares: county maintenance, exactly the why-line.",
+      "colorMean": [
+        0.0457,
+        0.0451,
+        0.0419
+      ]
+    },
+    {
+      "id": "Gravel022",
+      "slot": "gravel",
+      "source": "ambientcg",
+      "search": "gravel \u2014 loose driveway stone",
+      "why": "Driveways and shoulders. The Dale reference plate has a gravel path doing a lot of quiet work.",
+      "res": "1K-JPG",
+      "colorMean": [
+        0.2263,
+        0.2136,
+        0.1733
+      ]
+    },
+    {
+      "id": "Rock030",
+      "slot": "rock",
+      "source": "ambientcg",
+      "search": "rock / cliff \u2014 layered sedimentary",
+      "why": "The overlook ledge when the watchers return to frame.",
+      "res": "1K-JPG",
+      "colorMean": [
+        0.0841,
+        0.0785,
+        0.0657
+      ]
+    },
+    {
+      "id": "Bricks085",
+      "slot": "brick",
+      "source": "ambientcg",
+      "search": "brick \u2014 municipal, mid-century, unglamorous",
+      "why": "The civic block, the one larger mass in the town.",
+      "res": "1K-JPG",
+      "note": "was Bricks075 \u2014 no such asset. Bricks075A exists but is irregular fieldstone rubble, not brick at all. Bricks085 is plain aged red running-bond with even mortar: institutional and unglamorous.",
+      "colorMean": [
+        0.3109,
+        0.1993,
+        0.1444
+      ]
+    },
+    {
+      "id": "Concrete037",
+      "slot": "concrete",
+      "source": "ambientcg",
+      "search": "concrete \u2014 poured, stained",
+      "why": "Parking lot, kerbs, the water tower's footings.",
+      "res": "1K-JPG",
+      "note": "was Concrete034 \u2014 id resolved, but the preview is smooth clean white plaster, i.e. an interior wall rather than anything poured. Concrete037 is rough exposed-aggregate with visible stone. (Concrete047B was the other candidate and is rejected: a rusted drain cover is baked into the map, so it cannot tile.)",
+      "colorMean": [
+        0.3338,
+        0.3088,
+        0.2638
+      ]
+    },
+    {
+      "id": "Fabric063",
+      "slot": "cloth",
+      "source": "ambientcg",
+      "search": "fabric / burlap \u2014 coarse weave, visible thread",
+      "why": "Figurine coats. The Dale plate's jacket weave is exactly this, and it is most of why that plate reads as carved-and-dressed.",
+      "res": "1K-JPG",
+      "colorMean": [
+        0.0687,
+        0.0625,
+        0.0501
+      ]
+    }
+  ],
+  "hdris": [
+    {
+      "id": "kloofendal_48d_partly_cloudy_puresky",
+      "slot": "sky_day",
+      "source": "polyhaven",
+      "search": "partly cloudy day sky, sun fairly high",
+      "why": "The day palette variant. A captured sky gives believable soft fill for free \u2014 the thing two lamps cannot fake.",
+      "res": "1k"
+    },
+    {
+      "id": "venice_sunset",
+      "slot": "sky_dusk",
+      "source": "polyhaven",
+      "search": "low warm sun, long light, autumn-adjacent",
+      "why": "The dusk variant \u2014 the reference plates' hour.",
+      "res": "1k"
+    },
+    {
+      "id": "dikhololo_night",
+      "slot": "sky_night",
+      "source": "polyhaven",
+      "search": "clear night sky with moon",
+      "why": "The night variant, replacing the flat dark dome currently standing in for one.",
+      "res": "1k"
+    }
+  ]
+}

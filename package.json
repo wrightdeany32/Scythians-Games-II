@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A theme-agnostic RPG/card/dice engine, forked clean from Hoop World. Engine plumbing + a neutral smoke test only — game content is authored later from a design spec.",
+  "description": "A theme-agnostic RPG/card/dice engine, forked clean from Hoop World. Engine plumbing + a neutral smoke test only \u2014 game content is authored later from a design spec.",
   "scripts": {
     "demo": "tsx src/index.ts",
     "playtest:cave": "tsx src/content/cave.playtest.ts",
@@ -11,6 +11,9 @@
     "startdeck": "tsx src/smoke/startdeck.playtest.ts",
     "lint:content": "tsx src/tools/lint.run.ts",
     "lint:imports": "tsx src/tools/import-boundary.run.ts",
+    "lint:render-wall": "python3 render/tools/import_boundary.py",
+    "render:parity": "python3 render/tools/parity_check.py",
+    "render:means": "python3 render/tools/measure_means.py",
     "coldread": "tsx src/coldread/run.ts",
     "coldread:sample": "tsx src/coldread/sample.ts",
     "coldread:loop": "tsx src/coldread/loop-relay.ts",

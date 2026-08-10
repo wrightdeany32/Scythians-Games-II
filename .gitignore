@@ -2,3 +2,9 @@ node_modules/
 dist/
 *.log
 .DS_Store
+
+# render pipeline
+render/out/
+.bpylib/
+__pycache__/
+*.pyc
