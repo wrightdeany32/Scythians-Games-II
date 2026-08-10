@@ -31,9 +31,19 @@ def hex_rgb(h):
 _MATS = {}
 
 def reset():
-    """Empty scene. Every scene starts here so a render never inherits state."""
+    """Empty scene. Every scene starts here so a render never inherits state.
+
+    Also pins the engine to Cycles/CPU. The factory default is EEVEE, which
+    needs a GPU and dies on `libEGL.so.1` in a headless container — so any
+    caller that builds a scene and renders it WITHOUT going through
+    `dio.render()` used to crash in a way that named a graphics library rather
+    than the actual mistake. Setting it here means the engine is a property of
+    having a scene at all, not of one particular exit path."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
     _MATS.clear()
+    sc = bpy.context.scene
+    sc.render.engine = "CYCLES"
+    sc.cycles.device = "CPU"
 
 
 def paint(name, hexcol, rough=0.70, grain=0.0, sheen=0.0):
