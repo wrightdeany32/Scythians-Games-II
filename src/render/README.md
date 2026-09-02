@@ -26,3 +26,14 @@ A render helper that lives outside this folder can opt into the same rule with a
 `surface-consumer.example.ts` is the reference pattern — the legal way to read
 the surface and format a screen. It's not wired into the game; it exists to
 document the shape and to give the linter a real renderer file to pass.
+
+## `proto/` — the viewfinder prototype (2026-09-02)
+
+`proto/viewfinder.html` is a single-file, zero-import WebGL prototype of the
+recommended rendering technique: a generated still plus a depth map, with
+parallax, click-to-rack-focus, calendar-driven light (hour → key colour, the
+blue wash, fog in the far seams), sway, and grain done live in one shader.
+Serve the repo root (`npm run web`, then `/src/render/proto/viewfinder.html`).
+Depth maps come from `proto/depth.py` (Depth-Anything, run locally) and land
+in `art/depth/`. The idea, the alternatives, and the one Surface widening it
+would need are in `notes3/2026-09-02_aperture-to-dean_rendering-ideas-and-the-viewfinder.md`.

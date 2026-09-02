@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>The Viewfinder — a 2.5D diorama still (prototype)</title>
+<!--
+  render/proto/viewfinder.html — THE VIEWFINDER PROTOTYPE (renderer-scoped:
+  imports nothing; touches no engine module; the "surface" it draws is a
+  hard-coded stand-in for the Surface the shell would hand it).
+
+  The idea in one line: a generated still + a depth map is enough to make the
+  diorama LIVE. One fragment shader gives every still, for free:
+    · parallax (the diorama has thickness — lean and it leans back)
+    · rack focus (the bible's "clarity resolves onto the perceived" as optics:
+      click anything and the focus pulls to it)
+    · calendar light (hour → key colour, the blue wash, fog in the seams,
+      window glow at dusk; driven by the CALENDAR only — there is no state
+      input to this shader, by construction)
+    · foliage sway, film grain, a slow breath — so it is never frozen
+  No layer decomposition, no inpainting, no 3D scene. Depth maps come from
+  depth.py (Depth-Anything) or, for these three, handdepth.py.
+  Zero dependencies: WebGL1 + a few hundred lines. Runs on anything.
+-->
+<style>
+  :root {
+    --walnut: #221610; --walnut-2: #2e1f16; --basswood: #e8d9bd; --basswood-dim: #cdbb9a;
+    --paper: #f2e8d5; --ink: #2b2118; --kitchen-yellow: #e5b93c; --moss: #6b7d54; --rust: #9c5a33;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--walnut); color: var(--basswood); font-family: var(--serif); overflow: hidden; }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+
+  /* ---- the shell's chrome, laid over the still ---------------------------- */
+  .hud { position: fixed; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: .55rem 1.1rem; background: linear-gradient(180deg, rgba(0,0,0,.55), rgba(0,0,0,0)); pointer-events: none; }
+  .hud > div { display: flex; gap: 1rem; align-items: center; }
+  .hud-date { font-style: italic; color: var(--basswood-dim); letter-spacing: .03em; text-shadow: 0 1px 2px #000; }
+  .hud-money { color: var(--kitchen-yellow); text-shadow: 0 1px 2px #000; }
+  .pips { display: inline-flex; gap: .25rem; }
+  .pip { width: .55rem; height: .55rem; border-radius: 50%; border: 1px solid var(--basswood-dim); display: inline-block; }
+  .pip.on { background: var(--basswood); border-color: var(--basswood); }
+  .grip { font-style: italic; color: var(--moss); text-shadow: 0 1px 2px #000; }
+
+  .card { position: fixed; left: 2rem; bottom: 2rem; width: min(30rem, calc(100% - 4rem)); background: var(--paper); color: var(--ink);
+    border-radius: 3px; padding: 1.2rem 1.4rem; box-shadow: 0 10px 34px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.3);
+    line-height: 1.55; font-size: .98rem; transition: opacity .3s; }
+  .card p + p { margin-top: .7em; }
+  .choices { display: flex; flex-direction: column; gap: .45rem; margin-top: 1rem; }
+  .choice { font-family: var(--serif); font-size: .95rem; text-align: left; color: var(--ink);
+    background: linear-gradient(180deg, #efe4cd, #e3d5b8); border: 1px solid #b8a983; border-radius: 3px; padding: .55rem .9rem; cursor: pointer; }
+  .choice:hover { border-color: var(--kitchen-yellow); }
+  .choice small { display: block; font-style: italic; color: #6b5c46; font-size: .82rem; }
+
+  /* ---- the viewfinder's own controls (not game UI — the tuning drawer) ---- */
+  .drawer { position: fixed; right: 1rem; top: 3.2rem; width: 17rem; background: rgba(20,12,8,.82); border: 1px solid rgba(232,217,189,.2);
+    border-radius: 4px; padding: .8rem .9rem; font-size: .82rem; backdrop-filter: blur(4px); }
+  .drawer h2 { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--basswood-dim); margin: .6rem 0 .35rem; }
+  .drawer h2:first-child { margin-top: 0; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding: .18rem 0; }
+  .row label { flex: 0 0 6.2rem; color: var(--basswood-dim); }
+  .row input[type=range] { flex: 1; accent-color: var(--kitchen-yellow); }
+  .row output { flex: 0 0 2.6rem; text-align: right; font-variant-numeric: tabular-nums; }
+  .tabs { display: flex; gap: .3rem; flex-wrap: wrap; }
+  .tab { font-family: var(--serif); font-size: .8rem; color: var(--basswood); background: transparent; border: 1px solid rgba(232,217,189,.35);
+    border-radius: 3px; padding: .2rem .55rem; cursor: pointer; }
+  .tab.active, .tab:hover { border-color: var(--kitchen-yellow); color: var(--kitchen-yellow); }
+  .hint { color: var(--basswood-dim); font-style: italic; margin-top: .5rem; line-height: 1.4; }
+  .hidden { display: none !important; }
+  .toggle { display: flex; align-items: center; gap: .4rem; }
+  .fps { position: fixed; left: .6rem; bottom: .4rem; font-size: .7rem; color: var(--basswood-dim); opacity: .6; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<header class="hud">
+  <div><span class="hud-date" id="hudDate">Tuesday, October 14</span></div>
+  <div><span class="hud-money">$46</span><span class="pips"><i class="pip on"></i><i class="pip on"></i><i class="pip on"></i><i class="pip"></i><i class="pip"></i></span><span class="grip">grounded</span></div>
+  <div></div>
+</header>
+
+<section class="card" id="card">
+  <div id="prose"></div>
+  <div class="choices" id="choices"></div>
+</section>
+
+<aside class="drawer" id="drawer">
+  <h2>Still</h2>
+  <div class="tabs" id="tabs"></div>
+  <h2>Calendar</h2>
+  <div class="row"><label>hour</label><input type="range" id="hour" min="0" max="24" step="0.05" value="17.6"><output id="hourOut"></output></div>
+  <div class="row"><label class="toggle"><input type="checkbox" id="run"> let the day run</label></div>
+  <h2>Camera</h2>
+  <div class="row"><label>aperture</label><input type="range" id="aperture" min="0" max="1" step="0.01" value="0.55"><output id="apertureOut"></output></div>
+  <div class="row"><label>parallax</label><input type="range" id="parallax" min="0" max="1" step="0.01" value="0.6"><output id="parallaxOut"></output></div>
+  <div class="row"><label>relight</label><input type="range" id="relight" min="0" max="1" step="0.01" value="0.5"><output id="relightOut"></output></div>
+  <div class="row"><label>fog</label><input type="range" id="fog" min="0" max="1" step="0.01" value="0.5"><output id="fogOut"></output></div>
+  <div class="row"><label>sway</label><input type="range" id="sway" min="0" max="1" step="0.01" value="0.5"><output id="swayOut"></output></div>
+  <div class="row"><label>grain</label><input type="range" id="grain" min="0" max="1" step="0.01" value="0.45"><output id="grainOut"></output></div>
+  <div class="row"><label class="toggle"><input type="checkbox" id="showDepth"> show depth</label><label class="toggle"><input type="checkbox" id="chrome" checked> chrome</label></div>
+  <p class="hint">Move the mouse to lean into the diorama. Click anything to pull focus to it. Keys: 1/2/3 stills · space hides the drawer · d depth.</p>
+</aside>
+<div class="fps" id="fps"></div>
+
+<script>
+// ---------------------------------------------------------------------------
+// The stills. Any still + depth pair works; these three are Dean's samples.
+// `focus` is where the eye lands first (depth 0..1, 1 = nearest).
+// ---------------------------------------------------------------------------
+const STILLS = [
+  { key: "overlook", label: "The overlook", color: "../../../art/depth/1784747706759.jpg", depth: "../../../art/depth/1784747706759.depth.png", focus: 0.42,
+    prose: ["You pull off at the overlook because everyone does. The town sits where the map starts lying — the last place with a name before the woods take over.",
+            "Reese is already out of the truck, looking at it like it owes him money."],
+    choices: [["Look for Marie's roof.", ""], ["Ask what he sees.", ""], ["Get back in the truck.", "It's getting on toward six."]] },
+  { key: "dale", label: "Dale's porch", color: "../../../art/depth/1784749922735.jpg", depth: "../../../art/depth/1784749922735.depth.png", focus: 0.96,
+    prose: ["He doesn't get up. He doesn't need to; the step is his and the road is his and you're the one standing.",
+            "\"You're Marie's,\" he says. Not a question."],
+    choices: [["Say you are.", ""], ["Ask about the road.", ""], ["Say nothing. Let him fill it.", ""]] },
+  { key: "yard", label: "The golden yard", color: "../../../art/depth/1784838675606.jpg", depth: "../../../art/depth/1784838675606.depth.png", focus: 0.96,
+    prose: ["She laughs before you've finished the sentence, the way she always did, like the punchline was hers.",
+            "Behind her the field goes on being a field."],
+    choices: [["Hug her.", ""], ["Ask who else came.", ""], ["Find a plate.", "You haven't eaten since the drive."]] },
+];
+
+const VS = `attribute vec2 p; varying vec2 v; void main(){ v = p*0.5+0.5; gl_Position = vec4(p,0.,1.); }`;
+
+const FS = `
+precision highp float;
+varying vec2 v;
+uniform sampler2D uColor, uDepth;
+uniform vec2 uRes, uImg, uMouse;
+uniform float uTime, uHour, uFocus, uAperture, uParallax, uRelight, uFog, uSway, uGrain, uShowDepth;
+
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+float depthAt(vec2 uv){ return texture2D(uDepth, uv).r; }
+
+// cover-fit the image to the canvas, with a slow breath so it never sits still
+vec2 fitUV(vec2 s){
+  float ca = uRes.x/uRes.y, ia = uImg.x/uImg.y;
+  vec2 uv = s - 0.5;
+  if (ca > ia) uv.y *= ia/ca; else uv.x *= ca/ia;
+  float breath = 0.965 + 0.006*sin(uTime*0.23);
+  return uv*breath + 0.5;
+}
+
+// The calendar → light. h in hours. Nothing but the clock feeds this.
+void calendar(float h, out float day, out vec3 key, out vec3 amb, out vec3 fogc, out float haze, out vec3 sunDir){
+  float e = sin((h-6.0)/12.0*3.14159);                 // sun elevation, -1..1
+  day = smoothstep(-0.42, 0.22, e);                     // a real twilight, ~1.5h each side
+  float goldenEve  = exp(-pow((h-18.0)/1.4, 2.0));
+  float goldenMorn = 0.5*exp(-pow((h-7.0)/1.2, 2.0));
+  key = mix(vec3(1.0,0.97,0.92), vec3(1.0,0.72,0.42), clamp(goldenEve,0.,1.));
+  key = mix(key, vec3(1.0,0.88,0.76), clamp(goldenMorn,0.,1.));   // morning is paler, pinker
+  amb = mix(vec3(0.34,0.42,0.64), vec3(0.95,0.93,0.90), day);     // the blue wash → daylight
+  fogc = mix(vec3(0.26,0.31,0.44), vec3(0.72,0.72,0.74), day);
+  haze = 0.30 + 0.55*exp(-pow((h-7.0)/1.6,2.0)) + 0.20*(1.0-day);  // morning fog in the seams; night pools
+  float az = (h-12.0)/6.0;                              // east → west across the day
+  sunDir = normalize(vec3(az*0.9, -0.25 - 0.55*max(e,0.0), 0.75));
+}
+
+void main(){
+  vec2 uv0 = fitUV(v);
+  // --- parallax: two refinement taps through the depth field ---
+  vec2 off = uMouse * uParallax * vec2(0.016, 0.010);
+  float d = depthAt(uv0);
+  vec2 uv1 = uv0 + (d-0.5)*off;  d = depthAt(uv1);
+  vec2 uv  = uv0 + (d-0.5)*off;  d = depthAt(uv);
+
+  // --- sway: foreground vegetation breathes (mask by hue + depth) ---
+  vec3 c0 = texture2D(uColor, uv).rgb;
+  float green = step(c0.r*0.92, c0.g) * step(c0.b*1.08, c0.g);
+  float rust  = step(c0.g, c0.r) * step(c0.b*1.35, c0.r) * step(0.28, c0.r) * (1.0-step(0.62,c0.r));
+  float veg = clamp(green + rust, 0., 1.) * smoothstep(0.55, 0.85, d);
+  float n = sin(uTime*1.1 + uv.y*38.0) * cos(uTime*0.63 + uv.x*23.0);
+  uv += veg * uSway * 0.0016 * vec2(n, 0.45*n);
+
+  // --- depth of field: circle of confusion from |depth - focus| ---
+  float coc = uAperture * 0.014 * smoothstep(0.05, 0.45, abs(d - uFocus));
+  vec3 col = vec3(0.0); float wsum = 0.0;
+  const int N = 16;
+  vec2 taps[16];
+  taps[0]=vec2(0.,0.); taps[1]=vec2(.54,.14); taps[2]=vec2(-.32,.47); taps[3]=vec2(-.56,-.18);
+  taps[4]=vec2(.14,-.58); taps[5]=vec2(.92,-.36); taps[6]=vec2(.42,.88); taps[7]=vec2(-.68,.72);
+  taps[8]=vec2(-.98,.08); taps[9]=vec2(-.52,-.82); taps[10]=vec2(.32,-.94); taps[11]=vec2(.88,.46);
+  taps[12]=vec2(.06,.62); taps[13]=vec2(-.22,-.28); taps[14]=vec2(.66,-.72); taps[15]=vec2(-.84,-.5);
+  vec2 aspect = vec2(uImg.y/uImg.x, 1.0);
+  float rot = hash(gl_FragCoord.xy)*6.2831;
+  mat2 R = mat2(cos(rot), sin(rot), -sin(rot), cos(rot));
+  for (int i=0;i<N;i++){
+    vec2 t = R*taps[i]*coc*aspect;
+    vec3 s = texture2D(uColor, uv+t).rgb;
+    float w = 1.0 + dot(s,s)*0.6;          // bright points bloom a little — a bokeh cheat
+    col += s*w; wsum += w;
+  }
+  col /= wsum;
+
+  // --- the calendar light ---
+  float day; vec3 key, amb, fogc, sun; float haze;
+  calendar(uHour, day, key, amb, fogc, haze, sun);
+  // a normal from the depth field → the lamp has a direction and it moves with the hour
+  vec2 px = 1.0/uImg;
+  float dx = depthAt(uv+vec2(px.x,0.)) - depthAt(uv-vec2(px.x,0.));
+  float dy = depthAt(uv+vec2(0.,px.y)) - depthAt(uv-vec2(0.,px.y));
+  vec3 nrm = normalize(vec3(-dx*40.0, dy*40.0, 1.0));
+  float lam = clamp(dot(nrm, sun), 0., 1.);
+  float shade = mix(1.0, 0.72 + 0.55*lam, uRelight*0.8);
+  vec3 lit = col * shade * mix(amb*0.9, key, day);
+  lit *= mix(0.72, 1.0, day);                                // exposure falls with the sun
+
+  // Lit windows at dusk are an AUTHORED emissive mask (a second small PNG:
+  // generate "the same still at night", difference it, keep the warm spots).
+  // A colour heuristic can't find them in a warm-toned image, so none here.
+
+  // fog by depth: the cotton-batting pools in the far seams
+  float fogAmt = uFog * haze * pow(1.0-d, 1.7) * 0.9;
+  lit = mix(lit, fogc * mix(0.45,1.0,day), clamp(fogAmt,0.,1.));
+
+  // vignette, tone, grain
+  vec2 q = v-0.5; lit *= 1.0 - 0.42*pow(dot(q,q)*2.6, 1.4);
+  lit = mix(lit, lit*lit*(3.0-2.0*lit), 0.22);                 // a mild S-curve, film-like
+  float g = (hash(gl_FragCoord.xy + fract(uTime)*17.0) - 0.5) * uGrain * 0.09;
+  float lum = dot(c0, vec3(0.3,0.59,0.11));
+  lit += g * (0.4 + 0.6*(1.0-lum));
+
+  if (uShowDepth > 0.5) lit = vec3(d);
+  gl_FragColor = vec4(lit, 1.0);
+}`;
+
+// ---------------------------------------------------------------------------
+const canvas = document.getElementById("gl");
+const gl = canvas.getContext("webgl", { antialias: false, alpha: false, preserveDrawingBuffer: true });
+if (!gl) document.body.innerHTML = "<p style='padding:2rem'>WebGL is unavailable in this browser.</p>";
+
+function shader(type, src){ const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
+const prog = gl.createProgram();
+gl.attachShader(prog, shader(gl.VERTEX_SHADER, VS)); gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+const loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+const U = {}; ["uColor","uDepth","uRes","uImg","uMouse","uTime","uHour","uFocus","uAperture","uParallax","uRelight","uFog","uSway","uGrain","uShowDepth"]
+  .forEach(n => U[n] = gl.getUniformLocation(prog, n));
+
+function texture(unit, img){
+  const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+function load(src){ return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
+
+// ---- state -----------------------------------------------------------------
+const state = { still: null, img: null, depthPx: null, mouse: [0,0], mouseT: [0,0], focus: 0.5, focusT: 0.5, hour: 17.6, run: false, ready: false };
+const ctl = {}; ["hour","aperture","parallax","relight","fog","sway","grain"].forEach(k => {
+  ctl[k] = document.getElementById(k); const out = document.getElementById(k+"Out");
+  const show = () => out.textContent = k === "hour" ? clock(+ctl[k].value) : (+ctl[k].value).toFixed(2);
+  ctl[k].addEventListener("input", () => { if (k === "hour") state.hour = +ctl[k].value; show(); }); show();
+});
+const runBox = document.getElementById("run"), depthBox = document.getElementById("showDepth"), chromeBox = document.getElementById("chrome");
+runBox.addEventListener("change", () => state.run = runBox.checked);
+chromeBox.addEventListener("change", () => document.getElementById("card").classList.toggle("hidden", !chromeBox.checked));
+
+function clock(h){ const hh = Math.floor(h)%24, mm = Math.floor((h%1)*60); const ap = hh >= 12 ? "pm" : "am"; return `${((hh+11)%12)+1}:${String(mm).padStart(2,"0")} ${ap}`; }
+function dateLabel(h){ const t = clock(h); const part = h < 5 ? "small hours" : h < 12 ? "morning" : h < 17 ? "afternoon" : h < 20.5 ? "evening" : "night";
+  return `Tuesday, October 14 · ${t} · ${part}`; }
+
+async function show(idx){
+  const s = STILLS[idx]; state.still = s; state.ready = false;
+  document.querySelectorAll(".tab").forEach((b,i) => b.classList.toggle("active", i === idx));
+  const [ci, di] = await Promise.all([load(s.color), load(s.depth)]);
+  texture(0, ci); texture(1, di);
+  gl.uniform1i(U.uColor, 0); gl.uniform1i(U.uDepth, 1); gl.uniform2f(U.uImg, ci.width, ci.height);
+  // a CPU copy of the depth so a click can read "what's under the cursor"
+  const c = document.createElement("canvas"); c.width = di.width; c.height = di.height;
+  c.getContext("2d").drawImage(di, 0, 0); state.depthPx = { w: di.width, h: di.height, data: c.getContext("2d").getImageData(0,0,di.width,di.height).data };
+  state.img = ci; state.focus = state.focusT = s.focus;
+  document.getElementById("prose").innerHTML = s.prose.map(p => `<p>${p}</p>`).join("");
+  document.getElementById("choices").innerHTML = s.choices.map(([l, sub]) => `<button class="choice">${l}${sub ? `<small>${sub}</small>` : ""}</button>`).join("");
+  state.ready = true;
+}
+STILLS.forEach((s, i) => { const b = document.createElement("button"); b.className = "tab"; b.textContent = s.label; b.onclick = () => show(i); document.getElementById("tabs").appendChild(b); });
+
+// screen → image uv (mirrors fitUV in the shader, without the breath)
+function toUV(x, y){
+  const ca = canvas.width/canvas.height, ia = state.img.width/state.img.height;
+  let u = x/canvas.clientWidth - 0.5, vv = 1 - y/canvas.clientHeight - 0.5;
+  if (ca > ia) vv *= ia/ca; else u *= ca/ia;
+  return [u*0.965 + 0.5, vv*0.965 + 0.5];
+}
+canvas.addEventListener("mousemove", e => { state.mouseT = [(e.clientX/innerWidth - 0.5)*2, (0.5 - e.clientY/innerHeight)*2]; });
+canvas.addEventListener("mouseleave", () => state.mouseT = [0,0]);
+canvas.addEventListener("click", e => {
+  if (!state.ready) return; const [u, vv] = toUV(e.clientX, e.clientY);
+  const px = state.depthPx, x = Math.max(0, Math.min(px.w-1, Math.round(u*px.w))), y = Math.max(0, Math.min(px.h-1, Math.round((1-vv)*px.h)));
+  state.focusT = px.data[(y*px.w + x)*4] / 255;
+});
+addEventListener("keydown", e => {
+  if (e.key === " ") { document.getElementById("drawer").classList.toggle("hidden"); e.preventDefault(); }
+  if (e.key === "d") depthBox.checked = !depthBox.checked;
+  if (/^[1-3]$/.test(e.key)) show(+e.key - 1);
+});
+
+function resize(){ const dpr = Math.min(devicePixelRatio || 1, 1.5); canvas.width = Math.round(innerWidth*dpr); canvas.height = Math.round(innerHeight*dpr); gl.viewport(0,0,canvas.width,canvas.height); }
+addEventListener("resize", resize); resize();
+
+let last = performance.now(), frames = 0, fpsT = last;
+function frame(now){
+  const dt = Math.min(0.1, (now - last)/1000); last = now;
+  if (state.run) { state.hour = (state.hour + dt*0.4) % 24; ctl.hour.value = state.hour; document.getElementById("hourOut").textContent = clock(state.hour); }
+  state.mouse[0] += (state.mouseT[0]-state.mouse[0])*0.06; state.mouse[1] += (state.mouseT[1]-state.mouse[1])*0.06;
+  state.focus += (state.focusT - state.focus)*0.05;
+  document.getElementById("hudDate").textContent = dateLabel(state.hour);
+  if (state.ready){
+    gl.uniform2f(U.uRes, canvas.width, canvas.height); gl.uniform2f(U.uMouse, state.mouse[0], state.mouse[1]);
+    gl.uniform1f(U.uTime, now/1000); gl.uniform1f(U.uHour, state.hour); gl.uniform1f(U.uFocus, state.focus);
+    gl.uniform1f(U.uAperture, +ctl.aperture.value); gl.uniform1f(U.uParallax, +ctl.parallax.value); gl.uniform1f(U.uRelight, +ctl.relight.value);
+    gl.uniform1f(U.uFog, +ctl.fog.value); gl.uniform1f(U.uSway, +ctl.sway.value); gl.uniform1f(U.uGrain, +ctl.grain.value);
+    gl.uniform1f(U.uShowDepth, depthBox.checked ? 1 : 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  frames++; if (now - fpsT > 1000) { document.getElementById("fps").textContent = `${frames} fps`; frames = 0; fpsT = now; }
+  requestAnimationFrame(frame);
+}
+show(0).then(() => requestAnimationFrame(frame));
+</script>
+</body>
+</html>
