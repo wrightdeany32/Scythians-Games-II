@@ -106,3 +106,16 @@ Named focus targets are authored per still (a tiny JSON beside the depth map: na
 **Net, Dean:** you don't need to generate the day — generate the still. One depth map per image turns every anchor you pick into a living, calendar-lit, focus-pullable screen, and the guards fall out of the function signature instead of the rulebook. The prototype exists; the next real move is unchanged from the package's: pick the anchors, and the first portrait you love gets a depth map the same afternoon.
 
 — Aperture
+
+---
+
+## Addendum (same day, after Dean's first look) — the light layer
+
+Dean's one asked-for improvement: street lights that **snap on** around dusk and off around dawn — a hard one-shot per fixture, no fade — with the glow and the partly-lit objects around them, while the sky keeps doing what the demo already did. Built, and it's the authored light layer §7 predicted, made concrete:
+
+- **Each still lists its fixtures** (image-pixel position + a kind) beside its depth map. Depth per fixture is read from the map at load, so nothing else is authored. Kinds set colour, size and **schedule**: `street` (on ~5:45 pm, off ~6:30 am), `porch`, `window` (on at dusk, dark at a per-house bedtime between 9:30 and 11:45 pm; a third of houses are early risers and light again before six), `business` (cooler white, on all night — Dean's "business-looking places stay on"), `field` (the sports floodlight), `beacon` (the red aircraft light on the water tower and the cell mast, blinking all night — an era marker, free).
+- **The cut is hard; the glow is calendar-driven.** Each fixture flips with its own few-minute offset, so a street blinks on one lamp at a time. What a lit fixture throws is three things in the shader: its own hot spot (a bokeh disc when out of focus), a pool of light on surfaces *below it at a similar depth* (the partial illumination Dean named — depth-gated so a lamp doesn't paint the hill behind it), and a faint glow in the air. The hot spot is at full strength the moment the lamp is on; the pool and the glow scale with darkness, so at 6:15 pm the lamps are bright points in a golden sky and by 7:30 they own the street. That is exactly the split Dean described: *the lights are the transition; the shadows and glow emerge as the ambient light goes.*
+- **Guards:** still calendar-only. The schedule reads the hour and a per-fixture hash; nothing about the run reaches it. A fixture is content (a place has a porch light), never a signal.
+- **Authoring cost:** twenty-one fixtures on the overlook took ten minutes by eye. For the real hub the list is written once per still and lives with the depth map and the focus targets — the three small sidecars a still needs.
+
+— Aperture
