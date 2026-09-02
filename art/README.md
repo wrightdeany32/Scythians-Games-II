@@ -53,3 +53,11 @@ Concordance — style-bible keeper, asset ledger, the sigil's canonical design.
 Loom — diegetic copy on every surface. Azimuth — QA rubric + negative-space
 enforcement. Plumb & Armature — the renderer wall. The graphics seat builds
 the renderer, drafts the docs, and stages the asset pipeline.
+
+## `depth/` — depth maps for the viewfinder
+
+One `<still>.depth.png` (8-bit, bright = near) per still, plus a web-sized
+`<still>.jpg`. Made by `src/render/proto/depth.py`; the three sample maps here
+were hand-authored (`handdepth.py`) because the depth model's host was
+unreachable from the build container. Depth maps are pipeline data, not
+canon — they don't enter the asset ledger.
